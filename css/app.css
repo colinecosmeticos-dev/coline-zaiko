@@ -487,6 +487,146 @@ dialog.dialogo .acoes { display: flex; justify-content: flex-end; gap: 8px; marg
 .camera.flash::after { content: ""; position: absolute; inset: 0; background: #fff; animation: flash .2s ease-out forwards; }
 @keyframes flash { to { opacity: 0; } }
 
+/* =========================================================
+   Tela de venda
+   ========================================================= */
+.tela.tela-venda { height: calc(100dvh - 60px - env(safe-area-inset-bottom)); padding: 12px; overflow: hidden; max-width: none; }
+@media (min-width: 840px) { .tela.tela-venda { height: 100dvh; padding: 12px 12px 12px 16px; } .tela.tela-venda > * { max-width: none; } }
+.venda { display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 12px; height: 100%; }
+@media (min-width: 840px) { .venda { grid-template-columns: 1fr minmax(300px, 34%); grid-template-rows: 1fr; } }
+
+.venda-produtos { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.venda-topo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.venda-topo .busca { flex: 1 1 200px; }
+.venda-navegacao { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 6px 0; overflow: hidden; }
+.venda-navegacao .chips { flex: 1; }
+.venda-navegacao .btn.texto { padding-left: 4px; }
+.venda-grade {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 10px; align-content: start;
+  padding-bottom: 12px;
+}
+.venda-grade.grade-categorias { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.vazio-grade { grid-column: 1 / -1; text-align: center; padding: 32px 0; }
+
+.ladrilho {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px; text-align: left;
+  background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio);
+  color: inherit; cursor: pointer; transition: transform .08s;
+}
+.ladrilho:active { transform: scale(.97); }
+.ladrilho:hover { border-color: var(--marca); }
+.ladrilho-foto {
+  aspect-ratio: 4 / 3; border-radius: var(--raio-p); overflow: hidden; background: var(--superficie-2);
+  display: grid; place-items: center; color: var(--texto-2); font-size: 1.5rem; font-weight: 700;
+}
+.ladrilho-foto img { width: 100%; height: 100%; object-fit: cover; }
+.ladrilho-nome { font-weight: 600; font-size: .9375rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ladrilho-info { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 6px; font-size: .8125rem; color: var(--texto-2); margin-top: auto; }
+.ladrilho-info strong { color: var(--texto); font-size: .9375rem; }
+.ladrilho-categoria .ladrilho-foto { aspect-ratio: 16 / 10; }
+.ladrilho-categoria .ladrilho-nome { font-size: 1.0625rem; text-align: center; padding: 2px 0 4px; }
+.ladrilho-categoria.todos .ladrilho-foto { background: var(--marca-suave); color: var(--marca-texto); }
+
+/* Carrinho */
+.venda-carrinho {
+  display: none; flex-direction: column; min-height: 0;
+  background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); overflow: hidden;
+}
+@media (min-width: 840px) { .venda-carrinho { display: flex; } #fechar-carrinho { display: none; } }
+.carrinho-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--linha); }
+.carrinho-topo h2 { margin: 0; }
+.carrinho-topo .sub { color: var(--texto-2); font-size: .8125rem; }
+.carrinho-topo #limpar { margin-left: auto; }
+.carrinho-itens { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+.item-carrinho {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; width: 100%;
+  padding: 10px 16px; border: 0; border-bottom: 1px solid var(--linha); background: none; color: inherit; text-align: left; cursor: pointer;
+}
+.item-carrinho:hover { background: var(--superficie-2); }
+.item-carrinho.novo { animation: destaque 1s ease-out; }
+@keyframes destaque { from { background: var(--marca-suave); } }
+.item-carrinho .qtd { font-weight: 700; color: var(--marca-texto); min-width: 2.2em; }
+.item-carrinho .descr strong { display: block; font-weight: 600; }
+.item-carrinho .descr > span { display: block; font-size: .8125rem; color: var(--texto-2); }
+.item-carrinho .descr .desc { color: var(--marca-texto); }
+.item-carrinho .descr .etiqueta { display: inline-flex; margin-top: 4px; }
+.item-carrinho .valor { font-weight: 600; white-space: nowrap; }
+.item-carrinho s { color: var(--texto-2); font-weight: 400; }
+.carrinho-vazio { padding: 32px 16px; text-align: center; color: var(--texto-2); }
+.carrinho-rodape { border-top: 1px solid var(--linha); padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 8px; }
+.linha-desconto {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; padding: 0;
+  border: 0; background: none; color: var(--marca-texto); font-weight: 600; cursor: pointer;
+}
+.linha-desconto svg { width: 16px; height: 16px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 2.4; }
+.linha-desconto .sub { color: var(--texto-2); font-weight: 400; }
+.linha-total { display: flex; justify-content: space-between; align-items: baseline; }
+.linha-total strong { font-size: 1.875rem; font-weight: 700; }
+.btn-cobrar { min-height: 60px; font-size: 1.1875rem; width: 100%; }
+
+/* Celular / tablet em pé: carrinho em barra no rodapé, abre por cima */
+.barra-carrinho {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 8px 8px 16px;
+  border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); color: inherit; cursor: pointer;
+}
+.barra-carrinho > span { white-space: nowrap; }
+.barra-carrinho strong { margin-left: auto; font-size: 1.25rem; white-space: nowrap; }
+@media (min-width: 840px) { .barra-carrinho { display: none; } }
+@media (max-width: 839px) {
+  .venda-carrinho.aberto { display: flex; position: fixed; inset: 0; z-index: 40; border-radius: 0; border: 0; }
+}
+
+/* Janelas da venda */
+.dialogo .sub { color: var(--texto-2); font-size: .875rem; }
+.grade-variacoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 16px; }
+.botao-variacao { min-height: 64px; flex-direction: column; gap: 2px; white-space: normal; text-align: center; }
+.botao-variacao small { font-weight: 500; color: var(--texto-2); }
+dialog.janela-variacoes { width: min(94vw, 620px); }
+/* Na tela de venda, os avisos aparecem embaixo, sobre a área de produtos */
+.em-venda .avisos { top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); }
+@media (min-width: 840px) { .em-venda .avisos { bottom: 20px; left: calc(92px + (100vw - 92px) * .33); } }
+.quantidade { display: flex; align-items: center; justify-content: center; gap: 28px; }
+.quantidade strong { font-size: 2rem; min-width: 2ch; text-align: center; }
+.btn-icone.grande { width: 56px; height: 56px; border: 1px solid var(--linha); font-size: 1.75rem; color: var(--texto); }
+.btn-icone.grande:hover { color: var(--texto); }
+.linha-desconto-campo { display: flex; gap: 8px; align-items: center; }
+.linha-desconto-campo .entrada { flex: 1; }
+.resumo-item { margin-top: 12px; color: var(--texto-2); min-height: 1.4em; }
+.aviso-inline { margin-top: 12px; padding: 10px 12px; border-radius: var(--raio-p); background: var(--marca-suave); color: var(--texto) !important; font-size: .875rem; }
+.entrada-grande { font-size: 1.75rem; min-height: 64px; font-weight: 600; }
+
+dialog.janela-cobrar { max-height: 96dvh; padding: 18px 20px; width: min(96vw, 860px); }
+.cobrar-corpo { display: grid; gap: 14px; }
+@media (min-width: 700px) { .cobrar-corpo { grid-template-columns: 220px 1fr; align-items: start; } .cobrar-corpo .grade-formas { grid-template-columns: 1fr; } }
+.cobrar-detalhe { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.dica-forma { padding: 24px 8px; text-align: center; }
+.botao-forma:disabled { opacity: .4; }
+.cobrar { display: flex; flex-direction: column; gap: 14px; }
+.cobrar-topo { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; }
+.cobrar-total { display: block; font-size: 2.25rem; font-weight: 700; line-height: 1.1; }
+.cobrar-situacao { display: flex; flex-direction: column; align-items: flex-end; font-size: .875rem; color: var(--texto-2); }
+.cobrar-situacao strong { font-size: 1.125rem; color: var(--marca-texto); }
+.lista-pagamentos { list-style: none; margin: 0; padding: 0; }
+.lista-pagamentos li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--linha); }
+.lista-pagamentos li > span:first-child { flex: 1; }
+.lista-pagamentos .btn-icone { width: 40px; height: 40px; }
+.grade-formas { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.botao-forma { min-height: 60px; font-size: 1.0625rem; white-space: normal; }
+.botao-forma.ativo { border: 2px solid var(--marca); background: var(--marca-suave); color: var(--marca-texto); }
+.painel-forma { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: var(--raio); background: var(--superficie-2); }
+.painel-forma .entrada-grande { text-align: right; }
+.atalhos { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.atalhos .btn { padding: 0 8px; }
+.troco { font-size: 1.5rem; font-weight: 700; color: var(--ok); min-height: 1.2em; }
+.btn-confirmar, .btn-finalizar { min-height: 60px; font-size: 1.1875rem; width: 100%; }
+.venda-concluida { text-align: center; padding: 16px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.venda-concluida p { font-size: 1.25rem; color: var(--texto-2); }
+.marca-ok { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #fff; font-size: 2.5rem; font-weight: 700; }
+.troco-final { display: flex; flex-direction: column; align-items: center; padding: 12px 32px; border-radius: var(--raio); background: var(--superficie-2); margin: 4px 0 8px; }
+.troco-final span { color: var(--texto-2); font-weight: 600; }
+.troco-final strong { font-size: 2.75rem; line-height: 1.1; color: var(--ok); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

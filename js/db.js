@@ -28,6 +28,12 @@ db.version(3).stores({
   formasPagamento: 'id, ordem'
 });
 
+// Versão 4: caixas do dia e vendas
+db.version(4).stores({
+  caixas: 'id, eventoId, data, status',
+  vendas: 'id, eventoId, caixaId, numero, criadoEm'
+});
+
 // Gera um identificador único (ex.: "3f2b9c1e-..."). Usamos isso em vez de
 // 1, 2, 3... porque os dois aparelhos vão trocar dados entre si e os números
 // iguais se misturariam.
@@ -171,4 +177,30 @@ export async function garantirFormasPadrao() {
 }
 export async function listarFormasPagamento() {
   return (await db.formasPagamento.toArray()).sort((a, b) => a.ordem - b.ordem);
+}
+
+// ---------- Caixa do dia ----------
+// Um caixa por aparelho e por dia do evento. Abre com o troco inicial.
+export async function caixaAbertoDoEvento(eventoId) {
+  const abertos = await db.caixas.where('eventoId').equals(eventoId).filter((c) => c.status === 'aberto').toArray();
+  return abertos.sort((a, b) => b.abertoEm.localeCompare(a.abertoEm))[0] || null;
+}
+export async function abrirCaixa({ eventoId, data, trocoInicial }) {
+  const aparelho = await lerAparelho();
+  const caixa = {
+    id: novoId(), eventoId, data, trocoInicial,
+    aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null,
+    status: 'aberto', abertoEm: new Date().toISOString()
+  };
+  await db.caixas.add(caixa);
+  return caixa;
+}
+
+// ---------- Número da venda ----------
+// Sequência própria de cada aparelho: VAIO-0001, VAIO-0002...
+export async function proximoNumeroVenda(consumir = false) {
+  const aparelho = await lerAparelho();
+  const seq = (await lerConfig('seqVenda', 0)) + 1;
+  if (consumir) await gravarConfig('seqVenda', seq);
+  return { seq, numero: `${aparelho ? aparelho.sigla : 'APP'}-${String(seq).padStart(4, '0')}` };
 }

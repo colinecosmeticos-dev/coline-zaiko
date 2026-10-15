@@ -19,6 +19,7 @@ import * as retiradas from './telas/retiradas.js';
 import * as eventos from './telas/eventos.js';
 import * as eventoForm from './telas/evento-form.js';
 import * as pacote from './telas/pacote.js';
+import * as vender from './telas/vender.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -26,7 +27,7 @@ import { emBreve } from './telas/em-breve.js';
 // ":id" é uma parte variável do endereço.
 const rotas = [
   ['inicio', inicio.render],
-  ['vender', emBreve('Vender', 'A tela de venda, com leitor de código, carrinho e pagamentos.')],
+  ['vender', vender.render],
   ['vendas', emBreve('Vendas do evento', 'A lista de vendas, com cancelamento, troca e devolução.')],
   ['caixa', emBreve('Caixa', 'Abertura do dia, reforços, retiradas e fechamento.')],
   ['produtos', produtos.render],

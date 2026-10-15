@@ -2,6 +2,7 @@
 import { temaSalvo, escolherTema } from '../tema.js';
 import { VERSAO } from '../versao.js';
 import { procurar } from '../atualizacao.js';
+import { sonsLigados, ligarSons } from '../sons.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';
 import { aviso, confirmar, icones } from '../ui.js';
 import { lerAparelho, gravarAparelho, listarFormasPagamento, listarCategoriasRetirada } from '../db.js';
@@ -52,6 +53,13 @@ export async function render(el) {
         ${[['auto', 'Automático'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([v, t]) => `
           <label><input type="radio" name="tema" value="${v}" ${tema === v ? 'checked' : ''}><span>${t}</span></label>`).join('')}
       </div>
+    </section>
+
+    <section class="cartao">
+      <label class="interruptor">
+        <span><strong>Sons do app</strong><br><span class="sub">Bipe ao adicionar item, ao concluir a venda e em código não encontrado. O leitor Bluetooth tem os próprios sons.</span></span>
+        <input type="checkbox" id="sons" ${sonsLigados() ? 'checked' : ''}>
+      </label>
     </section>
 
     <section class="cartao">
@@ -155,6 +163,7 @@ export async function render(el) {
     render(el);
   });
 
+  el.querySelector('#sons').addEventListener('change', (e) => ligarSons(e.target.checked));
   el.querySelectorAll('input[name="tema"]').forEach((r) => r.addEventListener('change', () => escolherTema(r.value)));
 }
 

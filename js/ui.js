@@ -49,10 +49,13 @@ export function campoDinheiro(input, { permitirZero = false } = {}) {
     else return;
     e.preventDefault();
     mostrar(digitos);
+    // Avisa quem estiver ouvindo o campo (ex.: cálculo de troco) que o valor mudou
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
   // Plano B (alguns teclados não avisam antes): reformata o que estiver no campo
   input.addEventListener('input', () => mostrar(soDigitos(input.value)));
-  input.addEventListener('focus', () => requestAnimationFrame(() => input.setSelectionRange(input.value.length, input.value.length)));
+  // Ao tocar no campo, o valor fica todo selecionado: digitar substitui o valor inteiro
+  input.addEventListener('focus', () => requestAnimationFrame(() => input.select()));
   mostrar(soDigitos(input.value));
 }
 export function lerCentavos(input) {
@@ -135,6 +138,19 @@ export function confirmar({ titulo, texto = '', botao = 'Confirmar', cancelar = 
   });
 }
 
+// ---------- Janela (diálogo) genérica ----------
+// Abre uma janela por cima da tela com o HTML informado.
+// Devolve o elemento <dialog>; ao fechar, ele é removido sozinho.
+export function abrirJanela(html, { classe = '', aoFechar } = {}) {
+  const d = document.createElement('dialog');
+  d.className = 'dialogo ' + classe;
+  d.innerHTML = html;
+  document.body.append(d);
+  d.addEventListener('close', () => { d.remove(); if (aoFechar) aoFechar(d.returnValue); });
+  d.showModal();
+  return d;
+}
+
 // ---------- Ícones usados nas telas ----------
 export const icones = {
   mais: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
@@ -148,6 +164,7 @@ export const icones = {
   baixar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>',
   cima: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
   baixo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+  grade: '<svg viewBox="0 0 24 24" aria-hidden="true" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
   busca: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   voltar: '<svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>'
 };
