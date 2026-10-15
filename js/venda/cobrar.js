@@ -6,10 +6,11 @@
 // Para dividir o pagamento, informe um valor menor e escolha outra forma
 // para o restante.
 // =========================================================
-import { db, listarFormasPagamento, proximoNumeroVenda, lerAparelho, PARCELAS_MAX } from '../db.js';
+import { listarFormasPagamento, PARCELAS_MAX } from '../db.js';
 import { esc, dinheiro, abrirJanela, campoDinheiro, lerCentavos, escreverCentavos, icones } from '../ui.js';
 import { som } from '../sons.js';
 import { carrinho, calcularItem, calcularTotais, limparCarrinho } from './carrinho.js';
+import { gravarRegistro, registroDoCarrinho, FORMAS_REEMBOLSO } from './registro.js';
 
 // Cédulas brasileiras: cada toque soma o valor da nota ao recebido
 const CEDULAS = [200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -25,6 +26,7 @@ function resumoVenda() {
   const partes = [`${t.quantidade} ${t.quantidade === 1 ? 'item' : 'itens'}`];
   if (descontoItens + t.descontoVenda) partes.push(`desconto ${dinheiro(descontoItens + t.descontoVenda)}`);
   if (brindes) partes.push(`${brindes} ${brindes === 1 ? 'brinde' : 'brindes'}`);
+  if (t.credito) partes.push(`crédito da troca ${dinheiro(t.credito)}`);
   const linhas = carrinho.itens.map((i) => {
     const c = calcularItem(i);
     return `<li><span class="qtd num">${i.quantidade}×</span>
@@ -32,7 +34,64 @@ function resumoVenda() {
       <span class="num">${i.brinde ? '<span class="etiqueta marca">Brinde</span>' : `${c.desconto ? `<s class="sub">${dinheiro(c.bruto)}</s> ` : ''}${dinheiro(c.total)}`}</span></li>`;
   }).join('');
   const descontoVenda = t.descontoVenda ? `<li class="linha-desconto"><span class="nome">Desconto na venda</span><span class="num">− ${dinheiro(t.descontoVenda)}</span></li>` : '';
-  return { texto: partes.join(' · '), lista: linhas + descontoVenda };
+  const credito = t.credito ? `<li class="linha-desconto"><span class="nome">Crédito da troca (${esc(carrinho.troca.origemNumero)})</span><span class="num">− ${dinheiro(t.credito)}</span></li>` : '';
+  return { texto: partes.join(' · '), lista: linhas + descontoVenda + credito };
+}
+
+// Tela final (venda, troca ou devolução concluída)
+export function telaConcluida(registro, { valorDevolver = 0 } = {}) {
+  const titulo = registro.tipo === 'troca' ? `Troca ${esc(registro.numero)} concluída`
+    : registro.tipo === 'devolucao' ? `Devolução ${esc(registro.numero)} concluída` : `Venda ${esc(registro.numero)} concluída`;
+  const destaque = registro.troco ? ['Troco', registro.troco]
+    : valorDevolver ? [`Devolver ao cliente${registro.reembolsos[0] ? ` (${esc(registro.reembolsos[0].nome)})` : ''}`, valorDevolver] : null;
+  return `
+    <div class="venda-concluida">
+      <div class="marca-ok" aria-hidden="true">✓</div>
+      <h2>${titulo}</h2>
+      ${registro.tipo === 'devolucao' ? '' : `<p class="num">${registro.total < 0 ? 'Diferença ' + dinheiro(-registro.total) : dinheiro(registro.total)}</p>`}
+      ${destaque ? `<div class="troco-final"><span>${destaque[0]}</span><strong class="num">${dinheiro(destaque[1])}</strong></div>` : ''}
+      <button type="button" class="btn primario btn-confirmar" id="nova">${registro.tipo === 'devolucao' ? 'Pronto' : 'Nova venda'}</button>
+    </div>`;
+}
+
+// Escolha de como devolver um valor ao cliente. Devolve a forma escolhida ou null.
+export function htmlFormasReembolso(sugestao) {
+  return `<div class="opcoes" role="radiogroup" aria-label="Como devolver">
+    ${FORMAS_REEMBOLSO.map((f) => `<label><input type="radio" name="reembolso" value="${f.tipo}" ${f.tipo === sugestao ? 'checked' : ''}><span>${esc(f.nome)}</span></label>`).join('')}
+  </div>`;
+}
+
+// Troca em que o crédito cobre tudo: diferença zero ou a devolver ao cliente
+export function finalizarTrocaSemCobranca({ evento, caixa, sugestao = 'dinheiro' }) {
+  return new Promise((resolver) => {
+    const { total } = calcularTotais();
+    const devolver = -total;
+    let concluida = false;
+    const d = abrirJanela(`
+      <div class="cobrar">
+        <header class="cobrar-topo">
+          <div><span class="sub">${devolver ? 'Diferença a devolver' : 'Troca sem diferença'}</span><strong class="num cobrar-total">${dinheiro(devolver)}</strong></div>
+          <span></span>
+          <button type="button" class="btn-icone" id="fechar" aria-label="Voltar ao carrinho">${icones.fechar}</button>
+        </header>
+        ${devolver ? `<div class="campo"><span class="rotulo">Como devolver a diferença</span>${htmlFormasReembolso(sugestao)}</div>` : '<p>O crédito dos itens devolvidos cobre os itens novos.</p>'}
+        <button type="button" class="btn primario btn-confirmar" id="finalizar">${devolver ? `Devolver ${dinheiro(devolver)} e finalizar` : 'Finalizar troca'}</button>
+      </div>`, { classe: 'janela-cobrar janela-estreita', aoFechar: () => resolver(concluida) });
+    d.querySelector('#fechar').addEventListener('click', () => d.close());
+    d.querySelector('#finalizar').addEventListener('click', async () => {
+      const escolhida = d.querySelector('input[name="reembolso"]:checked');
+      if (devolver && !escolhida) return;
+      d.querySelector('#finalizar').disabled = true;
+      const forma = devolver ? FORMAS_REEMBOLSO.find((f) => f.tipo === escolhida.value) : null;
+      const registro = await gravarRegistro(registroDoCarrinho({ evento, caixa, reembolsos: forma ? [{ ...forma, valor: devolver }] : [] }));
+      limparCarrinho();
+      concluida = true;
+      som.venda();
+      d.querySelector('.cobrar').innerHTML = telaConcluida(registro, { valorDevolver: devolver });
+      d.querySelector('#nova').addEventListener('click', () => d.close());
+      d.querySelector('#nova').focus();
+    });
+  });
 }
 
 export function abrirCobranca({ evento, caixa }) {
@@ -47,7 +106,7 @@ export function abrirCobranca({ evento, caixa }) {
     const d = abrirJanela(`
       <div class="cobrar">
         <header class="cobrar-topo">
-          <div><span class="sub">Total da venda</span><strong class="num cobrar-total">${dinheiro(total)}</strong></div>
+          <div><span class="sub">${carrinho.troca ? 'Diferença a pagar' : 'Total da venda'}</span><strong class="num cobrar-total">${dinheiro(total)}</strong></div>
           <div class="cobrar-situacao num" id="situacao"></div>
           <button type="button" class="btn-icone" id="fechar" aria-label="Voltar ao carrinho">${icones.fechar}</button>
         </header>
@@ -63,7 +122,7 @@ export function abrirCobranca({ evento, caixa }) {
             <ul class="lista-pagamentos" id="pagamentos"></ul>
             <p class="dica-forma sub" id="dica-forma">Escolha a forma de pagamento.</p>
             <div class="painel-forma" id="painel" hidden></div>
-            <button type="button" class="btn primario btn-finalizar" id="finalizar" hidden>Finalizar venda</button>
+            <button type="button" class="btn primario btn-finalizar" id="finalizar" hidden>${carrinho.troca ? 'Finalizar troca' : 'Finalizar venda'}</button>
           </div>
         </div>
       </div>`, { classe: 'janela-cobrar', aoFechar: () => resolver(concluida) });
@@ -152,7 +211,7 @@ export function abrirCobranca({ evento, caixa }) {
             : troco < 0 ? `Faltam ${dinheiro(-troco)}` : 'Sem troco';
         }
         const cobre = (ehDinheiro ? v >= restante : Math.min(v, restante) >= restante);
-        $('#confirmar').textContent = cobre && v > 0 ? `Finalizar venda` : `Adicionar ${dinheiro(Math.min(v, restante))}`;
+        $('#confirmar').textContent = cobre && v > 0 ? (carrinho.troca ? 'Finalizar troca' : 'Finalizar venda') : `Adicionar ${dinheiro(Math.min(v, restante))}`;
         $('#confirmar').disabled = !v;
       }
       campo.addEventListener('input', () => { sugerido = false; atualizar(); });
@@ -218,45 +277,11 @@ export function abrirCobranca({ evento, caixa }) {
     async function finalizar() {
       if (gravando || falta()) return;
       gravando = true;
-      const totais = calcularTotais();
-      const aparelho = await lerAparelho();
-      let venda;
-      await db.transaction('rw', db.vendas, db.config, async () => {
-        const { seq, numero } = await proximoNumeroVenda(true);
-        venda = {
-          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-          numero, seq,
-          eventoId: evento.id,
-          caixaId: caixa.id,
-          aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null,
-          criadoEm: new Date().toISOString(),
-          itens: carrinho.itens.map((i) => {
-            const c = calcularItem(i);
-            return { variacaoId: i.variacaoId, produtoId: i.produtoId, nome: i.nome, variacaoNome: i.variacaoNome, codigo: i.codigo,
-              quantidade: i.quantidade, precoUnit: i.precoUnit, custoUnit: i.custoUnit, desconto: i.desconto, descontoValor: c.desconto,
-              brinde: i.brinde, total: c.total };
-          }),
-          subtotal: totais.subtotal,
-          descontoVenda: carrinho.descontoVenda,
-          descontoVendaValor: totais.descontoVenda,
-          total: totais.total,
-          pagamentos,
-          troco: trocoTotal(),
-          status: 'concluida'
-        };
-        await db.vendas.add(venda);
-      });
+      const venda = await gravarRegistro(registroDoCarrinho({ evento, caixa, pagamentos, troco: trocoTotal() }));
       limparCarrinho();
       concluida = true;
       som.venda();
-      d.querySelector('.cobrar').innerHTML = `
-        <div class="venda-concluida">
-          <div class="marca-ok" aria-hidden="true">✓</div>
-          <h2>Venda ${esc(venda.numero)} concluída</h2>
-          <p class="num">${dinheiro(venda.total)}</p>
-          ${venda.troco ? `<div class="troco-final"><span>Troco</span><strong class="num">${dinheiro(venda.troco)}</strong></div>` : ''}
-          <button type="button" class="btn primario btn-confirmar" id="nova">Nova venda</button>
-        </div>`;
+      d.querySelector('.cobrar').innerHTML = telaConcluida(venda);
       d.querySelector('#nova').addEventListener('click', () => d.close());
       d.querySelector('#nova').focus();
     }

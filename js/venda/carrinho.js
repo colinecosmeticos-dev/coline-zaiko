@@ -7,12 +7,14 @@
 
 export const carrinho = {
   itens: [],              // { chave, variacaoId, produtoId, nome, variacaoNome, codigo, quantidade, precoUnit, custoUnit, desconto, brinde }
-  descontoVenda: null     // { tipo: 'R$' | '%', valor } ou null
+  descontoVenda: null,    // { tipo: 'R$' | '%', valor } ou null
+  troca: null             // troca em andamento: { origemId, origemNumero, devolvidos, credito, modoValor, motivo }
 };
 
 export function limparCarrinho() {
   carrinho.itens = [];
   carrinho.descontoVenda = null;
+  carrinho.troca = null;
 }
 
 // Adiciona 1 unidade (ou soma na linha que já existe, se não tiver ajuste próprio)
@@ -58,5 +60,8 @@ export function calcularTotais() {
   const subtotal = carrinho.itens.reduce((s, i) => s + calcularItem(i).total, 0);
   const descontoVenda = valorDesconto(carrinho.descontoVenda, subtotal);
   const quantidade = carrinho.itens.reduce((s, i) => s + i.quantidade, 0);
-  return { subtotal, descontoVenda, total: subtotal - descontoVenda, quantidade };
+  // Na troca, o valor dos itens devolvidos vira crédito e abate do total (o total pode ficar negativo:
+  // é a diferença a devolver ao cliente)
+  const credito = carrinho.troca ? carrinho.troca.credito : 0;
+  return { subtotal, descontoVenda, credito, total: subtotal - descontoVenda - credito, quantidade };
 }

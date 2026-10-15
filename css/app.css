@@ -688,10 +688,50 @@ dialog.janela-cobrar { max-height: 96dvh; padding: 18px 20px; width: min(96vw, 8
 .alerta-cancelada p { margin: 4px 0 0; }
 .acoes-venda { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
 
-.janela-cancelar { width: min(96vw, 520px); }
+dialog.janela-cancelar { width: min(96vw, 520px); }
 .form-cancelar { display: flex; flex-direction: column; gap: 14px; }
 .form-cancelar h2, .form-cancelar p { margin: 0; }
 .estorno { padding: 12px 14px; border-radius: var(--raio-p); background: var(--superficie-2); }
 .estorno ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .form-cancelar .acoes { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .btn.primario.perigo-cheio { background: var(--erro); border-color: var(--erro); }
+
+/* ---------- Trocas e devoluções ---------- */
+.faixa-troca { margin: 0 12px; padding: 10px 12px; border-radius: var(--raio-p); background: var(--marca-suave); color: var(--marca-texto); font-size: .9375rem; }
+.faixa-troca .sub { color: var(--texto-2); font-size: .8125rem; }
+.linha-credito { display: flex; justify-content: space-between; min-height: 32px; align-items: center; color: var(--marca-texto); font-weight: 600; }
+
+dialog.janela-devolucao { width: min(96vw, 640px); }
+@media (min-width: 840px) { dialog.janela-devolucao { width: min(96vw, 900px); } }
+.dev-colunas { display: grid; gap: 14px; }
+.dev-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.dev-col > p { margin: 0; }
+@media (min-width: 840px) {
+  .dev-colunas { grid-template-columns: 1.2fr 1fr; align-items: start; }
+  .dev-colunas .dev-itens { max-height: calc(96dvh - 150px); }
+  .dev-colunas .acoes { margin-top: 4px; }
+}
+dialog.janela-estreita { width: min(96vw, 520px); }
+.form-devolucao { display: flex; flex-direction: column; gap: 14px; }
+.form-devolucao h2, .form-devolucao > p { margin: 0; }
+.form-devolucao .acoes { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.form-devolucao .acoes .btn.primario { flex: 1; }
+.dev-itens { list-style: none; margin: 0; padding: 0; border: 1px solid var(--linha); border-radius: var(--raio-p); max-height: 40dvh; overflow-y: auto; }
+.dev-item { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; padding: 10px 12px; }
+.dev-item + .dev-item { border-top: 1px solid var(--linha); }
+.dev-item.escolhido { background: var(--marca-suave); }
+.dev-info { min-width: 0; }
+.dev-info .sub { font-size: .8125rem; color: var(--texto-2); }
+.quantidade.pequena { gap: 4px; }
+.quantidade.pequena strong { font-size: 1.25rem; }
+.quantidade.pequena .btn-icone { border: 1px solid var(--linha); background: var(--superficie); font-size: 1.375rem; color: var(--texto); }
+.dev-estado { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dev-valor { font-weight: 700; }
+.segmentos-largos { display: flex; }
+.segmentos-largos label { flex: 1; }
+.segmentos-largos > label > span { width: 100%; flex-direction: column; justify-content: center; text-align: center; padding: 6px 8px; line-height: 1.2; }
+.segmentos-largos .sv-rotulo { font-size: .8125rem; font-weight: 500; }
+.segmentos-largos b { font-size: 1rem; }
+.dv-coluna { display: grid; gap: 16px; align-content: start; }
+.voltou { color: var(--marca-texto); font-weight: 600; }
+.nota-acoes { text-align: right; font-size: .8125rem; margin-top: 6px; }

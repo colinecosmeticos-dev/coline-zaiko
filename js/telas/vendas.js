@@ -7,6 +7,8 @@
 import { db, lerEventoAtivo } from '../db.js';
 import { esc, dinheiro, hojeISO, icones } from '../ui.js';
 
+const ROTULO_TIPO = { troca: 'Troca', devolucao: 'Devolução' };
+
 // Dia local (AAAA-MM-DD) de uma data/hora gravada em ISO
 export function diaLocal(iso) {
   const d = new Date(iso);
@@ -59,14 +61,22 @@ export async function render(el) {
 
   function linha(v) {
     const cancelada = v.status === 'cancelada';
-    const nomes = v.itens.map((i) => `${i.quantidade > 1 ? `${i.quantidade}× ` : ''}${i.nome}${i.variacaoNome ? ` (${i.variacaoNome})` : ''}`).join(', ');
-    const formas = [...new Set(v.pagamentos.map((p) => p.formaNome + (p.parcelas > 1 ? ` ${p.parcelas}x` : '')))].join(' + ');
+    const tipo = v.tipo || 'venda';
+    const lista = (arr) => arr.map((i) => `${i.quantidade > 1 ? `${i.quantidade}× ` : ''}${i.nome}${i.variacaoNome ? ` (${i.variacaoNome})` : ''}`).join(', ');
+    const nomes = tipo === 'venda' ? lista(v.itens)
+      : `${v.origemNumero}: volta ${lista(v.devolvidos || [])}${v.itens.length ? ` → leva ${lista(v.itens)}` : ''}`;
+    const formas = [...new Set([
+      ...v.pagamentos.map((p) => p.formaNome + (p.parcelas > 1 ? ` ${p.parcelas}x` : '')),
+      ...(v.reembolsos || []).map((r) => `${r.nome} (devolvido)`)
+    ])].join(' + ') || 'Sem diferença';
+    const valor = tipo === 'devolucao' ? `− ${dinheiro(v.credito)}` : v.total < 0 ? `− ${dinheiro(-v.total)}` : dinheiro(v.total);
     return `<li><a class="item-venda${cancelada ? ' cancelada' : ''}" href="#/vendas/${encodeURIComponent(v.id)}">
       <div class="iv-topo"><strong class="num">${esc(v.numero)}</strong><span class="sub num">${hora(v.criadoEm)}</span>
-        ${cancelada ? '<span class="etiqueta erro">Cancelada</span>' : ''}</div>
+        ${ROTULO_TIPO[tipo] ? `<span class="etiqueta marca">${ROTULO_TIPO[tipo]}</span>` : ''}
+        ${cancelada ? `<span class="etiqueta erro">${tipo === 'venda' ? 'Cancelada' : 'Cancelado'}</span>` : ''}</div>
       <div class="iv-itens">${esc(nomes)}</div>
       <div class="iv-pag sub">${esc(formas)}</div>
-      <strong class="iv-total num">${dinheiro(v.total)}</strong>
+      <strong class="iv-total num">${valor}</strong>
     </a></li>`;
   }
 
@@ -77,8 +87,13 @@ export async function render(el) {
       ? vendas.filter((v) => String(v.seq).endsWith(String(Number(termo))))
       : vendas.filter((v) => diaLocal(v.criadoEm) === diaEscolhido);
     el.querySelectorAll('[data-dia]').forEach((b) => b.setAttribute('aria-pressed', String(!termo && b.dataset.dia === diaEscolhido)));
-    const canceladas = lista.filter((v) => v.status === 'cancelada').length;
-    $('#contagem').textContent = `${lista.length} ${lista.length === 1 ? 'venda' : 'vendas'}${canceladas ? ` · ${canceladas} ${canceladas === 1 ? 'cancelada' : 'canceladas'}` : ''}`;
+    const conta = (filtro, um, varios) => { const n = lista.filter(filtro).length; return n ? `${n} ${n === 1 ? um : varios}` : ''; };
+    $('#contagem').textContent = [
+      conta((v) => (v.tipo || 'venda') === 'venda', 'venda', 'vendas') || '0 vendas',
+      conta((v) => v.tipo === 'troca', 'troca', 'trocas'),
+      conta((v) => v.tipo === 'devolucao', 'devolução', 'devoluções'),
+      conta((v) => v.status === 'cancelada', 'cancelada', 'canceladas')
+    ].filter(Boolean).join(' · ');
     $('#lista').innerHTML = lista.length ? lista.map(linha).join('') : '<li class="lista-vazia sub">Nenhuma venda com esse número.</li>';
     $('#lista').hidden = false;
   }

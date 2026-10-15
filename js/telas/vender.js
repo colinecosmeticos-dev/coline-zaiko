@@ -10,7 +10,7 @@ import { ouvirLeitor } from '../leitor.js';
 import { som } from '../sons.js';
 import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho } from '../venda/carrinho.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
-import { abrirCobranca } from '../venda/cobrar.js';
+import { abrirCobranca, finalizarTrocaSemCobranca } from '../venda/cobrar.js';
 
 const CHAVE_MODO = 'zaiko-modo-venda';
 // Plural simples para nomes de atributo: fragrância → fragrâncias, cor → cores, opção → opções
@@ -89,14 +89,16 @@ export async function render(el) {
 
       <aside class="venda-carrinho" id="carrinho" aria-label="Carrinho">
         <div class="carrinho-topo">
-          <div><h2>Venda</h2><span class="sub num" id="numero-venda"></span></div>
+          <div><h2 id="titulo-carrinho">Venda</h2><span class="sub num" id="numero-venda"></span></div>
           <button type="button" class="btn-icone" id="fechar-carrinho" aria-label="Fechar carrinho">${icones.fechar}</button>
           <button type="button" class="btn texto" id="limpar">Limpar</button>
         </div>
+        <div class="faixa-troca" id="faixa-troca" hidden></div>
         <ul class="carrinho-itens" id="itens"></ul>
         <div class="carrinho-rodape">
           <button type="button" class="linha-desconto" id="desconto-venda"></button>
-          <div class="linha-total"><span>Total</span><strong class="num" id="total"></strong></div>
+          <div class="linha-credito" id="linha-credito" hidden></div>
+          <div class="linha-total"><span id="rotulo-total">Total</span><strong class="num" id="total"></strong></div>
           <button type="button" class="btn primario btn-cobrar" id="cobrar"></button>
         </div>
       </aside>
@@ -235,18 +237,30 @@ export async function render(el) {
             ${i.brinde ? '<span class="etiqueta marca">Brinde</span>' : c.desconto ? `<span class="desc num">− ${dinheiro(c.desconto)} desconto</span>` : ''}</span>
           <span class="valor num">${i.brinde ? '<s>' + dinheiro(c.bruto) + '</s>' : dinheiro(c.total)}</span>
         </button></li>`;
-    }).join('') : '<li class="carrinho-vazio">Toque num produto ou leia um código para começar.</li>';
+    }).join('') : `<li class="carrinho-vazio">${carrinho.troca ? 'Agora adicione os produtos que o cliente vai levar.' : 'Toque num produto ou leia um código para começar.'}</li>`;
 
     $('#desconto-venda').innerHTML = descontoVenda
       ? `<span>Desconto${carrinho.descontoVenda.tipo === '%' ? ` (${(carrinho.descontoVenda.valor / 100).toLocaleString('pt-BR')}%)` : ''}</span><span class="num">− ${dinheiro(descontoVenda)}</span>`
       : `<span>${icones.mais} Desconto na venda</span><span class="num sub">${dinheiro(subtotal)}</span>`;
     $('#desconto-venda').hidden = !carrinho.itens.length;
-    $('#total').textContent = dinheiro(total);
-    $('#cobrar').textContent = carrinho.itens.length ? `Cobrar ${dinheiro(total)}` : 'Cobrar';
-    $('#cobrar').disabled = !carrinho.itens.length;
-    $('#limpar').hidden = !carrinho.itens.length;
-    $('#barra-qtd').textContent = quantidade ? `${quantidade} ${quantidade === 1 ? 'item' : 'itens'}` : 'Carrinho vazio';
-    $('#barra-total').textContent = dinheiro(total);
+    const troca = carrinho.troca;
+    $('#titulo-carrinho').textContent = troca ? 'Troca' : 'Venda';
+    $('#faixa-troca').hidden = !troca;
+    $('#linha-credito').hidden = !troca;
+    if (troca) {
+      $('#faixa-troca').innerHTML = `<span><strong>Troca da ${esc(troca.origemNumero)}</strong><br><span class="sub">${troca.devolvidos.map((x) => `${x.quantidade}× ${esc(x.nome)}${x.variacaoNome ? ` (${esc(x.variacaoNome)})` : ''}`).join(', ')}</span></span>`;
+      $('#linha-credito').innerHTML = `<span>Crédito da troca</span><span class="num">− ${dinheiro(troca.credito)}</span>`;
+    }
+    // Na troca, o total pode ficar negativo: é a diferença a devolver ao cliente
+    $('#rotulo-total').textContent = troca ? (total < 0 ? 'A devolver' : 'Diferença') : 'Total';
+    $('#total').textContent = dinheiro(Math.abs(total));
+    $('#cobrar').textContent = troca ? (total > 0 ? `Cobrar ${dinheiro(total)}` : total < 0 ? `Devolver ${dinheiro(-total)}` : 'Finalizar troca')
+      : carrinho.itens.length ? `Cobrar ${dinheiro(total)}` : 'Cobrar';
+    $('#cobrar').disabled = !troca && !carrinho.itens.length;
+    $('#limpar').hidden = !troca && !carrinho.itens.length;
+    $('#limpar').textContent = troca ? 'Desistir' : 'Limpar';
+    $('#barra-qtd').textContent = quantidade ? `${quantidade} ${quantidade === 1 ? 'item' : 'itens'}${carrinho.troca ? ' · troca' : ''}` : carrinho.troca ? 'Troca' : 'Carrinho vazio';
+    $('#barra-total').textContent = (total < 0 ? '−' : '') + dinheiro(Math.abs(total));
     if (destacar) {
       const novo = el.querySelector('.item-carrinho.novo');
       if (novo) novo.scrollIntoView({ block: 'nearest' });
@@ -376,8 +390,11 @@ export async function render(el) {
   });
 
   $('#limpar').addEventListener('click', () => {
-    const d = abrirJanela(`<h2>Limpar o carrinho?</h2><p>Todos os itens desta venda serão removidos.</p>
-      <div class="acoes"><button class="btn" value="nao">Cancelar</button><button class="btn primario perigo" value="sim">Limpar</button></div>`);
+    const d = carrinho.troca
+      ? abrirJanela(`<h2>Desistir da troca?</h2><p>A troca da ${esc(carrinho.troca.origemNumero)} não será registrada e o carrinho fica vazio.</p>
+        <div class="acoes"><button class="btn" value="nao">Continuar a troca</button><button class="btn primario perigo" value="sim">Desistir</button></div>`)
+      : abrirJanela(`<h2>Limpar o carrinho?</h2><p>Todos os itens desta venda serão removidos.</p>
+        <div class="acoes"><button class="btn" value="nao">Cancelar</button><button class="btn primario perigo" value="sim">Limpar</button></div>`);
     d.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       if (b.value === 'sim') { limparCarrinho(); desenharCarrinho(); }
       d.close();
@@ -390,7 +407,10 @@ export async function render(el) {
 
   // ---------- Cobrar ----------
   $('#cobrar').addEventListener('click', async () => {
-    const concluida = await abrirCobranca({ evento, caixa });
+    const { total } = calcularTotais();
+    const concluida = carrinho.troca && total <= 0
+      ? await finalizarTrocaSemCobranca({ evento, caixa, sugestao: carrinho.troca.sugestao })
+      : await abrirCobranca({ evento, caixa });
     if (concluida) {
       $('#carrinho').classList.remove('aberto');
       desenharCarrinho();
