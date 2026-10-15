@@ -13,6 +13,9 @@ import { carrinho, calcularItem, calcularTotais, limparCarrinho } from './carrin
 
 // Cédulas brasileiras: cada toque soma o valor da nota ao recebido
 const CEDULAS = [200, 500, 1000, 2000, 5000, 10000, 20000];
+// Moedas mais usadas no troco
+const MOEDAS = [100, 50, 25];
+const rotuloValor = (v) => '+' + (v % 100 ? (v / 100).toFixed(2).replace('.', ',') : v / 100);
 
 // Resumo curto da venda para conferir antes de receber
 function resumoVenda() {
@@ -109,10 +112,13 @@ export function abrirCobranca({ evento, caixa }) {
         </div>
         ${ehDinheiro ? `
           <p class="troco num" id="troco" aria-live="polite"></p>
-          <div class="cedulas">${CEDULAS.map((v) => `<button type="button" class="btn" data-cedula="${v}">+${v / 100}</button>`).join('')}</div>
-          <div class="acoes-recebido">
-            <button type="button" class="btn" id="exato">Exato · ${dinheiro(restante)}</button>
-            <button type="button" class="btn" id="limpar-recebido">Limpar</button>
+          <div class="cedulas">${CEDULAS.map((v) => `<button type="button" class="btn" data-cedula="${v}">${rotuloValor(v)}</button>`).join('')}</div>
+          <div class="moedas-acoes">
+            <div class="moedas">${MOEDAS.map((v) => `<button type="button" class="btn moeda" data-cedula="${v}" aria-label="Moeda de ${dinheiro(v)}">${rotuloValor(v)}</button>`).join('')}</div>
+            <div class="acoes-recebido">
+              <button type="button" class="btn" id="exato">Exato · ${dinheiro(restante)}</button>
+              <button type="button" class="btn" id="limpar-recebido">Limpar</button>
+            </div>
           </div>` : ''}
         ${ehCredito ? `
           <div class="campo"><span class="rotulo">Parcelas</span>
@@ -138,10 +144,10 @@ export function abrirCobranca({ evento, caixa }) {
           const troco = v - restante;
           const t = $('#troco');
           t.classList.toggle('dica', sugerido || troco <= 0);
-          t.textContent = sugerido ? 'Valor exato. Toque nas cédulas para somar o que o cliente entregou.'
+          t.textContent = sugerido ? 'Valor exato. Toque nas cédulas e moedas para somar o que o cliente entregou.'
             : troco > 0 ? `Troco: ${dinheiro(troco)}`
             : v && troco < 0 ? `Faltam ${dinheiro(-troco)} para o total`
-            : !v ? 'Toque nas cédulas ou digite o valor recebido.' : 'Sem troco';
+            : !v ? 'Toque nas cédulas e moedas ou digite o valor recebido.' : 'Sem troco';
         }
         const cobre = (ehDinheiro ? v >= restante : Math.min(v, restante) >= restante);
         $('#confirmar').textContent = cobre && v > 0 ? `Finalizar venda` : `Adicionar ${dinheiro(Math.min(v, restante))}`;
