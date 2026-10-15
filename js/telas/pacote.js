@@ -31,7 +31,9 @@ export async function render(el) {
       <h2>Receber neste aparelho</h2>
       <p class="sub">Escolha o arquivo do pacote recebido. O catálogo deste aparelho será substituído pelo do pacote; eventos e categorias são somados.</p>
       <div class="acoes"><button type="button" class="btn" id="importar">${icones.baixar} Importar pacote</button></div>
-      <input type="file" id="arquivo-pacote" accept=".txt,.json,text/plain,application/json" hidden>
+      <!-- Sem filtro de tipo: alguns apps (como o Google Drive) informam o tipo do arquivo
+           de um jeito diferente e o arquivo aparecia apagado na lista. O app confere o conteúdo. -->
+      <input type="file" id="arquivo-pacote" hidden>
       ${ultimo ? `<p class="sub" style="margin-top:12px">Último pacote importado: gerado ${ultimo.geradoPor ? `no ${esc(ultimo.geradoPor.nome)} ` : ''}em ${dataHora(ultimo.geradoEm)}.</p>` : ''}
     </section>
 
