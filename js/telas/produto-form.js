@@ -13,6 +13,7 @@ import { db, novoId, listarCategorias, buscarPorCodigo } from '../db.js';
 import { esc, campoDinheiro, lerCentavos, escreverCentavos, aviso, confirmar, icones } from '../ui.js';
 import { gerarCodigoInterno, normalizarCodigo, ehCodigoInterno } from '../codigos.js';
 import { prepararFoto } from '../foto.js';
+import { abrirCamera, cameraDisponivel } from '../camera.js';
 import { ouvirLeitor } from '../leitor.js';
 
 export async function render(el, { id, consulta }) {
@@ -158,7 +159,20 @@ export async function render(el, { id, consulta }) {
   }
   $('#arquivo-camera').addEventListener('change', usarArquivo);
   $('#arquivo-galeria').addEventListener('change', usarArquivo);
-  $('#tirar-foto').addEventListener('click', () => $('#arquivo-camera').click());
+  $('#tirar-foto').addEventListener('click', async () => {
+    // Plano B: navegador sem acesso à câmera → usa o app de câmera do aparelho
+    if (!cameraDisponivel()) { $('#arquivo-camera').click(); return; }
+    try {
+      const foto = await abrirCamera();
+      if (foto) { fotoBlob = await prepararFoto(foto); desenharFoto(); }
+    } catch (erro) {
+      console.error(erro);
+      const negou = erro && erro.name === 'NotAllowedError';
+      aviso(negou ? 'O app não tem permissão para usar a câmera.' : 'Não foi possível abrir a câmera.', {
+        tipo: 'erro', acao: 'Usar app da câmera', aoClicar: () => $('#arquivo-camera').click()
+      });
+    }
+  });
   $('#galeria-foto').addEventListener('click', () => $('#arquivo-galeria').click());
   // No computador não há câmera de produto: mostra só "Galeria" (que abre a pasta de arquivos)
   if (!matchMedia('(pointer: coarse)').matches) $('#tirar-foto').hidden = true;
