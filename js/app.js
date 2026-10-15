@@ -14,6 +14,7 @@ import * as taxas from './telas/taxas.js';
 import * as retiradas from './telas/retiradas.js';
 import * as eventos from './telas/eventos.js';
 import * as eventoForm from './telas/evento-form.js';
+import * as pacote from './telas/pacote.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -31,6 +32,7 @@ const rotas = [
   ['configuracoes', configuracoes.render],
   ['configuracoes/taxas', taxas.render],
   ['configuracoes/retiradas', retiradas.render],
+  ['pacote', pacote.render],
   ['eventos', eventos.render],
   ['eventos/novo', eventoForm.render],
   ['eventos/:id', eventoForm.render],
