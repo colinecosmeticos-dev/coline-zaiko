@@ -11,17 +11,25 @@ import { esc, dinheiro, abrirJanela, campoDinheiro, lerCentavos, escreverCentavo
 import { som } from '../sons.js';
 import { carrinho, calcularItem, calcularTotais, limparCarrinho } from './carrinho.js';
 
-// Notas para os atalhos de valor recebido em dinheiro
-const NOTAS = [500, 1000, 2000, 5000, 10000, 20000];
+// Cédulas brasileiras: cada toque soma o valor da nota ao recebido
+const CEDULAS = [200, 500, 1000, 2000, 5000, 10000, 20000];
 
-function atalhosDinheiro(falta) {
-  const valores = new Set([falta]);
-  for (const nota of NOTAS) {
-    const v = Math.ceil(falta / nota) * nota;
-    if (v > falta) valores.add(v);
-    if (valores.size >= 5) break;
-  }
-  return [...valores].sort((a, b) => a - b);
+// Resumo curto da venda para conferir antes de receber
+function resumoVenda() {
+  const t = calcularTotais();
+  const descontoItens = carrinho.itens.reduce((s, i) => s + calcularItem(i).desconto, 0);
+  const brindes = carrinho.itens.filter((i) => i.brinde).reduce((s, i) => s + i.quantidade, 0);
+  const partes = [`${t.quantidade} ${t.quantidade === 1 ? 'item' : 'itens'}`];
+  if (descontoItens + t.descontoVenda) partes.push(`desconto ${dinheiro(descontoItens + t.descontoVenda)}`);
+  if (brindes) partes.push(`${brindes} ${brindes === 1 ? 'brinde' : 'brindes'}`);
+  const linhas = carrinho.itens.map((i) => {
+    const c = calcularItem(i);
+    return `<li><span class="qtd num">${i.quantidade}×</span>
+      <span class="nome">${esc(i.nome)}${i.variacaoNome ? ` <span class="sub">${esc(i.variacaoNome)}</span>` : ''}</span>
+      <span class="num">${i.brinde ? '<span class="etiqueta marca">Brinde</span>' : `${c.desconto ? `<s class="sub">${dinheiro(c.bruto)}</s> ` : ''}${dinheiro(c.total)}`}</span></li>`;
+  }).join('');
+  const descontoVenda = t.descontoVenda ? `<li class="linha-desconto"><span class="nome">Desconto na venda</span><span class="num">− ${dinheiro(t.descontoVenda)}</span></li>` : '';
+  return { texto: partes.join(' · '), lista: linhas + descontoVenda };
 }
 
 export function abrirCobranca({ evento, caixa }) {
@@ -31,6 +39,7 @@ export function abrirCobranca({ evento, caixa }) {
     const pagamentos = [];
     let forma = null;      // forma escolhida no momento
     let concluida = false;
+    const resumo = resumoVenda();
 
     const d = abrirJanela(`
       <div class="cobrar">
@@ -39,6 +48,10 @@ export function abrirCobranca({ evento, caixa }) {
           <div class="cobrar-situacao num" id="situacao"></div>
           <button type="button" class="btn-icone" id="fechar" aria-label="Voltar ao carrinho">${icones.fechar}</button>
         </header>
+        <div class="cobrar-resumo">
+          <button type="button" class="btn texto" id="ver-itens" aria-expanded="false">${resumo.texto} <span id="ver-itens-rotulo">· Ver itens</span></button>
+          <ul class="resumo-itens" id="resumo-itens" hidden>${resumo.lista}</ul>
+        </div>
         <div class="cobrar-corpo">
           <div class="grade-formas" id="formas">
             ${formas.map((f) => `<button type="button" class="btn botao-forma" data-forma="${esc(f.id)}">${esc(f.nome)}</button>`).join('')}
@@ -94,8 +107,13 @@ export function abrirCobranca({ evento, caixa }) {
           <label for="valor-pag">${ehDinheiro ? 'Valor recebido' : 'Valor'}</label>
           <input class="entrada entrada-grande" id="valor-pag">
         </div>
-        ${ehDinheiro ? `<div class="atalhos">${atalhosDinheiro(restante).map((v, i) => `<button type="button" class="btn" data-valor="${v}">${i === 0 ? 'Exato' : dinheiro(v)}</button>`).join('')}</div>
-          <p class="troco num" id="troco"></p>` : ''}
+        ${ehDinheiro ? `
+          <p class="troco num" id="troco" aria-live="polite"></p>
+          <div class="cedulas">${CEDULAS.map((v) => `<button type="button" class="btn" data-cedula="${v}">+${v / 100}</button>`).join('')}</div>
+          <div class="acoes-recebido">
+            <button type="button" class="btn" id="exato">Exato · ${dinheiro(restante)}</button>
+            <button type="button" class="btn" id="limpar-recebido">Limpar</button>
+          </div>` : ''}
         ${ehCredito ? `
           <div class="campo"><span class="rotulo">Parcelas</span>
             <div class="segmentos" role="radiogroup" aria-label="Parcelas">
@@ -111,19 +129,35 @@ export function abrirCobranca({ evento, caixa }) {
       const campo = $('#valor-pag');
       campoDinheiro(campo);
       escreverCentavos(campo, restante);
+      // O valor exato vem sugerido; o primeiro toque numa cédula começa a contagem do zero
+      let sugerido = ehDinheiro;
 
       function atualizar() {
         const v = lerCentavos(campo) || 0;
         if (ehDinheiro) {
           const troco = v - restante;
-          $('#troco').textContent = troco > 0 ? `Troco: ${dinheiro(troco)}` : '';
+          const t = $('#troco');
+          t.classList.toggle('dica', sugerido || troco <= 0);
+          t.textContent = sugerido ? 'Valor exato. Toque nas cédulas para somar o que o cliente entregou.'
+            : troco > 0 ? `Troco: ${dinheiro(troco)}`
+            : v && troco < 0 ? `Faltam ${dinheiro(-troco)} para o total`
+            : !v ? 'Toque nas cédulas ou digite o valor recebido.' : 'Sem troco';
         }
         const cobre = (ehDinheiro ? v >= restante : Math.min(v, restante) >= restante);
         $('#confirmar').textContent = cobre && v > 0 ? `Finalizar venda` : `Adicionar ${dinheiro(Math.min(v, restante))}`;
         $('#confirmar').disabled = !v;
       }
-      campo.addEventListener('input', atualizar);
-      painel.querySelectorAll('[data-valor]').forEach((b) => b.addEventListener('click', () => { escreverCentavos(campo, Number(b.dataset.valor)); atualizar(); }));
+      campo.addEventListener('input', () => { sugerido = false; atualizar(); });
+      painel.querySelectorAll('[data-cedula]').forEach((b) => b.addEventListener('click', () => {
+        const base = sugerido ? 0 : (lerCentavos(campo) || 0);
+        escreverCentavos(campo, base + Number(b.dataset.cedula));
+        sugerido = false;
+        atualizar();
+      }));
+      if (ehDinheiro) {
+        $('#exato').addEventListener('click', () => { escreverCentavos(campo, restante); sugerido = true; atualizar(); });
+        $('#limpar-recebido').addEventListener('click', () => { escreverCentavos(campo, null); sugerido = false; atualizar(); });
+      }
       painel.querySelectorAll('input[name="parcelas"]').forEach((r) => r.addEventListener('change', () => {
         $('#campo-juros').hidden = Number(r.value) === 1 || !r.checked;
       }));
@@ -161,6 +195,12 @@ export function abrirCobranca({ evento, caixa }) {
       if (!falta()) finalizar();
     }
 
+    $('#ver-itens').addEventListener('click', () => {
+      const lista = $('#resumo-itens');
+      lista.hidden = !lista.hidden;
+      $('#ver-itens').setAttribute('aria-expanded', String(!lista.hidden));
+      $('#ver-itens-rotulo').textContent = lista.hidden ? '· Ver itens' : '· Esconder itens';
+    });
     d.querySelectorAll('[data-forma]').forEach((b) => b.addEventListener('click', () => escolher(formas.find((f) => f.id === b.dataset.forma))));
     $('#fechar').addEventListener('click', () => d.close());
     $('#finalizar').addEventListener('click', finalizar);
