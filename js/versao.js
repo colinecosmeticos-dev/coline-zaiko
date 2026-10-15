@@ -1,2 +1,2 @@
 // Versão do app. Ao publicar uma atualização, mude aqui E no CACHE do sw.js.
-export const VERSAO = '0.8.1';
+export const VERSAO = '0.9.0';
