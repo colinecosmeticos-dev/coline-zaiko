@@ -21,7 +21,7 @@ export async function render(el) {
           <div class="nome">${esc(ev.nome)}</div>
           <div class="detalhe">${esc(periodo(ev.dataInicio, ev.dataFim))}${ev.local ? ` <span aria-hidden="true">|</span> ${esc(ev.local)}` : ''}</div>
           <div class="detalhe" style="margin-top:6px">
-            <span class="etiqueta">${ev.tipo === 'compartilhado' ? 'Compartilhado' : 'Individual'}</span>
+            <span class="etiqueta num">${esc(ev.codigo)}</span>
             ${situacao}
           </div>
         </div>

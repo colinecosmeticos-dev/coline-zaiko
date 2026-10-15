@@ -1,7 +1,8 @@
 // =========================================================
 // Tela de criar / editar evento.  #/eventos/novo  e  #/eventos/<id>
-// Individual: só este aparelho vende.  Compartilhado: os dois tablets
-// vendem no mesmo evento e as vendas são somadas no fechamento.
+// O evento não define quantos aparelhos vão vender: qualquer aparelho que
+// tiver o evento e abrir o caixa participa. No fechamento, as vendas dos
+// outros aparelhos são importadas e somadas.
 // =========================================================
 import { db, novoId, lerEventoAtivo, definirEventoAtivo, novoCodigoEvento, lerAparelho } from '../db.js';
 import { esc, aviso, confirmar, icones, hojeISO, diasEntre } from '../ui.js';
@@ -15,13 +16,12 @@ export async function render(el, { id }) {
   }
   const ativo = await lerEventoAtivo();
   const emUso = editando && ativo && ativo.id === id;
-  const tipo = ev ? ev.tipo : 'individual';
 
   el.innerHTML = `
     <a class="voltar" href="#/eventos">${icones.voltar} Eventos</a>
     <header class="cab"><div>
       <h1>${editando ? esc(ev.nome) : 'Novo evento'}</h1>
-      ${editando ? `<p class="sub">Código do evento: <strong class="num">${esc(ev.codigo)}</strong></p>` : ''}
+      ${editando ? `<p class="sub">Código do evento: <strong class="num">${esc(ev.codigo)}</strong>. Confira se é o mesmo em todos os aparelhos.</p>` : ''}
     </div></header>
 
     ${editando ? `
@@ -55,14 +55,6 @@ export async function render(el, { id }) {
               <span class="dica" id="qtd-dias"></span>
             </div>
           </div>
-          <div class="campo">
-            <span class="rotulo">Quem vai vender</span>
-            <div class="segmentos" role="radiogroup" aria-label="Tipo de evento">
-              <label><input type="radio" name="tipo" value="individual" ${tipo === 'individual' ? 'checked' : ''}><span>Só este aparelho</span></label>
-              <label><input type="radio" name="tipo" value="compartilhado" ${tipo === 'compartilhado' ? 'checked' : ''}><span>Os dois tablets</span></label>
-            </div>
-            <span class="dica" id="dica-tipo"></span>
-          </div>
         </div>
       </section>
 
@@ -79,16 +71,12 @@ export async function render(el, { id }) {
   function atualizarDicas() {
     const ini = $('#e-inicio').value, fim = $('#e-fim').value;
     $('#qtd-dias').textContent = ini && fim && fim >= ini ? `${diasEntre(ini, fim)} ${diasEntre(ini, fim) === 1 ? 'dia' : 'dias'} de evento. O caixa abre e fecha a cada dia.` : '';
-    $('#dica-tipo').textContent = form.tipo.value === 'compartilhado'
-      ? 'Cada tablet registra as próprias vendas. No fim, as vendas do outro tablet são importadas aqui e somadas no fechamento.'
-      : 'Só este aparelho vende neste evento.';
   }
   $('#e-inicio').addEventListener('change', () => {
     if (!$('#e-fim').value || $('#e-fim').value < $('#e-inicio').value) $('#e-fim').value = $('#e-inicio').value;
     atualizarDicas();
   });
   $('#e-fim').addEventListener('change', atualizarDicas);
-  form.querySelectorAll('input[name=tipo]').forEach((r) => r.addEventListener('change', atualizarDicas));
   atualizarDicas();
 
   form.addEventListener('submit', async (e) => {
@@ -117,7 +105,6 @@ export async function render(el, { id }) {
       local: $('#e-local').value.trim(),
       dataInicio: ini,
       dataFim: fim,
-      tipo: form.tipo.value,
       status: ev ? ev.status : 'aberto',
       criadoPor: ev ? ev.criadoPor : (aparelho ? aparelho.sigla : ''),
       criadoEm: ev ? ev.criadoEm : new Date().toISOString(),
