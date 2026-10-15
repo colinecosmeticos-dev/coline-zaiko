@@ -5,6 +5,7 @@
 // =========================================================
 import { pedirArmazenamentoPersistente, garantirCategoriasPadrao } from './db.js';
 import { aplicarTemaSalvo } from './tema.js';
+import { iniciarAtualizacoes } from './atualizacao.js';
 import * as inicio from './telas/inicio.js';
 import * as produtos from './telas/produtos.js';
 import * as produtoForm from './telas/produto-form.js';
@@ -94,23 +95,5 @@ aplicarTemaSalvo();
 garantirCategoriasPadrao().catch((e) => console.error(e)).finally(navegar);
 pedirArmazenamentoPersistente().catch(() => {});
 
-// ---------- Service worker e aviso de atualização ----------
-if ('serviceWorker' in navigator) {
-  const tinhaControle = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('sw.js').catch((e) => console.error('Service worker:', e));
-
-  // Quando uma versão nova é instalada, avisamos em vez de recarregar sozinho
-  // (recarregar no meio de uma venda seria ruim).
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!tinhaControle || document.querySelector('.faixa-atualizacao')) return;
-    const faixa = document.createElement('div');
-    faixa.className = 'faixa-atualizacao';
-    faixa.innerHTML = '<span>Nova versão do app instalada.</span>';
-    const botao = document.createElement('button');
-    botao.className = 'btn';
-    botao.textContent = 'Recarregar agora';
-    botao.onclick = () => location.reload();
-    faixa.append(botao);
-    document.body.append(faixa);
-  });
-}
+// ---------- Atualizações do app ----------
+iniciarAtualizacoes();

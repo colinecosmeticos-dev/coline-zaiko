@@ -1,6 +1,7 @@
 // Tela Configurações: tema, armazenamento e versão
 import { temaSalvo, escolherTema } from '../tema.js';
 import { VERSAO } from '../versao.js';
+import { procurar } from '../atualizacao.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';
 import { aviso, confirmar, percentual, icones } from '../ui.js';
 import { lerAparelho, gravarAparelho, lerTaxas, FORMAS_TAXA, listarCategoriasRetirada } from '../db.js';
@@ -87,7 +88,28 @@ export async function render(el) {
     <section class="cartao">
       <h2>Sobre</h2>
       <dl><div class="par"><dt>Versão do app</dt><dd class="num">${VERSAO}</dd></div></dl>
+      <div class="acoes" style="margin-top:12px"><button type="button" class="btn" id="procurar-atualizacao">Procurar atualização</button></div>
+      <p class="sub" id="status-atualizacao" style="margin-top:8px" hidden></p>
     </section>`;
+
+  // ---------- Atualização ----------
+  el.querySelector('#procurar-atualizacao').addEventListener('click', async (e) => {
+    const botao = e.currentTarget;
+    const status = el.querySelector('#status-atualizacao');
+    botao.disabled = true;
+    status.hidden = false;
+    status.textContent = 'Procurando...';
+    try {
+      const r = await procurar();
+      status.textContent = r === 'nova' ? 'Versão nova encontrada. Em instantes aparece no topo o botão Atualizar agora.'
+        : r === 'sem-internet' ? 'Sem internet. Conecte e tente de novo.'
+        : 'O app já está na versão mais recente publicada.';
+    } catch (erro) {
+      status.textContent = 'Não foi possível procurar agora. Tente de novo em instantes.';
+    } finally {
+      botao.disabled = false;
+    }
+  });
 
   // ---------- Este aparelho ----------
   el.querySelector('#form-aparelho').addEventListener('submit', async (e) => {

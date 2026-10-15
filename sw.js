@@ -6,7 +6,7 @@
 // (e a versão em js/versao.js). É assim que os aparelhos percebem
 // que existe versão nova e baixam os arquivos de novo.
 // =========================================================
-const CACHE = 'zaiko-0.4.1';
+const CACHE = 'zaiko-0.4.2';
 
 // Todos os arquivos que o app precisa para funcionar offline.
 // Arquivo novo no projeto = acrescentar aqui.
@@ -17,6 +17,7 @@ const ARQUIVOS = [
   './css/app.css',
   './js/app.js',
   './js/versao.js',
+  './js/atualizacao.js',
   './js/db.js',
   './js/ui.js',
   './js/tema.js',
@@ -43,12 +44,16 @@ const ARQUIVOS = [
   './icons/icon-maskable-512.png'
 ];
 
-// Instalação: baixa e guarda todos os arquivos da versão nova
+// Instalação: baixa e guarda todos os arquivos da versão nova (sem ativar ainda)
 self.addEventListener('install', (evento) => {
   evento.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(ARQUIVOS.map((a) => new Request(a, { cache: 'reload' }))))
   );
-  self.skipWaiting();
+  // Não assume sozinho: espera o "Atualizar agora" (ver js/atualizacao.js)
+});
+
+self.addEventListener('message', (evento) => {
+  if (evento.data === 'atualizar') self.skipWaiting();
 });
 
 // Ativação: apaga os arquivos de versões antigas
