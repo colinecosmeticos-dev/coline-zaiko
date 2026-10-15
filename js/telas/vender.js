@@ -409,7 +409,7 @@ export async function render(el) {
   $('#cobrar').addEventListener('click', async () => {
     const { total } = calcularTotais();
     const concluida = carrinho.troca && total <= 0
-      ? await finalizarTrocaSemCobranca({ evento, caixa, sugestao: carrinho.troca.sugestao })
+      ? await finalizarTrocaSemCobranca({ evento, caixa, pagoCom: carrinho.troca.pagoCom })
       : await abrirCobranca({ evento, caixa });
     if (concluida) {
       $('#carrinho').classList.remove('aberto');

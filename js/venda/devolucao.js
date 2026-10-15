@@ -7,15 +7,7 @@
 // =========================================================
 import { esc, dinheiro, abrirJanela } from '../ui.js';
 import { valoresItem, valorUnidades, quantidadesDevolvidas, FORMAS_REEMBOLSO } from './registro.js';
-import { htmlFormasReembolso } from './cobrar.js';
-
-// Sugestão de forma de devolução pelo jeito que a venda foi paga
-export function sugestaoReembolso(venda) {
-  const tipos = new Set((venda.pagamentos || []).map((p) => p.tipo));
-  if (tipos.size !== 1) return 'dinheiro';
-  const t = [...tipos][0];
-  return t === 'pixChave' ? 'pix' : ['pixQr', 'debito', 'credito'].includes(t) ? 'estorno' : 'dinheiro';
-}
+import { htmlFormasReembolso, textoPagamento } from './cobrar.js';
 
 // modo: 'devolucao' | 'troca'. Devolve null (voltou) ou
 // { devolvidos, credito, modoValor, motivo, reembolso? }
@@ -70,7 +62,7 @@ export async function escolherItensDevolvidos(venda, modo) {
             </div>
             <span class="dica">Valor pago já tem os descontos da venda; preço cheio é o de tabela.</span>
           </div>` : ''}
-        ${ehTroca ? '' : `<div class="campo"><span class="rotulo">Como devolver</span>${htmlFormasReembolso(sugestaoReembolso(venda))}</div>`}
+        ${ehTroca ? '' : `<div class="campo"><span class="rotulo">Como devolver</span>${htmlFormasReembolso(textoPagamento(venda))}</div>`}
         <div class="campo"><label for="motivo">Motivo <span class="sub">(opcional)</span></label>
           <input class="entrada" id="motivo" maxlength="140" autocomplete="off" placeholder="Ex.: não gostou da fragrância"></div>
         <div class="acoes">
@@ -99,7 +91,7 @@ export async function escolherItensDevolvidos(venda, modo) {
       const total = soma(modoValor());
       const nada = !escolhidas().length;
       $('#confirmar').disabled = nada || (!ehTroca && !d.querySelector('input[name="reembolso"]:checked'));
-      $('#confirmar').textContent = nada ? 'Escolha os itens' : ehTroca ? `Continuar com crédito de ${dinheiro(total)}` : `Devolver ${dinheiro(total)}`;
+      $('#confirmar').textContent = nada ? 'Escolha os itens' : (!ehTroca && !d.querySelector('input[name="reembolso"]:checked')) ? 'Escolha como devolver' : ehTroca ? `Continuar com crédito de ${dinheiro(total)}` : `Devolver ${dinheiro(total)}`;
     }
 
     d.querySelectorAll('[data-linha]').forEach((li) => {

@@ -54,15 +54,23 @@ export function telaConcluida(registro, { valorDevolver = 0 } = {}) {
     </div>`;
 }
 
-// Escolha de como devolver um valor ao cliente. Devolve a forma escolhida ou null.
-export function htmlFormasReembolso(sugestao) {
+// Escolha de como devolver um valor ao cliente. Nada vem marcado: quem opera
+// precisa escolher (evita devolver pela forma errada num toque apressado).
+// pagoCom: texto de como o cliente pagou, para ajudar na escolha.
+export function htmlFormasReembolso(pagoCom) {
   return `<div class="opcoes" role="radiogroup" aria-label="Como devolver">
-    ${FORMAS_REEMBOLSO.map((f) => `<label><input type="radio" name="reembolso" value="${f.tipo}" ${f.tipo === sugestao ? 'checked' : ''}><span>${esc(f.nome)}</span></label>`).join('')}
-  </div>`;
+    ${FORMAS_REEMBOLSO.map((f) => `<label><input type="radio" name="reembolso" value="${f.tipo}"><span>${esc(f.nome)}</span></label>`).join('')}
+  </div>
+  ${pagoCom ? `<span class="dica">O cliente pagou com: ${esc(pagoCom)}</span>` : ''}`;
+}
+
+// Texto de como uma venda foi paga (ex.: "Pix QR Code + Crédito 3x")
+export function textoPagamento(venda) {
+  return [...new Set((venda.pagamentos || []).map((p) => p.formaNome + (p.parcelas > 1 ? ` ${p.parcelas}x` : '')))].join(' + ');
 }
 
 // Troca em que o crédito cobre tudo: diferença zero ou a devolver ao cliente
-export function finalizarTrocaSemCobranca({ evento, caixa, sugestao = 'dinheiro' }) {
+export function finalizarTrocaSemCobranca({ evento, caixa, pagoCom = '' }) {
   return new Promise((resolver) => {
     const { total } = calcularTotais();
     const devolver = -total;
@@ -74,10 +82,14 @@ export function finalizarTrocaSemCobranca({ evento, caixa, sugestao = 'dinheiro'
           <span></span>
           <button type="button" class="btn-icone" id="fechar" aria-label="Voltar ao carrinho">${icones.fechar}</button>
         </header>
-        ${devolver ? `<div class="campo"><span class="rotulo">Como devolver a diferença</span>${htmlFormasReembolso(sugestao)}</div>` : '<p>O crédito dos itens devolvidos cobre os itens novos.</p>'}
-        <button type="button" class="btn primario btn-confirmar" id="finalizar">${devolver ? `Devolver ${dinheiro(devolver)} e finalizar` : 'Finalizar troca'}</button>
+        ${devolver ? `<div class="campo"><span class="rotulo">Como devolver a diferença</span>${htmlFormasReembolso(pagoCom)}</div>` : '<p>O crédito dos itens devolvidos cobre os itens novos.</p>'}
+        <button type="button" class="btn primario btn-confirmar" id="finalizar" ${devolver ? 'disabled' : ''}>${devolver ? 'Escolha como devolver' : 'Finalizar troca'}</button>
       </div>`, { classe: 'janela-cobrar janela-estreita', aoFechar: () => resolver(concluida) });
     d.querySelector('#fechar').addEventListener('click', () => d.close());
+    d.querySelectorAll('input[name="reembolso"]').forEach((r) => r.addEventListener('change', () => {
+      d.querySelector('#finalizar').disabled = false;
+      d.querySelector('#finalizar').textContent = `Devolver ${dinheiro(devolver)} e finalizar`;
+    }));
     d.querySelector('#finalizar').addEventListener('click', async () => {
       const escolhida = d.querySelector('input[name="reembolso"]:checked');
       if (devolver && !escolhida) return;

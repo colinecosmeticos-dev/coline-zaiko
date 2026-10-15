@@ -6,7 +6,8 @@ import { db, cancelarVenda, caixaAbertoDoEvento } from '../db.js';
 import { esc, dinheiro, icones, aviso, abrirJanela } from '../ui.js';
 import { hora } from './vendas.js';
 import { gravarRegistro, registrosLigados, quantidadesDevolvidas } from '../venda/registro.js';
-import { escolherItensDevolvidos, sugestaoReembolso } from '../venda/devolucao.js';
+import { escolherItensDevolvidos } from '../venda/devolucao.js';
+import { textoPagamento } from '../venda/cobrar.js';
 import { carrinho, limparCarrinho } from '../venda/carrinho.js';
 
 export const NOME_TIPO = { venda: 'Venda', troca: 'Troca', devolucao: 'Devolução' };
@@ -195,7 +196,7 @@ export async function render(el, { id }) {
     const r = await escolherItensDevolvidos(venda, 'troca');
     if (!r) return;
     limparCarrinho();
-    carrinho.troca = { origemId: venda.id, origemNumero: venda.numero, sugestao: sugestaoReembolso(venda), ...r };
+    carrinho.troca = { origemId: venda.id, origemNumero: venda.numero, pagoCom: textoPagamento(venda), ...r };
     location.hash = '#/vender';
   });
 }
