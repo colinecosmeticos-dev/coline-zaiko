@@ -204,3 +204,26 @@ export async function proximoNumeroVenda(consumir = false) {
   if (consumir) await gravarConfig('seqVenda', seq);
   return { seq, numero: `${aparelho ? aparelho.sigla : 'APP'}-${String(seq).padStart(4, '0')}` };
 }
+
+// ---------- Cancelamento de venda ----------
+// A venda continua guardada, marcada como cancelada, com motivo, data e aparelho.
+// Se o caixa da venda já estiver fechado, o cancelamento entra como ajuste daquele dia.
+export async function cancelarVenda(vendaId, { motivo, observacao }) {
+  const aparelho = await lerAparelho();
+  return db.transaction('rw', db.vendas, db.caixas, async () => {
+    const venda = await db.vendas.get(vendaId);
+    if (!venda || venda.status === 'cancelada') return venda;
+    const caixaDaVenda = venda.caixaId ? await db.caixas.get(venda.caixaId) : null;
+    const caixaAtual = await caixaAbertoDoEvento(venda.eventoId);
+    venda.status = 'cancelada';
+    venda.cancelamento = {
+      motivo, observacao: observacao || '',
+      em: new Date().toISOString(),
+      aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null,
+      caixaId: caixaAtual ? caixaAtual.id : null,
+      aposFechamento: !!(caixaDaVenda && caixaDaVenda.status === 'fechado')
+    };
+    await db.vendas.put(venda);
+    return venda;
+  });
+}

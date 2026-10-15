@@ -20,6 +20,8 @@ import * as eventos from './telas/eventos.js';
 import * as eventoForm from './telas/evento-form.js';
 import * as pacote from './telas/pacote.js';
 import * as vender from './telas/vender.js';
+import * as vendas from './telas/vendas.js';
+import * as vendaDetalhe from './telas/venda-detalhe.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -28,7 +30,8 @@ import { emBreve } from './telas/em-breve.js';
 const rotas = [
   ['inicio', inicio.render],
   ['vender', vender.render],
-  ['vendas', emBreve('Vendas do evento', 'A lista de vendas, com cancelamento, troca e devolução.')],
+  ['vendas', vendas.render],
+  ['vendas/:id', vendaDetalhe.render],
   ['caixa', emBreve('Caixa', 'Abertura do dia, reforços, retiradas e fechamento.')],
   ['produtos', produtos.render],
   ['produtos/categorias', categorias.render],

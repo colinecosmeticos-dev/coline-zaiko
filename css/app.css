@@ -648,3 +648,50 @@ dialog.janela-cobrar { max-height: 96dvh; padding: 18px 20px; width: min(96vw, 8
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Vendas do evento ---------- */
+.etiqueta.erro { background: var(--erro-suave); color: var(--erro); }
+.etiqueta.grande { min-height: 30px; padding: 0 12px; border-radius: 15px; font-size: .875rem; }
+.contagem { margin: 0 0 8px; font-size: .875rem; }
+.item-venda {
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "topo total" "itens total" "pag total";
+  gap: 2px 16px; align-items: center; padding: 12px 16px; color: inherit; text-decoration: none;
+}
+.item-venda:hover { background: var(--superficie-2); }
+.iv-topo { grid-area: topo; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.iv-topo strong { font-size: 1.0625rem; }
+.iv-itens { grid-area: itens; font-size: .9375rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.iv-pag { grid-area: pag; font-size: .8125rem; color: var(--texto-2); }
+.iv-total { grid-area: total; font-size: 1.125rem; }
+.item-venda.cancelada .iv-total, .item-venda.cancelada .iv-itens { text-decoration: line-through; color: var(--texto-2); }
+.lista-vazia { padding: 24px 16px; text-align: center; }
+
+.detalhe-venda { display: grid; gap: 16px; }
+.detalhe-venda .cartao + .cartao { margin-top: 0; }
+@media (min-width: 840px) { .detalhe-venda { grid-template-columns: 3fr 2fr; align-items: start; } }
+.detalhe-venda h2 { font-size: 1rem; margin-bottom: 8px; }
+.dv-itens { list-style: none; margin: 0; padding: 0; }
+.dv-item { display: flex; gap: 10px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.dv-item .qtd { color: var(--marca-texto); font-weight: 700; min-width: 2.2em; }
+.dv-nome { flex: 1; min-width: 0; font-weight: 500; }
+.dv-nome .sub { font-size: .8125rem; color: var(--texto-2); font-weight: 400; }
+.dv-valor { font-weight: 600; }
+.dv-totais { display: grid; gap: 6px; padding-top: 10px; }
+.dv-totais > div { display: flex; justify-content: space-between; color: var(--texto-2); }
+.dv-totais .dv-total { color: var(--texto); align-items: baseline; }
+.dv-total strong { font-size: 1.5rem; }
+.dv-pagamentos li { padding: 10px 0; align-items: baseline; }
+.dv-pagamentos .sub { font-size: .8125rem; color: var(--texto-2); }
+.detalhe-venda.cancelada .dv-total strong, .detalhe-venda.cancelada .dv-valor { text-decoration: line-through; color: var(--texto-2); }
+.alerta-cancelada { border-color: var(--erro); background: var(--erro-suave); margin-bottom: 16px; }
+.alerta-cancelada strong { color: var(--erro); }
+.alerta-cancelada p { margin: 4px 0 0; }
+.acoes-venda { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
+
+.janela-cancelar { width: min(96vw, 520px); }
+.form-cancelar { display: flex; flex-direction: column; gap: 14px; }
+.form-cancelar h2, .form-cancelar p { margin: 0; }
+.estorno { padding: 12px 14px; border-radius: var(--raio-p); background: var(--superficie-2); }
+.estorno ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.form-cancelar .acoes { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.btn.primario.perigo-cheio { background: var(--erro); border-color: var(--erro); }
