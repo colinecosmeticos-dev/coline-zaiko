@@ -182,6 +182,7 @@ img { display: block; max-width: 100%; }
 .campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .campo > label, .rotulo { font-size: .875rem; font-weight: 600; }
 .campo .dica { font-size: .8125rem; color: var(--texto-2); }
+.campo .dica.negativa { color: var(--erro); font-weight: 600; }
 .campo .msg-erro { font-size: .8125rem; color: var(--erro); font-weight: 500; }
 .entrada {
   width: 100%; min-height: var(--toque); padding: 0 14px;
@@ -294,25 +295,31 @@ img { display: block; max-width: 100%; }
 .variacoes { display: grid; gap: 12px; margin-top: 4px; }
 .linha-variacao {
   display: grid; gap: 10px; padding: 12px;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "valor remover" "codigo codigo" "preco preco";
+  position: relative;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "valor valor" "codigo codigo" "preco custo";
   border: 1px solid var(--linha); border-radius: var(--raio-p); background: var(--superficie);
 }
 .linha-variacao .c-valor { grid-area: valor; }
 .linha-variacao .c-codigo { grid-area: codigo; }
 .linha-variacao .c-preco { grid-area: preco; }
-.linha-variacao .btn-icone { grid-area: remover; align-self: end; }
+.linha-variacao .c-custo { grid-area: custo; }
+/* Celular: botão de remover no canto do cartão da variação */
+.linha-variacao .btn-icone { position: absolute; top: 6px; right: 6px; }
+.linha-variacao .c-valor { padding-right: 52px; }
 @media (min-width: 720px) {
   .linha-variacao {
-    grid-template-columns: 1.2fr 1.4fr .9fr auto;
-    grid-template-areas: "valor codigo preco remover";
+    grid-template-columns: 1.2fr 1.4fr .9fr .9fr auto;
+    grid-template-areas: "valor codigo preco custo remover";
     padding: 0; border: 0; background: none;
   }
+  .linha-variacao .btn-icone { position: static; grid-area: remover; align-self: end; }
+  .linha-variacao .c-valor { padding-right: 0; }
   .linha-variacao .rotulo-m { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .cab-variacoes { display: grid !important; }
 }
 .cab-variacoes {
-  display: none; grid-template-columns: 1.2fr 1.4fr .9fr 48px; gap: 10px;
+  display: none; grid-template-columns: 1.2fr 1.4fr .9fr .9fr 48px; gap: 10px;
   font-size: .875rem; font-weight: 600;
 }
 
@@ -338,6 +345,17 @@ img { display: block; max-width: 100%; }
 @media (min-width: 840px) {
   .rodape-form { bottom: 0; margin: 8px 0 0; padding: 16px 0; }
 }
+
+/* Custo protegido pelo PIN: com o formulário bloqueado, some tudo que é "só do dono" */
+.form-produto .trancado { display: none; }
+.form-produto.custo-bloqueado .so-dono { display: none !important; }
+.form-produto.custo-bloqueado .trancado { display: flex; }
+.form-produto.custo-bloqueado .linha-variacao { grid-template-areas: "valor valor" "codigo codigo" "preco preco"; }
+@media (min-width: 720px) {
+  .form-produto.custo-bloqueado .linha-variacao { grid-template-columns: 1.2fr 1.4fr .9fr auto; grid-template-areas: "valor codigo preco remover"; }
+  .form-produto.custo-bloqueado .cab-variacoes { grid-template-columns: 1.2fr 1.4fr .9fr 48px; }
+}
+.entrada-pin { font-size: 1.5rem; letter-spacing: .4em; text-align: center; }
 
 /* ---------- Configurações / Mais ---------- */
 .lista-links a {

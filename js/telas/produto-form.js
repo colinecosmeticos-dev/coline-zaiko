@@ -10,11 +10,12 @@
 // Código em branco = o app gera um código interno ao salvar.
 // =========================================================
 import { db, novoId, listarCategorias, buscarPorCodigo } from '../db.js';
-import { esc, campoDinheiro, lerCentavos, escreverCentavos, aviso, confirmar, icones } from '../ui.js';
+import { esc, dinheiro, campoDinheiro, lerCentavos, escreverCentavos, aviso, confirmar, icones } from '../ui.js';
 import { gerarCodigoInterno, normalizarCodigo, ehCodigoInterno } from '../codigos.js';
 import { prepararFoto } from '../foto.js';
 import { abrirCamera, cameraDisponivel } from '../camera.js';
 import { ouvirLeitor } from '../leitor.js';
+import { temPin, liberado, pedirPin, bloquear } from '../pin.js';
 
 export async function render(el, { id, consulta }) {
   const editando = !!id;
@@ -25,6 +26,9 @@ export async function render(el, { id, consulta }) {
   }
   const variacoesSalvas = editando ? (await db.variacoes.where('produtoId').equals(id).toArray()).sort((a, b) => a.ordem - b.ordem) : [];
   const categorias = await listarCategorias();
+  // Custo e lucro só aparecem para o dono (PIN). Sem PIN definido, ficam visíveis.
+  const pinDefinido = await temPin();
+  const custoLiberado = await liberado();
   // Categoria já marcada ao abrir: a do produto; num cadastro novo, a do último produto salvo
   const idsCategorias = new Set(categorias.map((c) => c.id));
   const sugerida = produto ? produto.categoriaId : (consulta && consulta.get('categoria'));
@@ -40,7 +44,7 @@ export async function render(el, { id, consulta }) {
     <a class="voltar" href="#/produtos">${icones.voltar} Produtos</a>
     <header class="cab"><h1>${editando ? esc(produto.nome) : 'Novo produto'}</h1></header>
 
-    <form class="form-produto" novalidate>
+    <form class="form-produto ${custoLiberado ? '' : 'custo-bloqueado'}" novalidate>
       <section class="cartao">
         <h2 style="margin-bottom:16px">Informações</h2>
         <div class="grade-campos">
@@ -82,6 +86,19 @@ export async function render(el, { id, consulta }) {
               <input class="entrada" id="f-preco">
               <span class="dica">Vale para todas as variações, a não ser que alguma tenha preço próprio.</span>
             </div>
+            <div class="campo so-dono">
+              <label for="f-custo">Custo unitário</label>
+              <input class="entrada" id="f-custo">
+              <span class="dica" id="margem">Quanto você paga por unidade. Opcional, usado para calcular o lucro.</span>
+              ${pinDefinido
+                ? '<button type="button" class="btn texto" id="ocultar-custo" style="align-self:flex-start;margin-left:-12px">Ocultar custo</button>'
+                : '<span class="dica">Defina um PIN em Mais → Configurações para esconder o custo de quem opera o tablet.</span>'}
+            </div>
+            <div class="campo trancado">
+              <span class="rotulo">Custo unitário</span>
+              <button type="button" class="btn" id="ver-custo" style="align-self:flex-start">${icones.cadeado} Ver custo e lucro</button>
+              <span class="dica">Protegido pelo PIN do dono.</span>
+            </div>
           </div>
 
           <label class="interruptor">
@@ -114,7 +131,7 @@ export async function render(el, { id, consulta }) {
             <input class="entrada" id="f-atributo" list="lista-atributos" maxlength="30" autocomplete="off" placeholder="Ex.: Fragrância, Cor" value="${esc(produto ? produto.atributo || '' : '')}">
             <datalist id="lista-atributos"><option value="Fragrância"><option value="Cor"><option value="Tamanho"><option value="Sabor"><option value="Modelo"></datalist>
           </div>
-          <div class="cab-variacoes" aria-hidden="true"><span id="titulo-valor">Variação</span><span>Código de barras</span><span>Preço próprio</span><span></span></div>
+          <div class="cab-variacoes" aria-hidden="true"><span id="titulo-valor">Variação</span><span>Código de barras</span><span>Preço próprio</span><span class="so-dono">Custo próprio</span><span></span></div>
           <div class="variacoes" id="linhas"></div>
           <button type="button" class="btn texto" id="adicionar-linha" style="margin-top:8px">${icones.mais} Adicionar variação</button>
         </div>
@@ -134,7 +151,39 @@ export async function render(el, { id, consulta }) {
 
   // ---------- Preço ----------
   campoDinheiro($('#f-preco'));
-  if (produto) escreverCentavos($('#f-preco'), produto.preco);
+  campoDinheiro($('#f-custo'));
+  if (produto) { escreverCentavos($('#f-preco'), produto.preco); escreverCentavos($('#f-custo'), produto.custo ?? null); }
+
+  // Mostra o lucro por unidade enquanto preço e custo são digitados
+  const textoMargemPadrao = $('#margem').textContent;
+  function atualizarMargem() {
+    const p = lerCentavos($('#f-preco')), c = lerCentavos($('#f-custo'));
+    const m = $('#margem');
+    m.classList.remove('negativa');
+    if (!p || !c) { m.textContent = textoMargemPadrao; return; }
+    const lucro = p - c;
+    const pct = Math.round((lucro / p) * 1000) / 10;
+    m.textContent = `Lucro de ${dinheiro(lucro)} por unidade (${pct.toLocaleString('pt-BR')}% do preço).`;
+    if (lucro < 0) m.classList.add('negativa');
+  }
+  $('#f-preco').addEventListener('input', atualizarMargem);
+  $('#f-custo').addEventListener('input', atualizarMargem);
+  // o campo de dinheiro formata por conta própria; checa de novo após cada tecla
+  $('#f-preco').addEventListener('keyup', atualizarMargem);
+  $('#f-custo').addEventListener('keyup', atualizarMargem);
+  atualizarMargem();
+
+  // Mostrar / esconder custo com o PIN do dono
+  $('#ver-custo').addEventListener('click', async () => {
+    if (await pedirPin({ titulo: 'Ver custo e lucro', texto: 'Digite o PIN do dono.' })) {
+      form.classList.remove('custo-bloqueado');
+      $('#f-custo').focus();
+    }
+  });
+  if ($('#ocultar-custo')) $('#ocultar-custo').addEventListener('click', () => {
+    bloquear();
+    form.classList.add('custo-bloqueado');
+  });
 
   // ---------- Foto ----------
   function desenharFoto() {
@@ -195,6 +244,7 @@ export async function render(el, { id, consulta }) {
       <div class="campo c-valor"><label class="rotulo-m">Variação</label><input class="entrada v-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Lavanda" value="${esc(v.nome || '')}"></div>
       <div class="campo c-codigo"><label class="rotulo-m">Código de barras</label><input class="entrada codigo v-codigo" inputmode="numeric" maxlength="40" autocomplete="off" placeholder="Em branco: código interno" value="${esc(v.codigo || '')}"></div>
       <div class="campo c-preco"><label class="rotulo-m">Preço próprio</label><input class="entrada v-preco" placeholder="Igual ao produto"></div>
+      <div class="campo c-custo so-dono"><label class="rotulo-m">Custo próprio</label><input class="entrada v-custo" placeholder="Igual ao produto"></div>
       <button type="button" class="btn-icone" aria-label="Remover variação">${icones.lixo}</button>`;
     // Liga cada rótulo ao seu campo (acessibilidade)
     div.querySelectorAll('.campo').forEach((c) => {
@@ -205,6 +255,9 @@ export async function render(el, { id, consulta }) {
     const preco = div.querySelector('.v-preco');
     campoDinheiro(preco);
     escreverCentavos(preco, v.preco ?? null);
+    const custo = div.querySelector('.v-custo');
+    campoDinheiro(custo);
+    escreverCentavos(custo, v.custo ?? null);
     div.querySelector('.btn-icone').addEventListener('click', () => { div.remove(); if (!linhas.children.length) adicionarLinha(); });
     linhas.append(div);
     return div;
@@ -267,6 +320,7 @@ export async function render(el, { id, consulta }) {
 
     const nome = $('#f-nome').value.trim();
     const preco = lerCentavos($('#f-preco'));
+    const custo = lerCentavos($('#f-custo'));
     const escolhaCategoria = form.categoria.value;
     const nomeCategoria = escolhaCategoria === '__nova' ? $('#f-categoria-nova').value.trim() : '';
     const modo = form.modo.value;
@@ -278,7 +332,7 @@ export async function render(el, { id, consulta }) {
     // Monta a lista de variações a partir da tela
     let itens;
     if (modo === 'unica') {
-      itens = [{ id: unica ? unica.id : (variacoesSalvas[0] && variacoesSalvas[0].id) || novoId(), nome: '', codigo: normalizarCodigo($('#f-codigo').value), preco: null, input: $('#f-codigo') }];
+      itens = [{ id: unica ? unica.id : (variacoesSalvas[0] && variacoesSalvas[0].id) || novoId(), nome: '', codigo: normalizarCodigo($('#f-codigo').value), preco: null, custo: null, input: $('#f-codigo') }];
     } else {
       if (!atributo) marcarErro($('#f-atributo'), 'Informe o tipo de variação (ex.: Fragrância).');
       itens = [...linhas.children].map((div) => ({
@@ -286,6 +340,7 @@ export async function render(el, { id, consulta }) {
         nome: div.querySelector('.v-nome').value.trim(),
         codigo: normalizarCodigo(div.querySelector('.v-codigo').value),
         preco: lerCentavos(div.querySelector('.v-preco')),
+        custo: lerCentavos(div.querySelector('.v-custo')),
         inputNome: div.querySelector('.v-nome'),
         input: div.querySelector('.v-codigo')
       }));
@@ -352,6 +407,7 @@ export async function render(el, { id, consulta }) {
         categoriaId,
         atributo: modo === 'variacoes' ? atributo : '',
         preco,
+        custo: custo || null,
         foto: fotoBlob,
         ativo: $('#f-ativo').checked,
         criadoEm: produto ? produto.criadoEm : agora,
@@ -369,6 +425,7 @@ export async function render(el, { id, consulta }) {
           codigo: it.codigo,
           codigoInterno: ehCodigoInterno(it.codigo),
           preco: modo === 'variacoes' && it.preco ? it.preco : null,
+          custo: modo === 'variacoes' && it.custo ? it.custo : null,
           ativo: true,
           ordem
         })));

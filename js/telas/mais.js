@@ -4,7 +4,7 @@ const itens = [
   ['#/estoque', 'Estoque do evento', 'Quantidades levadas, brindes e avarias'],
   ['#/fechamento', 'Fechamento do evento', 'Totais, resumo por dia e exportação'],
   ['#/painel', 'Painel de vendas', 'Vendas do aparelho, protegido por PIN'],
-  ['#/configuracoes', 'Configurações', 'Tema, armazenamento e versão do app']
+  ['#/configuracoes', 'Configurações', 'PIN do dono, tema, armazenamento e versão']
 ];
 
 export function render(el) {
