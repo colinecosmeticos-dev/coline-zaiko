@@ -624,8 +624,10 @@ dialog.janela-cobrar { max-height: 96dvh; padding: 18px 20px; width: min(96vw, 8
 .moedas .moeda { border-radius: 999px; padding: 0 4px; font-weight: 700; }
 .acoes-recebido { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
 .acoes-recebido .btn { padding: 0 8px; }
-.dialogo .troco { margin: -4px 0 0; font-size: 1.5rem; font-weight: 700; color: var(--ok); min-height: 1.5em; }
-.dialogo .troco.dica { font-size: .875rem; font-weight: 500; color: var(--texto-2); }
+.dialogo .troco { margin: -4px 0 0; padding-right: 15px; text-align: right; font-size: 1.5rem; font-weight: 700; color: var(--ok); min-height: 1.5em; }
+.dialogo .troco.falta { color: var(--marca-texto); }
+.dialogo .troco.zerado { color: var(--texto-2); }
+.dialogo .troco.dica { padding-right: 0; text-align: left; font-size: .875rem; font-weight: 500; color: var(--texto-2); }
 .cobrar-resumo { margin-top: -8px; }
 .cobrar-resumo > .btn.texto { min-height: 36px; padding: 0; color: var(--texto-2); font-weight: 500; }
 .cobrar-resumo #ver-itens-rotulo { color: var(--marca-texto); font-weight: 600; }

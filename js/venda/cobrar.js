@@ -143,11 +143,13 @@ export function abrirCobranca({ evento, caixa }) {
         if (ehDinheiro) {
           const troco = v - restante;
           const t = $('#troco');
-          t.classList.toggle('dica', sugerido || troco <= 0);
+          // Textos de ajuda ficam à esquerda; valores (troco/falta) à direita, alinhados com o campo
+          const dica = sugerido || !v;
+          t.className = 'troco num' + (dica ? ' dica' : troco < 0 ? ' falta' : troco === 0 ? ' zerado' : '');
           t.textContent = sugerido ? 'Valor exato. Toque nas cédulas e moedas para somar o que o cliente entregou.'
-            : troco > 0 ? `Troco: ${dinheiro(troco)}`
-            : v && troco < 0 ? `Faltam ${dinheiro(-troco)} para o total`
-            : !v ? 'Toque nas cédulas e moedas ou digite o valor recebido.' : 'Sem troco';
+            : !v ? 'Toque nas cédulas e moedas ou digite o valor recebido.'
+            : troco > 0 ? `Troco ${dinheiro(troco)}`
+            : troco < 0 ? `Faltam ${dinheiro(-troco)}` : 'Sem troco';
         }
         const cobre = (ehDinheiro ? v >= restante : Math.min(v, restante) >= restante);
         $('#confirmar').textContent = cobre && v > 0 ? `Finalizar venda` : `Adicionar ${dinheiro(Math.min(v, restante))}`;
