@@ -24,7 +24,10 @@ export async function render(el, { id, consulta }) {
   }
   const variacoesSalvas = editando ? (await db.variacoes.where('produtoId').equals(id).toArray()).sort((a, b) => a.ordem - b.ordem) : [];
   const categorias = await listarCategorias();
-  const categoriaAtual = produto ? (categorias.find((c) => c.id === produto.categoriaId) || {}).nome || '' : '';
+  // Categoria já marcada ao abrir: a do produto; num cadastro novo, a do último produto salvo
+  const idsCategorias = new Set(categorias.map((c) => c.id));
+  const sugerida = produto ? produto.categoriaId : (consulta && consulta.get('categoria'));
+  const categoriaInicial = sugerida && idsCategorias.has(sugerida) ? sugerida : (categorias.length ? '' : '__nova');
   const comVariacoes = editando ? (variacoesSalvas.length > 1 || !!(variacoesSalvas[0] && variacoesSalvas[0].nome)) : false;
   const unica = !comVariacoes ? variacoesSalvas[0] : null;
   const codigoInicial = consulta && consulta.get('codigo') ? consulta.get('codigo') : '';
@@ -41,13 +44,19 @@ export async function render(el, { id, consulta }) {
         <h2 style="margin-bottom:16px">Informações</h2>
         <div class="grade-campos">
           <div class="bloco-foto">
-            <button type="button" class="seletor-foto" id="seletor-foto" aria-label="Escolher foto do produto"></button>
+            <div class="seletor-foto" id="seletor-foto" aria-hidden="true"></div>
             <div class="acoes-foto">
               <span class="rotulo">Foto</span>
-              <span class="dica" style="font-size:.8125rem;color:var(--texto-2)">Tire uma foto ou escolha da galeria. O app recorta um quadrado do centro.</span>
-              <button type="button" class="btn texto" id="remover-foto" hidden>Remover foto</button>
+              <span class="dica">O app recorta um quadrado do centro da imagem.</span>
+              <div class="botoes-foto">
+                <button type="button" class="btn" id="tirar-foto">${icones.camera} Tirar foto</button>
+                <button type="button" class="btn" id="galeria-foto">${icones.imagem} Galeria</button>
+                <button type="button" class="btn texto perigo" id="remover-foto" hidden>Remover</button>
+              </div>
             </div>
-            <input type="file" accept="image/*" id="arquivo-foto" hidden>
+            <!-- capture="environment" abre direto a câmera traseira no tablet/celular -->
+            <input type="file" accept="image/*" capture="environment" id="arquivo-camera" hidden>
+            <input type="file" accept="image/*" id="arquivo-galeria" hidden>
           </div>
 
           <div class="campo">
@@ -55,13 +64,18 @@ export async function render(el, { id, consulta }) {
             <input class="entrada" id="f-nome" maxlength="80" autocomplete="off" value="${esc(produto ? produto.nome : '')}">
           </div>
 
-          <div class="grade-campos duas">
-            <div class="campo">
-              <label for="f-categoria">Categoria</label>
-              <input class="entrada" id="f-categoria" list="lista-categorias" maxlength="40" autocomplete="off" placeholder="Ex.: Shampoo, Corporal" value="${esc(categoriaAtual)}">
-              <datalist id="lista-categorias">${categorias.map((c) => `<option value="${esc(c.nome)}">`).join('')}</datalist>
-              <span class="dica">Escolha uma existente ou digite uma nova.</span>
+          <div class="campo">
+            <span class="rotulo" id="r-categoria">Categoria</span>
+            <div class="opcoes" role="radiogroup" aria-labelledby="r-categoria">
+              <label><input type="radio" name="categoria" value="" ${categoriaInicial === '' ? 'checked' : ''}><span>Sem categoria</span></label>
+              ${categorias.map((c) => `<label><input type="radio" name="categoria" value="${esc(c.id)}" ${categoriaInicial === c.id ? 'checked' : ''}><span>${esc(c.nome)}</span></label>`).join('')}
+              <label><input type="radio" name="categoria" value="__nova" ${categoriaInicial === '__nova' ? 'checked' : ''}><span>+ Nova categoria</span></label>
             </div>
+            <input class="entrada" id="f-categoria-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova categoria" placeholder="Nome da nova categoria (ex.: Shampoo)" ${categoriaInicial === '__nova' ? '' : 'hidden'}>
+            ${categorias.length ? '' : '<span class="dica">Nenhuma categoria cadastrada ainda. Digite o nome da primeira, ou deixe em branco.</span>'}
+          </div>
+
+          <div class="grade-campos duas">
             <div class="campo">
               <label for="f-preco">Preço de venda</label>
               <input class="entrada" id="f-preco">
@@ -130,21 +144,33 @@ export async function render(el, { id, consulta }) {
       botao.innerHTML = `<img src="${urlFoto}" alt="">`;
       botao.classList.add('tem-foto');
     } else {
-      botao.textContent = 'Adicionar foto';
+      botao.textContent = 'Sem foto';
       botao.classList.remove('tem-foto');
     }
     $('#remover-foto').hidden = !fotoBlob;
   }
-  $('#seletor-foto').addEventListener('click', () => $('#arquivo-foto').click());
-  $('#arquivo-foto').addEventListener('change', async (e) => {
+  async function usarArquivo(e) {
     const arquivo = e.target.files[0];
     e.target.value = '';
     if (!arquivo) return;
     try { fotoBlob = await prepararFoto(arquivo); desenharFoto(); }
     catch (erro) { aviso('Não foi possível usar essa imagem. Tente outra.', { tipo: 'erro' }); }
-  });
+  }
+  $('#arquivo-camera').addEventListener('change', usarArquivo);
+  $('#arquivo-galeria').addEventListener('change', usarArquivo);
+  $('#tirar-foto').addEventListener('click', () => $('#arquivo-camera').click());
+  $('#galeria-foto').addEventListener('click', () => $('#arquivo-galeria').click());
+  // No computador não há câmera de produto: mostra só "Galeria" (que abre a pasta de arquivos)
+  if (!matchMedia('(pointer: coarse)').matches) $('#tirar-foto').hidden = true;
   $('#remover-foto').addEventListener('click', () => { fotoBlob = null; desenharFoto(); });
   desenharFoto();
+
+  // ---------- Categoria ----------
+  form.querySelectorAll('input[name="categoria"]').forEach((r) => r.addEventListener('change', () => {
+    const nova = form.categoria.value === '__nova';
+    $('#f-categoria-nova').hidden = !nova;
+    if (nova) $('#f-categoria-nova').focus();
+  }));
 
   // ---------- Variações ----------
   function adicionarLinha(v = {}) {
@@ -227,7 +253,8 @@ export async function render(el, { id, consulta }) {
 
     const nome = $('#f-nome').value.trim();
     const preco = lerCentavos($('#f-preco'));
-    const nomeCategoria = $('#f-categoria').value.trim();
+    const escolhaCategoria = form.categoria.value;
+    const nomeCategoria = escolhaCategoria === '__nova' ? $('#f-categoria-nova').value.trim() : '';
     const modo = form.modo.value;
     const atributo = $('#f-atributo').value.trim();
 
@@ -297,11 +324,11 @@ export async function render(el, { id, consulta }) {
       }
 
       // Categoria: usa a existente com o mesmo nome ou cria uma nova
-      let categoriaId = null;
+      let categoriaId = escolhaCategoria && escolhaCategoria !== '__nova' ? escolhaCategoria : null;
       if (nomeCategoria) {
         const existente = categorias.find((c) => c.nome.toLowerCase() === nomeCategoria.toLowerCase());
         categoriaId = existente ? existente.id : novoId();
-        if (!existente) await db.categorias.add({ id: categoriaId, nome: nomeCategoria });
+        if (!existente) await db.categorias.add({ id: categoriaId, nome: nomeCategoria.charAt(0).toUpperCase() + nomeCategoria.slice(1) });
       }
 
       const agora = new Date().toISOString();
@@ -336,7 +363,7 @@ export async function render(el, { id, consulta }) {
       aviso(gerados ? `Produto salvo. ${gerados === 1 ? 'Gerei 1 código interno' : `Gerei ${gerados} códigos internos`}.` : 'Produto salvo.');
       if (depois === 'novo') {
         // Recarrega a tela de cadastro vazia
-        location.hash = '#/produtos/novo?_=' + Date.now();
+        location.hash = '#/produtos/novo?categoria=' + encodeURIComponent(categoriaId || '') + '&_=' + Date.now();
       } else {
         location.hash = '#/produtos';
       }

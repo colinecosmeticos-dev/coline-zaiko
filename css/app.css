@@ -265,15 +265,31 @@ img { display: block; max-width: 100%; }
 .form-produto { display: grid; gap: 16px; }
 .bloco-foto { display: flex; gap: 16px; align-items: center; }
 .seletor-foto {
-  width: 112px; height: 112px; flex: none; padding: 0;
+  width: 112px; height: 112px; flex: none; padding: 0; align-self: flex-start;
   border: 2px dashed var(--linha); border-radius: var(--raio);
   background: var(--superficie-2); color: var(--texto-2);
-  display: grid; place-items: center; overflow: hidden; cursor: pointer;
+  display: grid; place-items: center; overflow: hidden;
   font-size: .8125rem; font-weight: 600; text-align: center;
 }
+.bloco-foto { align-items: flex-start; }
 .seletor-foto.tem-foto { border-style: solid; }
 .seletor-foto img { width: 100%; height: 100%; object-fit: cover; }
-.acoes-foto { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.acoes-foto { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.acoes-foto .dica { font-size: .8125rem; color: var(--texto-2); }
+.botoes-foto { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.botoes-foto .btn { padding: 0 14px; }
+
+/* Opções tocáveis (ex.: categorias): todas visíveis, uma escolhida */
+.opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.opcoes label { position: relative; }
+.opcoes input { position: absolute; opacity: 0; pointer-events: none; }
+.opcoes span {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px;
+  border: 1px solid var(--linha); border-radius: 22px; background: var(--superficie);
+  color: var(--texto); font-weight: 500; cursor: pointer;
+}
+.opcoes input:checked + span { background: var(--marca-suave); border-color: var(--marca); color: var(--marca-texto); font-weight: 600; }
+.opcoes input:focus-visible + span { outline: 3px solid var(--marca); outline-offset: 2px; }
 
 .variacoes { display: grid; gap: 12px; margin-top: 4px; }
 .linha-variacao {
@@ -347,11 +363,11 @@ img { display: block; max-width: 100%; }
 /* ---------- Avisos (toasts) ---------- */
 .avisos {
   position: fixed; z-index: 50; left: 50%; translate: -50% 0;
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  top: calc(16px + env(safe-area-inset-top));
   display: flex; flex-direction: column; gap: 8px; align-items: center;
   width: min(92vw, 480px); pointer-events: none;
 }
-@media (min-width: 840px) { .avisos { bottom: 24px; left: calc(50% + 46px); } }
+@media (min-width: 840px) { .avisos { left: calc(50% + 46px); } }
 .aviso {
   pointer-events: auto;
   display: flex; align-items: center; gap: 12px; justify-content: space-between;
@@ -362,7 +378,7 @@ img { display: block; max-width: 100%; }
 }
 .aviso.erro { background: var(--erro); color: #fff; }
 .aviso .btn.texto { color: inherit; text-decoration: underline; min-height: 40px; }
-@keyframes entra { from { opacity: 0; transform: translateY(8px); } }
+@keyframes entra { from { opacity: 0; transform: translateY(-8px); } }
 
 /* ---------- Janela de confirmação ---------- */
 dialog.dialogo {
