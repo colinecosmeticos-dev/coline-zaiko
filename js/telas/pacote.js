@@ -17,7 +17,7 @@ export async function render(el) {
     <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
     <header class="cab"><div>
       <h1>Preparar outros aparelhos</h1>
-      <p class="sub">Leva catálogo, fotos, taxas, categorias de retirada, PIN do dono e eventos de um aparelho para outro.</p>
+      <p class="sub">Leva catálogo, fotos, formas de pagamento e taxas, categorias de retirada, PIN do dono e eventos de um aparelho para outro.</p>
     </div></header>
 
     <section class="cartao">

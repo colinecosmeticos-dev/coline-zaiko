@@ -5,7 +5,7 @@ const itens = [
   ['#/estoque', 'Estoque do evento', 'Quantidades levadas, brindes e avarias'],
   ['#/fechamento', 'Fechamento do evento', 'Totais, resumo por dia e exportação'],
   ['#/painel', 'Painel de vendas', 'Vendas do aparelho, protegido por PIN'],
-  ['#/configuracoes', 'Configurações', 'Aparelho, taxas, categorias de retirada, PIN e tema']
+  ['#/configuracoes', 'Configurações', 'Aparelho, formas de pagamento, retiradas, PIN e tema']
 ];
 
 export function render(el) {

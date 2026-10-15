@@ -1,7 +1,7 @@
 // =========================================================
 // Pacote para preparar outros aparelhos.
 // Um arquivo com tudo que o aparelho principal define:
-//   catálogo (produtos, variações, categorias e fotos), taxas,
+//   catálogo (produtos, variações, categorias e fotos), formas de pagamento com taxas,
 //   categorias de retirada, PIN do dono (só a "impressão digital") e eventos.
 // NÃO leva: nome/sigla do aparelho, tema, evento em uso, vendas e caixas.
 //
@@ -15,12 +15,13 @@ const VERSAO_PACOTE = 1;
 
 // ---------- Gerar ----------
 export async function gerarPacote() {
-  const [produtos, variacoes, categorias, categoriasRetirada, eventos] = await Promise.all([
+  const [produtos, variacoes, categorias, categoriasRetirada, eventos, formasPagamento] = await Promise.all([
     db.produtos.toArray(), db.variacoes.toArray(), db.categorias.toArray(),
-    db.categoriasRetirada.toArray(), db.eventos.toArray()
+    db.categoriasRetirada.toArray(), db.eventos.toArray(), db.formasPagamento.toArray()
   ]);
   // Fotos viram texto (base64) para caberem no arquivo
   const produtosComFoto = await Promise.all(produtos.map(async (p) => ({ ...p, foto: p.foto ? await blobParaTexto(p.foto) : null })));
+  const categoriasComFoto = await Promise.all(categorias.map(async (c) => ({ ...c, foto: c.foto ? await blobParaTexto(c.foto) : null })));
   const aparelho = await lerAparelho();
 
   const pacote = {
@@ -28,8 +29,8 @@ export async function gerarPacote() {
     versao: VERSAO_PACOTE,
     geradoEm: new Date().toISOString(),
     geradoPor: aparelho ? { nome: aparelho.nome, sigla: aparelho.sigla } : null,
-    catalogo: { produtos: produtosComFoto, variacoes, categorias },
-    taxas: await lerConfig('taxas', {}),
+    catalogo: { produtos: produtosComFoto, variacoes, categorias: categoriasComFoto },
+    formasPagamento,
     categoriasRetirada,
     pin: { hash: await lerConfig('pinHash'), sal: await lerConfig('pinSal') },
     eventos
@@ -54,16 +55,22 @@ export async function lerPacote(arquivo) {
 // Eventos e categorias de retirada são somados/atualizados, sem apagar os daqui.
 export async function importarPacote(pacote) {
   const produtos = await Promise.all(pacote.catalogo.produtos.map(async (p) => ({ ...p, foto: p.foto ? await textoParaBlob(p.foto) : null })));
-  await db.transaction('rw', [db.produtos, db.variacoes, db.categorias, db.categoriasRetirada, db.eventos, db.config], async () => {
+  const categorias = await Promise.all(pacote.catalogo.categorias.map(async (c) => ({ ...c, foto: c.foto ? await textoParaBlob(c.foto) : null })));
+  await db.transaction('rw', [db.produtos, db.variacoes, db.categorias, db.categoriasRetirada, db.eventos, db.formasPagamento, db.config], async () => {
     await db.variacoes.clear();
     await db.produtos.clear();
     await db.categorias.clear();
-    await db.categorias.bulkPut(pacote.catalogo.categorias);
+    await db.categorias.bulkPut(categorias);
     await db.produtos.bulkPut(produtos);
     await db.variacoes.bulkPut(pacote.catalogo.variacoes);
     await db.categoriasRetirada.bulkPut(pacote.categoriasRetirada);
     await db.eventos.bulkPut(pacote.eventos);
-    await db.config.put({ chave: 'taxas', valor: pacote.taxas || {} });
+    // Formas de pagamento: as do pacote substituem as deste aparelho
+    if (pacote.formasPagamento) {
+      await db.formasPagamento.clear();
+      await db.formasPagamento.bulkPut(pacote.formasPagamento);
+      await db.config.put({ chave: 'formasPagamentoCriadas', valor: true });
+    }
     await db.config.put({ chave: 'categoriasRetiradaCriadas', valor: true });
     if (pacote.pin && pacote.pin.hash) {
       await db.config.put({ chave: 'pinHash', valor: pacote.pin.hash });

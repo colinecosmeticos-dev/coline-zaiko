@@ -397,7 +397,7 @@ export async function render(el, { id, consulta }) {
       if (nomeCategoria) {
         const existente = categorias.find((c) => c.nome.toLowerCase() === nomeCategoria.toLowerCase());
         categoriaId = existente ? existente.id : novoId();
-        if (!existente) await db.categorias.add({ id: categoriaId, nome: nomeCategoria.charAt(0).toUpperCase() + nomeCategoria.slice(1) });
+        if (!existente) await db.categorias.add({ id: categoriaId, nome: nomeCategoria.charAt(0).toUpperCase() + nomeCategoria.slice(1), ordem: categorias.length });
       }
 
       const agora = new Date().toISOString();

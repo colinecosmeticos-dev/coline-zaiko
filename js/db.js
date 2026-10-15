@@ -23,6 +23,11 @@ db.version(2).stores({
   categoriasRetirada: 'id, ordem'
 });
 
+// Versão 3: formas de pagamento (com as taxas dentro de cada forma)
+db.version(3).stores({
+  formasPagamento: 'id, ordem'
+});
+
 // Gera um identificador único (ex.: "3f2b9c1e-..."). Usamos isso em vez de
 // 1, 2, 3... porque os dois aparelhos vão trocar dados entre si e os números
 // iguais se misturariam.
@@ -52,9 +57,10 @@ export async function pedirArmazenamentoPersistente() {
 // ---------- Consultas usadas pelas telas ----------
 
 // Todas as categorias, em ordem alfabética
+// Categorias na ordem escolhida pelo usuário (as sem ordem vão para o fim, em ordem alfabética)
 export async function listarCategorias() {
   const lista = await db.categorias.toArray();
-  return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  return lista.sort((a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 // Produtos com suas variações e o nome da categoria, prontos para exibir
@@ -142,4 +148,27 @@ export function novoCodigoEvento() {
   const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const n = crypto.getRandomValues(new Uint8Array(6));
   return 'EV-' + [...n].map((x) => letras[x % letras.length]).join('');
+}
+
+// ---------- Formas de pagamento ----------
+// tipo: 'dinheiro' (calcula troco), 'pixQr', 'pixChave', 'debito',
+//       'credito' (parcelas 1 a 5, uma taxa por parcela) ou 'outra' (criada pelo usuário).
+// Taxas em centésimos de por cento (3,57% = 357); null = não informada.
+export const PARCELAS_MAX = 5;
+
+export async function garantirFormasPadrao() {
+  if (await lerConfig('formasPagamentoCriadas')) return;
+  const t = await lerTaxas(); // aproveita as taxas digitadas na versão anterior
+  const padrao = [
+    { nome: 'Dinheiro', tipo: 'dinheiro', taxa: 0 },
+    { nome: 'Pix QR Code', tipo: 'pixQr', taxa: t.pixQr ?? null },
+    { nome: 'Pix na chave (CNPJ)', tipo: 'pixChave', taxa: t.pixChave ?? null },
+    { nome: 'Débito', tipo: 'debito', taxa: t.debito ?? null },
+    { nome: 'Crédito', tipo: 'credito', taxasCredito: { 1: t.credito1 ?? null, 2: t.credito2 ?? null, 3: t.credito3 ?? null, 4: t.credito4 ?? null, 5: t.credito5 ?? null } }
+  ];
+  await db.formasPagamento.bulkAdd(padrao.map((f, ordem) => ({ id: novoId(), ativo: true, sistema: true, ordem, ...f })));
+  await gravarConfig('formasPagamentoCriadas', true);
+}
+export async function listarFormasPagamento() {
+  return (await db.formasPagamento.toArray()).sort((a, b) => a.ordem - b.ordem);
 }

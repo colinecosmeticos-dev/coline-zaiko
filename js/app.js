@@ -3,7 +3,7 @@
 // O endereço depois do # diz qual tela mostrar:
 //   #/inicio  #/produtos  #/produtos/novo  #/produtos/<id>  #/mais ...
 // =========================================================
-import { pedirArmazenamentoPersistente, garantirCategoriasPadrao } from './db.js';
+import { pedirArmazenamentoPersistente, garantirCategoriasPadrao, garantirFormasPadrao } from './db.js';
 import { aplicarTemaSalvo } from './tema.js';
 import { iniciarAtualizacoes } from './atualizacao.js';
 import * as inicio from './telas/inicio.js';
@@ -11,7 +11,10 @@ import * as produtos from './telas/produtos.js';
 import * as produtoForm from './telas/produto-form.js';
 import * as mais from './telas/mais.js';
 import * as configuracoes from './telas/configuracoes.js';
-import * as taxas from './telas/taxas.js';
+import * as formas from './telas/formas.js';
+import * as formaForm from './telas/forma-form.js';
+import * as categorias from './telas/categorias.js';
+import * as categoriaForm from './telas/categoria-form.js';
 import * as retiradas from './telas/retiradas.js';
 import * as eventos from './telas/eventos.js';
 import * as eventoForm from './telas/evento-form.js';
@@ -27,11 +30,15 @@ const rotas = [
   ['vendas', emBreve('Vendas do evento', 'A lista de vendas, com cancelamento, troca e devolução.')],
   ['caixa', emBreve('Caixa', 'Abertura do dia, reforços, retiradas e fechamento.')],
   ['produtos', produtos.render],
+  ['produtos/categorias', categorias.render],
+  ['produtos/categorias/:id', categoriaForm.render],
   ['produtos/novo', produtoForm.render],
   ['produtos/:id', produtoForm.render],
   ['mais', mais.render],
   ['configuracoes', configuracoes.render],
-  ['configuracoes/taxas', taxas.render],
+  ['configuracoes/taxas', () => location.replace('#/configuracoes/formas')],
+  ['configuracoes/formas', formas.render],
+  ['configuracoes/formas/:id', formaForm.render],
   ['configuracoes/retiradas', retiradas.render],
   ['pacote', pacote.render],
   ['eventos', eventos.render],
@@ -92,7 +99,7 @@ window.addEventListener('hashchange', navegar);
 
 // ---------- Inicialização ----------
 aplicarTemaSalvo();
-garantirCategoriasPadrao().catch((e) => console.error(e)).finally(navegar);
+Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao()]).catch((e) => console.error(e)).finally(navegar);
 pedirArmazenamentoPersistente().catch(() => {});
 
 // ---------- Atualizações do app ----------

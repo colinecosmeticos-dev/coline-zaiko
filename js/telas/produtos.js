@@ -34,7 +34,10 @@ export async function render(el) {
         <h1>Produtos</h1>
         <p class="sub">${produtos.length} ${produtos.length === 1 ? 'produto' : 'produtos'}, ${totalItens} ${totalItens === 1 ? 'item vendável' : 'itens vendáveis'}</p>
       </div>
-      <a class="btn primario" href="#/produtos/novo">${icones.mais} Novo produto</a>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn" href="#/produtos/categorias">Categorias</a>
+        <a class="btn primario" href="#/produtos/novo">${icones.mais} Novo produto</a>
+      </div>
     </header>
 
     <div class="filtros">

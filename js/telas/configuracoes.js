@@ -3,15 +3,14 @@ import { temaSalvo, escolherTema } from '../tema.js';
 import { VERSAO } from '../versao.js';
 import { procurar } from '../atualizacao.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';
-import { aviso, confirmar, percentual, icones } from '../ui.js';
-import { lerAparelho, gravarAparelho, lerTaxas, FORMAS_TAXA, listarCategoriasRetirada } from '../db.js';
+import { aviso, confirmar, icones } from '../ui.js';
+import { lerAparelho, gravarAparelho, listarFormasPagamento, listarCategoriasRetirada } from '../db.js';
 
 export async function render(el) {
   const tema = temaSalvo();
   const pinDefinido = await temPin();
   const aparelho = await lerAparelho();
-  const taxas = await lerTaxas();
-  const taxasFaltando = FORMAS_TAXA.filter(([k]) => taxas[k] == null).length;
+  const formasAtivas = (await listarFormasPagamento()).filter((f) => f.ativo);
   const categoriasRet = (await listarCategoriasRetirada()).filter((c) => c.ativo !== false);
   const protegido = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false;
   let usado = '';
@@ -37,8 +36,8 @@ export async function render(el) {
     </section>
 
     <ul class="lista lista-links" style="margin-top:16px">
-      <li><a href="#/configuracoes/taxas">
-        <span><strong>Taxas da maquininha</strong><br><span class="sub">${taxasFaltando === FORMAS_TAXA.length ? 'Nenhuma taxa informada' : `Débito ${percentual(taxas.debito)}, crédito à vista ${percentual(taxas.credito1)}${taxasFaltando ? `, ${taxasFaltando} sem valor` : ''}`}</span></span>
+      <li><a href="#/configuracoes/formas">
+        <span><strong>Formas de pagamento e taxas</strong><br><span class="sub">${formasAtivas.map((f) => escapar(f.nome)).join(', ')}</span></span>
         <span class="seta" aria-hidden="true">›</span></a></li>
       <li><a href="#/configuracoes/retiradas">
         <span><strong>Categorias de retirada</strong><br><span class="sub">${categoriasRet.map((c) => escapar(c.nome)).join(', ')}</span></span>
