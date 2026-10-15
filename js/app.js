@@ -3,13 +3,17 @@
 // O endereço depois do # diz qual tela mostrar:
 //   #/inicio  #/produtos  #/produtos/novo  #/produtos/<id>  #/mais ...
 // =========================================================
-import { pedirArmazenamentoPersistente } from './db.js';
+import { pedirArmazenamentoPersistente, garantirCategoriasPadrao } from './db.js';
 import { aplicarTemaSalvo } from './tema.js';
 import * as inicio from './telas/inicio.js';
 import * as produtos from './telas/produtos.js';
 import * as produtoForm from './telas/produto-form.js';
 import * as mais from './telas/mais.js';
 import * as configuracoes from './telas/configuracoes.js';
+import * as taxas from './telas/taxas.js';
+import * as retiradas from './telas/retiradas.js';
+import * as eventos from './telas/eventos.js';
+import * as eventoForm from './telas/evento-form.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -25,7 +29,11 @@ const rotas = [
   ['produtos/:id', produtoForm.render],
   ['mais', mais.render],
   ['configuracoes', configuracoes.render],
-  ['eventos', emBreve('Eventos e histórico', 'Criar eventos, preços do evento, importar dados e comparar resultados.')],
+  ['configuracoes/taxas', taxas.render],
+  ['configuracoes/retiradas', retiradas.render],
+  ['eventos', eventos.render],
+  ['eventos/novo', eventoForm.render],
+  ['eventos/:id', eventoForm.render],
   ['estoque', emBreve('Estoque do evento', 'Quantidades levadas, brindes, avarias e sobra.')],
   ['fechamento', emBreve('Fechamento do evento', 'Totais bruto e líquido, resumo por dia e exportação.')],
   ['painel', emBreve('Painel de vendas', 'Vendas e totais do aparelho, protegidos por PIN.')]
@@ -81,7 +89,7 @@ window.addEventListener('hashchange', navegar);
 
 // ---------- Inicialização ----------
 aplicarTemaSalvo();
-navegar();
+garantirCategoriasPadrao().catch((e) => console.error(e)).finally(navegar);
 pedirArmazenamentoPersistente().catch(() => {});
 
 // ---------- Service worker e aviso de atualização ----------

@@ -21,14 +21,19 @@ function centavosParaTexto(centavos) {
 
 // Transforma um <input> em campo de dinheiro estilo maquininha:
 // os números entram pela direita (1 → 0,01 · 129 → 1,29 · 1290 → 12,90).
-// opcional = true permite deixar o campo vazio.
-export function campoDinheiro(input) {
+// Campo vazio = valor não informado.
+export function campoDinheiro(input, { permitirZero = false } = {}) {
   input.inputMode = 'numeric';
   input.autocomplete = 'off';
   input.classList.add('dinheiro');
   if (!input.placeholder) input.placeholder = '0,00';
 
-  const soDigitos = (texto) => texto.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+  // permitirZero: deixa gravar 0,00 (ex.: taxa zero); sem ele, só zeros = campo vazio
+  const soDigitos = (texto) => {
+    const todos = texto.replace(/\D/g, '');
+    const limpo = todos.replace(/^0+/, '').slice(0, 9);
+    return !limpo && permitirZero && todos ? '0' : limpo;
+  };
   const mostrar = (digitos) => {
     input.value = digitos ? centavosParaTexto(Number(digitos)) : '';
     input.setSelectionRange(input.value.length, input.value.length);
@@ -56,6 +61,39 @@ export function lerCentavos(input) {
 }
 export function escreverCentavos(input, centavos) {
   input.value = centavos == null ? '' : centavosParaTexto(centavos);
+}
+
+// ---------- Percentual (taxas) ----------
+// Mesmo jeito do campo de dinheiro: 3 → 0,03 · 357 → 3,57 (%). Guardamos 357.
+export function campoPercentual(input) {
+  campoDinheiro(input, { permitirZero: true });
+  input.classList.add('percentual');
+  input.placeholder = 'Não informada';
+}
+export function percentual(centesimos) {
+  if (centesimos == null) return '—';
+  return (centesimos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+
+// ---------- Datas ----------
+// Datas de evento ficam guardadas como "2026-10-18"
+function paraData(iso) { const [a, m, d] = iso.split('-').map(Number); return new Date(a, m - 1, d); }
+export function hojeISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+export function periodo(inicio, fim) {
+  if (!inicio) return '';
+  const a = paraData(inicio), b = paraData(fim || inicio);
+  const dia = (d) => d.getDate();
+  const mes = (d) => d.toLocaleDateString('pt-BR', { month: 'long' });
+  if (inicio === (fim || inicio)) return `${dia(a)} de ${mes(a)} de ${a.getFullYear()}`;
+  if (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()) return `${dia(a)} a ${dia(b)} de ${mes(b)} de ${b.getFullYear()}`;
+  if (a.getFullYear() === b.getFullYear()) return `${dia(a)} de ${mes(a)} a ${dia(b)} de ${mes(b)} de ${b.getFullYear()}`;
+  return `${a.toLocaleDateString('pt-BR')} a ${b.toLocaleDateString('pt-BR')}`;
+}
+export function diasEntre(inicio, fim) {
+  return Math.round((paraData(fim) - paraData(inicio)) / 86400000) + 1;
 }
 
 // ---------- Avisos rápidos (aparecem embaixo e somem sozinhos) ----------

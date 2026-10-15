@@ -1,10 +1,10 @@
 // Tela Mais: atalhos para as telas que não cabem no menu
 const itens = [
-  ['#/eventos', 'Eventos e histórico', 'Criar eventos, importar dados, comparar resultados'],
+  ['#/eventos', 'Eventos', 'Criar eventos e escolher o evento deste aparelho'],
   ['#/estoque', 'Estoque do evento', 'Quantidades levadas, brindes e avarias'],
   ['#/fechamento', 'Fechamento do evento', 'Totais, resumo por dia e exportação'],
   ['#/painel', 'Painel de vendas', 'Vendas do aparelho, protegido por PIN'],
-  ['#/configuracoes', 'Configurações', 'PIN do dono, tema, armazenamento e versão']
+  ['#/configuracoes', 'Configurações', 'Aparelho, taxas, categorias de retirada, PIN e tema']
 ];
 
 export function render(el) {

@@ -357,6 +357,31 @@ img { display: block; max-width: 100%; }
 }
 .entrada-pin { font-size: 1.5rem; letter-spacing: .4em; text-align: center; }
 
+/* ---------- Taxas ---------- */
+.tabela-taxas { display: grid; }
+.linha-taxa { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; }
+.linha-taxa + .linha-taxa { border-top: 1px solid var(--linha); }
+.linha-taxa > span:first-child { font-weight: 500; }
+.com-sufixo { display: inline-flex; align-items: center; gap: 8px; color: var(--texto-2); font-weight: 600; }
+.com-sufixo .entrada { width: 170px; }
+
+/* ---------- Categorias de retirada ---------- */
+.lista-categorias { display: grid; gap: 8px; }
+.linha-categoria, .cab-categorias { display: grid; grid-template-columns: 1fr 96px 48px; gap: 12px; align-items: center; }
+.cab-categorias { font-size: .875rem; font-weight: 600; margin-bottom: 8px; }
+.linha-categoria .interruptor { justify-content: center; }
+
+/* ---------- Eventos ---------- */
+.item-evento { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; color: inherit; text-decoration: none; }
+.item-evento:hover { background: var(--superficie-2); }
+.item-evento .nome { font-weight: 600; font-size: 1.0625rem; }
+.item-evento .detalhe { color: var(--texto-2); font-size: .875rem; margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.item-evento .seta { color: var(--texto-2); font-size: 1.25rem; }
+.faixa-uso { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.faixa-uso.ativo { border-color: var(--marca); background: var(--marca-suave); }
+.cartao.destaque { border-color: var(--marca); }
+.titulo-evento { font-size: 1.25rem; font-weight: 700; margin-top: 8px; }
+
 /* ---------- Configurações / Mais ---------- */
 .lista-links a {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;

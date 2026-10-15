@@ -2,11 +2,16 @@
 import { temaSalvo, escolherTema } from '../tema.js';
 import { VERSAO } from '../versao.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';
-import { aviso, confirmar } from '../ui.js';
+import { aviso, confirmar, percentual, icones } from '../ui.js';
+import { lerAparelho, gravarAparelho, lerTaxas, FORMAS_TAXA, listarCategoriasRetirada } from '../db.js';
 
 export async function render(el) {
   const tema = temaSalvo();
   const pinDefinido = await temPin();
+  const aparelho = await lerAparelho();
+  const taxas = await lerTaxas();
+  const taxasFaltando = FORMAS_TAXA.filter(([k]) => taxas[k] == null).length;
+  const categoriasRet = (await listarCategoriasRetirada()).filter((c) => c.ativo !== false);
   const protegido = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false;
   let usado = '';
   if (navigator.storage && navigator.storage.estimate) {
@@ -15,8 +20,30 @@ export async function render(el) {
   }
 
   el.innerHTML = `
-    <a class="voltar" href="#/mais"><span aria-hidden="true">‹</span> Mais</a>
+    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
     <header class="cab"><h1>Configurações</h1></header>
+
+    <section class="cartao" id="cartao-aparelho">
+      <h2>Este aparelho</h2>
+      <p class="sub">Identifica qual tablet fez cada venda. A sigla aparece no número da venda (ex.: VAIO-0042) e deve ser diferente em cada aparelho.</p>
+      <form id="form-aparelho" class="grade-campos duas" style="margin-top:16px" novalidate>
+        <div class="campo"><label for="ap-nome">Nome</label>
+          <input class="entrada" id="ap-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Vaio TL10" value="${aparelho ? escapar(aparelho.nome) : ''}"></div>
+        <div class="campo"><label for="ap-sigla">Sigla (2 a 6 letras ou números)</label>
+          <input class="entrada" id="ap-sigla" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="Ex.: VAIO" value="${aparelho ? escapar(aparelho.sigla) : ''}" style="text-transform:uppercase"></div>
+        <div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button type="submit" class="btn primario">Salvar aparelho</button></div>
+      </form>
+    </section>
+
+    <ul class="lista lista-links" style="margin-top:16px">
+      <li><a href="#/configuracoes/taxas">
+        <span><strong>Taxas da maquininha</strong><br><span class="sub">${taxasFaltando === FORMAS_TAXA.length ? 'Nenhuma taxa informada' : `Débito ${percentual(taxas.debito)}, crédito à vista ${percentual(taxas.credito1)}${taxasFaltando ? `, ${taxasFaltando} sem valor` : ''}`}</span></span>
+        <span class="seta" aria-hidden="true">›</span></a></li>
+      <li><a href="#/configuracoes/retiradas">
+        <span><strong>Categorias de retirada</strong><br><span class="sub">${categoriasRet.map((c) => escapar(c.nome)).join(', ')}</span></span>
+        <span class="seta" aria-hidden="true">›</span></a></li>
+    </ul>
+
 
     <section class="cartao">
       <h2>Tema</h2>
@@ -62,6 +89,20 @@ export async function render(el) {
       <dl><div class="par"><dt>Versão do app</dt><dd class="num">${VERSAO}</dd></div></dl>
     </section>`;
 
+  // ---------- Este aparelho ----------
+  el.querySelector('#form-aparelho').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nome = el.querySelector('#ap-nome').value.trim();
+    const sigla = el.querySelector('#ap-sigla').value.trim().toUpperCase();
+    el.querySelectorAll('#form-aparelho .msg-erro').forEach((m) => m.remove());
+    const marcar = (input, texto) => { const m = document.createElement('span'); m.className = 'msg-erro'; m.textContent = texto; input.closest('.campo').append(m); input.focus(); };
+    if (!nome) return marcar(el.querySelector('#ap-nome'), 'Informe um nome para o aparelho.');
+    if (!/^[A-Z0-9]{2,6}$/.test(sigla)) return marcar(el.querySelector('#ap-sigla'), 'Use de 2 a 6 letras ou números, sem espaço.');
+    await gravarAparelho({ nome, sigla });
+    aviso('Aparelho salvo.');
+    render(el);
+  });
+
   const formPin = el.querySelector('#form-pin');
   const campo = (id) => el.querySelector('#' + id);
   function erro(input, texto) {
@@ -95,3 +136,5 @@ export async function render(el) {
 
   el.querySelectorAll('input[name="tema"]').forEach((r) => r.addEventListener('change', () => escolherTema(r.value)));
 }
+
+function escapar(t) { return String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

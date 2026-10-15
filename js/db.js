@@ -17,6 +17,12 @@ db.version(1).stores({
   config: 'chave'
 });
 
+// Versão 2: eventos e categorias de retirada do caixa
+db.version(2).stores({
+  eventos: 'id, status, dataInicio',
+  categoriasRetirada: 'id, ordem'
+});
+
 // Gera um identificador único (ex.: "3f2b9c1e-..."). Usamos isso em vez de
 // 1, 2, 3... porque os dois aparelhos vão trocar dados entre si e os números
 // iguais se misturariam.
@@ -76,4 +82,64 @@ export async function listarProdutosCompletos() {
 // Encontra a variação dona de um código de barras (ou undefined)
 export function buscarPorCodigo(codigo) {
   return db.variacoes.where('codigo').equals(codigo).first();
+}
+
+// ---------- Este aparelho ----------
+// { id, nome: 'Vaio TL10', sigla: 'VAIO' } — a sigla aparece no número das vendas
+export async function lerAparelho() {
+  return lerConfig('aparelho', null);
+}
+export async function gravarAparelho({ nome, sigla }) {
+  const atual = await lerAparelho();
+  await gravarConfig('aparelho', { id: (atual && atual.id) || novoId(), nome, sigla });
+}
+
+// ---------- Taxas da maquininha ----------
+// Guardadas em centésimos de por cento: 3,57% = 357. null = não informada.
+export const FORMAS_TAXA = [
+  ['debito', 'Débito'],
+  ['credito1', 'Crédito à vista'],
+  ['credito2', 'Crédito em 2x'],
+  ['credito3', 'Crédito em 3x'],
+  ['credito4', 'Crédito em 4x'],
+  ['credito5', 'Crédito em 5x'],
+  ['pixQr', 'Pix QR Code (maquininha)'],
+  ['pixChave', 'Pix na chave (CNPJ)']
+];
+export async function lerTaxas() {
+  return lerConfig('taxas', {});
+}
+export async function gravarTaxas(taxas) {
+  await gravarConfig('taxas', { ...taxas, atualizadoEm: new Date().toISOString() });
+}
+
+// ---------- Categorias de retirada ----------
+// "despesa: false" = não é gasto (ex.: Sangria, dinheiro guardado em local seguro)
+const CATEGORIAS_PADRAO = [
+  ['Sangria', false], ['Alimentação', true], ['Transporte/Estacionamento', true],
+  ['Ajudante', true], ['Material', true], ['Outros', true]
+];
+export async function garantirCategoriasPadrao() {
+  if (await lerConfig('categoriasRetiradaCriadas')) return;
+  await db.categoriasRetirada.bulkAdd(CATEGORIAS_PADRAO.map(([nome, despesa], ordem) => ({ id: novoId(), nome, despesa, ativo: true, ordem })));
+  await gravarConfig('categoriasRetiradaCriadas', true);
+}
+export async function listarCategoriasRetirada() {
+  return (await db.categoriasRetirada.toArray()).sort((a, b) => a.ordem - b.ordem);
+}
+
+// ---------- Eventos ----------
+// O evento ativo é escolhido por aparelho: é nele que as vendas deste aparelho entram.
+export async function lerEventoAtivo() {
+  const id = await lerConfig('eventoAtivoId');
+  return id ? (await db.eventos.get(id)) || null : null;
+}
+export async function definirEventoAtivo(id) {
+  await gravarConfig('eventoAtivoId', id || null);
+}
+// Código curto para conferir que os dois aparelhos usam o mesmo evento (ex.: EV-7K3F9Q)
+export function novoCodigoEvento() {
+  const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const n = crypto.getRandomValues(new Uint8Array(6));
+  return 'EV-' + [...n].map((x) => letras[x % letras.length]).join('');
 }
