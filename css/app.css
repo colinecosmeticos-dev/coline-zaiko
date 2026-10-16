@@ -920,3 +920,10 @@ dialog.janela-fechamento { width: min(96vw, 860px); max-height: 96dvh; }
   .folha-grupo h2 { break-after: avoid; page-break-after: avoid; }
   .folha-titulo { margin-bottom: 4mm; }
 }
+
+/* ---------- Preços do evento ---------- */
+.preco-evento { width: 120px; flex: none; text-align: right; font-weight: 700; }
+.linhas-estoque li.com-preco { background: var(--marca-suave); border-radius: var(--raio-p); padding-left: 8px; padding-right: 8px; }
+.ladrilho-especial { font-size: .75rem; color: var(--marca-texto); font-weight: 600; }
+.ladrilho-especial s { color: var(--texto-2); font-weight: 400; margin-right: 2px; }
+.botao-variacao small s { color: var(--texto-2); margin-right: 4px; }

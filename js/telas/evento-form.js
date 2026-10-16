@@ -31,6 +31,13 @@ export async function render(el, { id }) {
         <p class="sub">${emUso ? 'As vendas deste aparelho entram neste evento.' : 'Escolha este evento para as vendas deste aparelho entrarem nele.'}</p>
       </div>
       <button type="button" class="btn ${emUso ? '' : 'primario'}" id="alternar-uso">${emUso ? 'Deixar de usar' : 'Usar neste aparelho'}</button>
+    </section>
+    <section class="cartao faixa-uso">
+      <div>
+        <h2>Preços deste evento</h2>
+        <p class="sub">${Object.keys(ev.precos || {}).length ? `${Object.keys(ev.precos).length} ${Object.keys(ev.precos).length === 1 ? 'item com preço especial' : 'itens com preço especial'}.` : 'Todos os itens com o preço normal.'}</p>
+      </div>
+      <a class="btn" href="#/eventos/${encodeURIComponent(ev.id)}/precos">Preços do evento</a>
     </section>` : ''}
 
     <form class="form-produto" novalidate>

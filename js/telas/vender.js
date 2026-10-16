@@ -75,7 +75,14 @@ export async function render(el) {
 
   // ---------- Dados ----------
   const categorias = await listarCategorias();
-  const produtos = (await listarProdutosCompletos()).filter((p) => p.ativo && p.variacoes.length);
+  // Preço do evento: onde houver, substitui o preço normal (que fica guardado em precoBase)
+  const precosEvento = evento.precos || {};
+  const produtos = (await listarProdutosCompletos()).filter((p) => p.ativo && p.variacoes.length)
+    .map((p) => ({ ...p, variacoes: p.variacoes.map((v) => {
+      const normal = v.preco ?? p.preco;
+      const doEvento = precosEvento[v.id];
+      return doEvento != null && doEvento !== normal ? { ...v, preco: doEvento, precoBase: normal } : v;
+    }) }));
   const urls = [];
   const urlFoto = (blob) => { const u = URL.createObjectURL(blob); urls.push(u); return u; };
   const fotoCategoria = new Map(categorias.filter((c) => c.foto).map((c) => [c.id, urlFoto(c.foto)]));
@@ -141,10 +148,14 @@ export async function render(el) {
     const precos = p.variacoes.map((v) => v.preco ?? p.preco);
     const min = Math.min(...precos), max = Math.max(...precos);
     const temVar = p.variacoes.length > 1 || p.variacoes[0].nome;
+    const normais = p.variacoes.map((v) => v.precoBase ?? v.preco ?? p.preco);
+    const minNormal = Math.min(...normais);
+    const especial = p.variacoes.some((v) => v.precoBase != null);
     return `
       <button type="button" class="ladrilho" data-produto="${esc(p.id)}">
         <span class="ladrilho-foto">${fotoProduto.has(p.id) ? `<img src="${fotoProduto.get(p.id)}" alt="">` : `<span>${iniciais(p.nome)}</span>`}</span>
         <span class="ladrilho-nome">${esc(p.nome)}</span>
+        ${especial ? `<span class="ladrilho-especial"><s class="num">${dinheiro(minNormal)}</s> preço do evento</span>` : ''}
         <span class="ladrilho-info"><strong class="num">${min === max ? dinheiro(min) : `${dinheiro(min)}+`}</strong>${temVar ? `<span>${p.variacoes.length} ${esc(plural((p.atributo || 'opção').toLowerCase(), p.variacoes.length))}</span>` : ''}</span>
       </button>`;
   }
@@ -212,7 +223,7 @@ export async function render(el) {
       <div class="grade-variacoes">
         ${p.variacoes.map((v) => `
           <button type="button" class="btn botao-variacao" data-variacao="${esc(v.id)}">
-            <span>${esc(v.nome)}</span>${(v.preco ?? p.preco) !== p.preco ? `<small class="num">${dinheiro(v.preco)}</small>` : ''}
+            <span>${esc(v.nome)}</span>${v.precoBase != null ? `<small class="num"><s>${dinheiro(v.precoBase)}</s> ${dinheiro(v.preco)}</small>` : (v.preco ?? p.preco) !== p.preco ? `<small class="num">${dinheiro(v.preco)}</small>` : ''}
           </button>`).join('')}
       </div>
       <div class="acoes"><button type="button" class="btn" value="x">Cancelar</button></div>`, { classe: 'janela-variacoes' });

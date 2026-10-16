@@ -30,6 +30,7 @@ export function adicionarItem(produto, variacao) {
     codigo: variacao.codigo,
     quantidade: 1,
     precoUnit: variacao.preco ?? produto.preco,
+    precoBase: variacao.precoBase ?? null,   // preço normal, quando o item está com preço do evento
     custoUnit: variacao.custo ?? produto.custo ?? null,
     desconto: null,
     brinde: false

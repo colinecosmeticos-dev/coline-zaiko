@@ -29,6 +29,7 @@ import * as estoque from './telas/estoque.js';
 import * as fechamento from './telas/fechamento.js';
 import * as backup from './telas/backup.js';
 import * as codigos from './telas/codigos.js';
+import * as precosEvento from './telas/precos-evento.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -59,6 +60,7 @@ const rotas = [
   ['eventos', eventos.render],
   ['eventos/novo', eventoForm.render],
   ['eventos/:id', eventoForm.render],
+  ['eventos/:id/precos', precosEvento.render],
   ['estoque', estoque.render],
   ['fechamento', fechamento.render],
   ['painel', painel.render]
