@@ -10,8 +10,10 @@ import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, caixaDoDia, lista
 import { esc, dinheiro, icones, aviso, hojeISO, confirmar } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { resumoCaixa } from '../caixa/resumo.js';
-import { pedirMovimento, pedirFechamento, htmlResumo } from '../caixa/janelas.js';
+import { pedirMovimento, pedirFechamento, pedirFechamentoCego, htmlResumo } from '../caixa/janelas.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
+import { ehCaixa } from '../modo.js';
+import { escolherEvento } from '../venda/escolher-evento.js';
 
 const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
 const diaCurto = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
@@ -24,7 +26,7 @@ const vazio = (titulo, texto, botao = '') => `
 export async function render(el, { id, mostrarTotais = false } = {}) {
   const aparelho = await lerAparelho();
   const evento = await lerEventoAtivo();
-  if (!aparelho) { el.innerHTML = vazio('Identifique este aparelho', 'Dê nome e sigla ao aparelho em Configurações.', '<a class="btn primario" href="#/configuracoes">Configurar aparelho</a>'); return; }
+  if (!aparelho) { el.innerHTML = vazio('Identifique este aparelho', 'Dê nome e sigla ao aparelho.', `<a class="btn primario" href="${ehCaixa() ? '#/configurar' : '#/configuracoes'}">Configurar aparelho</a>`); return; }
 
   // Consulta de um caixa específico (dias anteriores)
   if (id) {
@@ -34,7 +36,11 @@ export async function render(el, { id, mostrarTotais = false } = {}) {
     return;
   }
 
-  if (!evento) { el.innerHTML = vazio('Escolha o evento', 'O caixa é aberto dentro de um evento.', '<a class="btn primario" href="#/eventos">Ir para Eventos</a>'); return; }
+  if (!evento) {
+    el.innerHTML = vazio('Escolha o evento', 'O caixa é aberto dentro de um evento.', ehCaixa() ? '<button type="button" class="btn primario" id="escolher">Escolher o evento</button>' : '<a class="btn primario" href="#/eventos">Ir para Eventos</a>');
+    el.querySelector('#escolher')?.addEventListener('click', async () => { if (await escolherEvento()) render(el); });
+    return;
+  }
   const hoje = hojeISO();
   const aberto = await caixaAbertoDoEvento(evento.id);
 
@@ -92,7 +98,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
       const ajustado = atual.esperado !== fechamento.esperado;
       blocoFechamento = `
         <section class="cartao">
-          <div class="cab-cartao"><h2>Fechamento <span class="sub">${hora(fechamento.em)}</span></h2>${comPin ? `<button type="button" class="btn texto" id="ocultar-totais">${icones.cadeado} Ocultar</button>` : ''}</div>
+          <div class="cab-cartao"><h2>Fechamento <span class="sub">${hora(fechamento.em)}</span>${fechamento.cego ? ' <span class="etiqueta">às cegas</span>' : ''}</h2>${comPin ? `<button type="button" class="btn texto" id="ocultar-totais">${icones.cadeado} Ocultar</button>` : ''}</div>
           <div class="placar">
             <div><span>Esperado</span><strong class="num">${dinheiro(fechamento.esperado)}</strong></div>
             <div><span>Contado</span><strong class="num">${dinheiro(fechamento.contado)}</strong></div>
@@ -128,7 +134,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
     ${aberto ? `<div class="acoes-caixa">
       <button type="button" class="btn" id="reforco">${icones.mais} Reforço</button>
       <button type="button" class="btn" id="retirada">− Retirada</button>
-      <button type="button" class="btn primario" id="fechar">${icones.cadeado} Fechar caixa</button>
+      <button type="button" class="btn primario" id="fechar">Fechar caixa</button>
     </div>` : ehHoje ? `<div class="acoes-caixa"><button type="button" class="btn" id="reabrir">Reabrir caixa</button></div>` : ''}
     <div class="caixa-colunas">
       <section class="cartao">
@@ -150,7 +156,18 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   $('#ver-totais')?.addEventListener('click', async () => { if (await pin('Totais do caixa')) recarregar(true); });
   $('#ocultar-totais')?.addEventListener('click', () => recarregar(false));
   $('#fechar')?.addEventListener('click', async () => {
-    if (!mostrarTotais && !(await pin('Fechar o caixa'))) return;
+    // Sem o PIN: fechamento às cegas (só o dinheiro contado). Com o PIN: vendo o esperado e a diferença.
+    if (!verTotais) {
+      const atual = await db.caixas.get(caixa.id);
+      const r = await pedirFechamentoCego(atual, await resumoCaixa(atual));
+      if (r && r !== 'pin') {
+        const f = (r.fechamentos || []).at(-1);
+        aviso(`Caixa fechado com ${dinheiro(f ? f.contado : 0)} contados.`, { acao: 'Fazer backup', aoClicar: () => { location.hash = '#/backup'; } });
+        recarregar(false);
+        return;
+      }
+      if (r !== 'pin' || !(await pin('Fechar o caixa'))) return;
+    }
     const atualizado = await db.caixas.get(caixa.id);
     if (await pedirFechamento(atualizado, await resumoCaixa(atualizado))) { aviso('Caixa fechado. Bom momento para um backup.', { acao: 'Fazer backup', aoClicar: () => { location.hash = '#/backup'; } }); recarregar(true); }
     else recarregar(true);

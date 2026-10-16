@@ -7,6 +7,7 @@ import { gerarPacote, lerPacote, importarPacote } from '../pacote.js';
 import { lerConfig, lerAparelho } from '../db.js';
 import { driveConfigurado, prepararDrive, autorizar, enviarPacote, ultimoPacote, baixarPacote } from '../drive.js';
 import { aviso, confirmar, icones, esc } from '../ui.js';
+import { ehCaixa } from '../modo.js';
 
 const qtd = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 const dataHora = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -14,20 +15,21 @@ const dataHora = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit'
 export async function render(el) {
   const ultimo = await lerConfig('ultimoPacoteImportado');
 
+  const caixa = ehCaixa();
   el.innerHTML = `
     <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
     <header class="cab"><div>
-      <h1>Preparar outros aparelhos</h1>
-      <p class="sub">Leva catálogo, fotos, formas de pagamento e taxas, categorias de retirada, PIN e eventos de um aparelho para outro.</p>
+      <h1>${caixa ? 'Receber catálogo e evento' : 'Preparar outros aparelhos'}</h1>
+      <p class="sub">${caixa ? 'Recebe o pacote preparado na Gestão: produtos com fotos, formas de pagamento, eventos e PIN.' : 'Leva catálogo, fotos, formas de pagamento e taxas, categorias de retirada, PIN e eventos de um aparelho para outro.'}</p>
     </div></header>
 
     <section class="cartao">
       <h2>Pelo Google Drive <span class="etiqueta">com internet</span></h2>
       ${driveConfigurado() ? `
-        <p class="sub">Um toque para enviar, um toque para receber. O app só enxerga a pasta "Coline Zaiko" que ele mesmo cria no Drive; o pacote antigo é apagado a cada envio.</p>
+        <p class="sub">${caixa ? 'Um toque recebe o pacote mais recente enviado pela Gestão.' : 'Um toque para enviar, um toque para receber.'} O app só enxerga a pasta "Coline Zaiko" que ele mesmo cria no Drive; o pacote antigo é apagado a cada envio.</p>
         <div class="acoes">
-          <button type="button" class="btn primario" id="drive-enviar">${icones.compartilhar} Enviar para o Drive</button>
-          <button type="button" class="btn" id="drive-receber">${icones.baixar} Receber do Drive</button>
+          <button type="button" class="btn primario so-gestao" id="drive-enviar">${icones.compartilhar} Enviar para o Drive</button>
+          <button type="button" class="btn ${caixa ? 'primario' : ''}" id="drive-receber">${icones.baixar} Receber do Drive</button>
         </div>
         <p class="sub" id="drive-status" style="margin-top:12px" hidden></p>`
       : '<p class="sub">O Drive ainda não foi ligado ao app. Enquanto isso, use o arquivo (abaixo).</p>'}
@@ -35,12 +37,12 @@ export async function render(el) {
 
     <section class="cartao">
       <h2>Por arquivo <span class="etiqueta">sem internet</span></h2>
-      <p class="sub"><strong>Enviar:</strong> no tablet, "Gerar e compartilhar" abre o Quick Share, Bluetooth ou WhatsApp. No computador, use "Baixar arquivo" e depois envie o arquivo da pasta Downloads.</p>
-      <div class="acoes">
+      <p class="sub so-gestao"><strong>Enviar:</strong> no tablet, "Gerar e compartilhar" abre o Quick Share, Bluetooth ou WhatsApp. No computador, use "Baixar arquivo" e depois envie o arquivo da pasta Downloads.</p>
+      <div class="acoes so-gestao">
         <button type="button" class="btn" id="gerar">${icones.compartilhar} Gerar e compartilhar</button>
         <button type="button" class="btn" id="baixar">${icones.baixar} Baixar arquivo</button>
       </div>
-      <p class="sub" id="resultado-gerar" style="margin-top:12px" hidden></p>
+      <p class="sub so-gestao" id="resultado-gerar" style="margin-top:12px" hidden></p>
       <p class="sub" style="margin-top:16px"><strong>Receber:</strong> escolha o arquivo do pacote (normalmente na pasta Downloads).</p>
       <div class="acoes"><button type="button" class="btn" id="importar">${icones.baixar} Importar pacote</button></div>
       <!-- Sem filtro de tipo: alguns apps (como o Google Drive) informam o tipo do arquivo

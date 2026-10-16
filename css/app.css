@@ -1050,3 +1050,33 @@ dialog.janela-cor .acoes { align-items: center; flex-wrap: wrap; }
   .linha-organizar .rotulo-m { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 }
 @media (max-width: 520px) { .iv-foto { aspect-ratio: 16 / 10; } }
+
+/* ---------- Modo Caixa e assistente (v0.21.0) ---------- */
+.modo-caixa .nav a[data-rota="inicio"], .modo-caixa .nav a[data-rota="produtos"] { display: none; }
+.modo-caixa .so-gestao { display: none !important; }
+.lista-links .link-evento {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 64px; padding: 12px 16px; text-align: left; background: none; border: 0; font: inherit; color: inherit; cursor: pointer;
+}
+.lista-links .link-evento:hover { background: var(--superficie-2); }
+.lista-links .link-evento .sub { color: var(--texto-2); font-size: .875rem; }
+.assistente { max-width: 640px; margin: 24px auto; }
+.assistente h1 { margin-bottom: 6px; }
+.simbolo-assistente { font-size: 2.75rem; color: var(--marca); font-weight: 700; letter-spacing: .04em; margin-bottom: 16px; }
+.assistente-passos { display: flex; gap: 6px; margin-bottom: 8px; }
+.assistente-passos span { flex: 1; height: 4px; border-radius: 2px; background: var(--linha); }
+.assistente-passos span.feito { background: var(--marca); }
+.opcoes-modo { display: grid; gap: 12px; }
+@media (min-width: 600px) { .opcoes-modo { grid-template-columns: 1fr 1fr; } }
+.cartao-modo {
+  display: flex; flex-direction: column; gap: 8px; padding: 20px; min-height: 140px; text-align: left; cursor: pointer;
+  background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); color: inherit; font: inherit;
+}
+.cartao-modo strong { font-size: 1.25rem; }
+.cartao-modo span { color: var(--texto-2); }
+.cartao-modo:hover, .cartao-modo:focus-visible { border-color: var(--marca); }
+.cartao-modo:active { transform: scale(.99); }
+.assistente .acoes { margin-top: 20px; }
+.botao-sem-cobrar { min-height: 44px; font-size: .875rem; color: var(--texto-2); grid-column: 1 / -1; }
+.botao-sem-cobrar.ativo { color: var(--marca-texto); background: var(--marca-suave); }
+.sem-modo .nav a { display: none; }

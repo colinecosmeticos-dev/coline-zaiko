@@ -86,6 +86,52 @@ export function htmlResumo(r, { categorias = true } = {}) {
     </div>`;
 }
 
+// ---------- Fechamento às cegas (sem o PIN) ----------
+// Quem fecha só informa o dinheiro contado: não vê o esperado nem a diferença.
+// A diferença fica gravada e aparece para quem tem o PIN.
+// Devolve o caixa fechado, 'pin' (quer fechar vendo os valores) ou null (voltou).
+export function pedirFechamentoCego(caixa, resumo) {
+  return new Promise((resolver) => {
+    let resultado = null;
+    const d = abrirJanela(`
+      <form method="dialog" class="form-fechamento" novalidate>
+        <h2>Fechar o caixa de ${esc(dataCurta(caixa.data))}</h2>
+        <p>Conte o dinheiro da gaveta e digite o total. O valor esperado fica escondido: a conferência é feita por quem tem o PIN.</p>
+        <div class="contagem-caixa">
+          <div class="campo"><label for="contado">Dinheiro contado na gaveta</label><input class="entrada entrada-grande" id="contado"></div>
+          <div class="campo"><label for="obs">Observação <span class="sub">(opcional)</span></label>
+            <input class="entrada" id="obs" maxlength="140" autocomplete="off" placeholder="Ex.: uma nota de R$ 50 rasgada"></div>
+        </div>
+        <div class="acoes">
+          <button type="button" class="btn texto" id="com-pin" style="margin-right:auto">Tenho o PIN</button>
+          <button type="button" class="btn" id="voltar">Voltar</button>
+          <button type="submit" class="btn primario" id="confirmar" disabled>Informe o valor contado</button>
+        </div>
+      </form>`, { classe: 'janela-fechamento', aoFechar: () => resolver(resultado) });
+    const $ = (s) => d.querySelector(s);
+    const campo = $('#contado');
+    campoDinheiro(campo, { permitirZero: true });
+    campo.addEventListener('input', () => {
+      const v = lerCentavos(campo);
+      $('#confirmar').disabled = v == null;
+      $('#confirmar').textContent = v == null ? 'Informe o valor contado' : `Fechar com ${dinheiro(v)}`;
+    });
+    $('#voltar').addEventListener('click', () => d.close());
+    $('#com-pin').addEventListener('click', () => { resultado = 'pin'; d.close(); });
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const contado = lerCentavos(campo);
+      if (contado == null) return;
+      resultado = await fecharCaixa(caixa.id, {
+        contado, esperado: resumo.esperado, diferenca: contado - resumo.esperado,
+        observacao: $('#obs').value.trim(), resumo, cego: true
+      });
+      d.close();
+    });
+    campo.focus();
+  });
+}
+
 // ---------- Fechamento ----------
 export function pedirFechamento(caixa, resumo) {
   return new Promise((resolver) => {

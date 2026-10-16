@@ -17,6 +17,8 @@ import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, lim
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
 import { abrirCobranca, finalizarTrocaSemCobranca } from '../venda/cobrar.js';
 import { montarGrupos, SEM_CATEGORIA } from '../venda/grupos.js';
+import { escolherEvento } from '../venda/escolher-evento.js';
+import { ehCaixa } from '../modo.js';
 
 const CHAVE_CATEGORIA = 'zaiko-categoria-venda';
 const lerCategoria = () => { try { return localStorage.getItem(CHAVE_CATEGORIA); } catch (e) { return null; } };
@@ -27,13 +29,20 @@ export async function render(el) {
   const aparelho = await lerAparelho();
   const evento = await lerEventoAtivo();
   const totalProdutos = await db.produtos.count();
-  const falta = !aparelho ? ['Identifique este aparelho', 'Dê nome e sigla ao aparelho; a sigla vai no número de cada venda.', '#/configuracoes', 'Configurar aparelho']
-    : !evento ? ['Escolha o evento', 'As vendas ficam guardadas dentro de um evento.', '#/eventos', 'Ir para Eventos']
+  const caixaModo = ehCaixa();
+  const falta = !aparelho ? ['Identifique este aparelho', 'Dê nome e sigla ao aparelho; a sigla vai no número de cada venda.', caixaModo ? '#/configurar' : '#/configuracoes', 'Configurar aparelho']
+    : !totalProdutos && caixaModo ? ['Receba o catálogo', 'O catálogo e o evento vêm no pacote preparado na Gestão.', '#/pacote', 'Receber catálogo e evento']
+    : !evento ? ['Escolha o evento', 'As vendas ficam guardadas dentro de um evento.', caixaModo ? '#escolher-evento' : '#/eventos', caixaModo ? 'Escolher o evento' : 'Ir para Eventos']
     : !totalProdutos ? ['Cadastre os produtos', 'A tela de venda mostra os produtos do catálogo.', '#/produtos/novo', 'Cadastrar produto']
     : null;
   if (falta) {
     el.innerHTML = `<header class="cab"><h1>Vender</h1></header>
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>${falta[0]}</h2><p>${falta[1]}</p><a class="btn primario" href="${falta[2]}">${falta[3]}</a></div>`;
+    // Modo Caixa: escolhe o evento aqui mesmo, sem a tela Eventos
+    el.querySelector('a[href="#escolher-evento"]')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (await escolherEvento()) render(el);
+    });
     return;
   }
 
@@ -214,7 +223,9 @@ export async function render(el) {
   });
   // Girar a tela ou mudar o tamanho da janela: redesenha só se mudar de celular para tablet (ou o contrário)
   const observador = new ResizeObserver(() => {
-    const agora = $('#grade').clientWidth < 520;
+    const grade = $('#grade');
+    if (!grade) return;   // a tela já foi trocada
+    const agora = grade.clientWidth < 520;
     if (agora !== estreito) { estreito = agora; desenharProdutos(); }
   });
   observador.observe($('#grade'));
@@ -242,7 +253,7 @@ export async function render(el) {
     som.erro();
     aviso(v ? 'Produto desativado para venda.' : `Código ${codigo} não cadastrado.`, {
       tipo: 'erro',
-      acao: v ? undefined : 'Cadastrar',
+      acao: v || caixaModo ? undefined : 'Cadastrar',
       aoClicar: () => { location.hash = `#/produtos/novo?codigo=${encodeURIComponent(codigo)}`; }
     });
   }

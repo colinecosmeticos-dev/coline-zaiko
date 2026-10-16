@@ -7,6 +7,8 @@ import { pedirArmazenamentoPersistente, garantirCategoriasPadrao, garantirFormas
 import { aplicarTemaSalvo } from './tema.js';
 import { saida, confirmar } from './ui.js';
 import { iniciarAtualizacoes } from './atualizacao.js';
+import { iniciarModo, modoAtual, podeAbrir, telaInicial } from './modo.js';
+import * as configurar from './telas/configurar.js';
 import * as inicio from './telas/inicio.js';
 import * as produtos from './telas/produtos.js';
 import * as produtoForm from './telas/produto-form.js';
@@ -40,6 +42,7 @@ import { emBreve } from './telas/em-breve.js';
 // ":id" é uma parte variável do endereço.
 const rotas = [
   ['inicio', inicio.render],
+  ['configurar', configurar.render],
   ['vender', vender.render],
   ['vendas', vendas.render],
   ['vendas/:id', vendaDetalhe.render],
@@ -105,9 +108,12 @@ async function navegar() {
   saida.pendente = null;
   hashAtual = location.hash;
   const [caminhoBruto, consulta = ''] = location.hash.replace(/^#\/?/, '').split('?');
-  const caminho = caminhoBruto || 'inicio';
+  const caminho = caminhoBruto || telaInicial();
+  // Aparelho novo: primeiro o assistente. Modo Caixa: só as telas da equipe.
+  if (!modoAtual() && caminho !== 'configurar' && caminho !== 'pacote') { location.replace('#/configurar'); return; }
+  if (!podeAbrir(caminho.split('/')[0])) { location.replace('#/' + telaInicial()); return; }
   const rota = encontrarRota(caminho);
-  if (!rota) { location.replace('#/inicio'); return; }
+  if (!rota) { location.replace('#/' + telaInicial()); return; }
 
   // Marca no menu o item da seção atual
   const secao = caminho.split('/')[0];
@@ -142,7 +148,7 @@ window.addEventListener('beforeunload', (e) => {
 
 // ---------- Inicialização ----------
 aplicarTemaSalvo();
-Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao()]).catch((e) => console.error(e)).finally(navegar);
+Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao(), iniciarModo()]).catch((e) => console.error(e)).finally(navegar);
 pedirArmazenamentoPersistente().catch(() => {});
 
 // ---------- Atualizações do app ----------

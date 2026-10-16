@@ -6,7 +6,7 @@
 // Para dividir o pagamento, informe um valor menor e escolha outra forma
 // para o restante.
 // =========================================================
-import { listarFormasPagamento, PARCELAS_MAX } from '../db.js';
+import { listarFormasPagamento, PARCELAS_MAX, adicionarSaida } from '../db.js';
 import { esc, dinheiro, abrirJanela, campoDinheiro, lerCentavos, escreverCentavos, icones } from '../ui.js';
 import { som } from '../sons.js';
 import { carrinho, calcularItem, calcularTotais, limparCarrinho } from './carrinho.js';
@@ -129,6 +129,7 @@ export function abrirCobranca({ evento, caixa }) {
         <div class="cobrar-corpo">
           <div class="grade-formas" id="formas">
             ${formas.map((f) => `<button type="button" class="btn botao-forma" data-forma="${esc(f.id)}">${esc(f.nome)}</button>`).join('')}
+            ${carrinho.troca ? '' : '<button type="button" class="btn texto botao-sem-cobrar" id="sem-cobrar">Sem cobrar: brinde ou avaria</button>'}
           </div>
           <div class="cobrar-detalhe">
             <ul class="lista-pagamentos" id="pagamentos"></ul>
@@ -157,6 +158,7 @@ export function abrirCobranca({ evento, caixa }) {
       $('#dica-forma').hidden = !falta() || !!forma;
       $('#dica-forma').textContent = pagamentos.length ? `Escolha a forma para os ${dinheiro(falta())} que faltam.` : 'Escolha a forma de pagamento.';
       if (!falta()) $('#painel').hidden = true;
+      if ($('#sem-cobrar')) $('#sem-cobrar').hidden = !!pagamentos.length;
     }
 
     $('#pagamentos').addEventListener('click', (e) => {
@@ -169,6 +171,7 @@ export function abrirCobranca({ evento, caixa }) {
     // ---------- Painel da forma escolhida ----------
     function escolher(f) {
       forma = f;
+      $('#sem-cobrar')?.classList.remove('ativo');
       d.querySelectorAll('.botao-forma').forEach((b) => b.classList.toggle('ativo', b.dataset.forma === f.id));
       const painel = $('#painel');
       painel.hidden = false;
@@ -283,6 +286,63 @@ export function abrirCobranca({ evento, caixa }) {
     d.querySelectorAll('[data-forma]').forEach((b) => b.addEventListener('click', () => escolher(formas.find((f) => f.id === b.dataset.forma))));
     $('#fechar').addEventListener('click', () => d.close());
     $('#finalizar').addEventListener('click', finalizar);
+
+    // ---------- Sem cobrar: brinde/doação ou avaria (saída sem venda) ----------
+    // Os itens do carrinho saem do estoque sem entrar no faturamento,
+    // como os brindes e avarias da tela Estoque.
+    $('#sem-cobrar')?.addEventListener('click', () => {
+      forma = null;
+      d.querySelectorAll('.botao-forma').forEach((b) => b.classList.remove('ativo'));
+      $('#sem-cobrar').classList.add('ativo');
+      $('#dica-forma').hidden = true;
+      $('#finalizar').hidden = true;
+      const pecas = carrinho.itens.reduce((s, i) => s + i.quantidade, 0);
+      const painel = $('#painel');
+      painel.hidden = false;
+      painel.innerHTML = `
+        <div class="campo"><span class="rotulo">Tipo de saída</span>
+          <div class="opcoes" role="radiogroup" aria-label="Tipo de saída">
+            <label><input type="radio" name="tipo-saida" value="brinde"><span>Brinde ou doação</span></label>
+            <label><input type="radio" name="tipo-saida" value="avaria"><span>Avaria (defeito)</span></label>
+          </div></div>
+        <div class="campo"><label for="motivo-saida">Motivo</label>
+          <input class="entrada" id="motivo-saida" maxlength="140" autocomplete="off" placeholder="Ex.: sorteio do evento, frasco vazando"></div>
+        <p class="sub">${pecas} ${pecas === 1 ? 'peça sai' : 'peças saem'} do estoque sem cobrar. Não entra no faturamento.</p>
+        <button type="button" class="btn primario btn-finalizar" id="registrar-saida" disabled>Escolha o tipo e o motivo</button>`;
+      const tipoSaida = () => painel.querySelector('input[name="tipo-saida"]:checked');
+      const conferir = () => {
+        const ok = tipoSaida() && $('#motivo-saida').value.trim();
+        $('#registrar-saida').disabled = !ok;
+        $('#registrar-saida').textContent = ok ? `Registrar ${tipoSaida().value === 'avaria' ? 'avaria' : 'brinde'}` : 'Escolha o tipo e o motivo';
+      };
+      painel.querySelectorAll('input[name="tipo-saida"]').forEach((x) => x.addEventListener('change', () => { conferir(); $('#motivo-saida').focus(); }));
+      $('#motivo-saida').addEventListener('input', conferir);
+      $('#registrar-saida').addEventListener('click', async () => {
+        if (gravando || $('#registrar-saida').disabled) return;
+        gravando = true;
+        const tipo = tipoSaida().value, motivo = $('#motivo-saida').value.trim();
+        for (const i of carrinho.itens) {
+          await adicionarSaida({
+            eventoId: evento.id, tipo, quantidade: i.quantidade, motivo,
+            variacaoId: i.variacaoId, produtoId: i.produtoId, nome: i.nome, variacaoNome: i.variacaoNome || '',
+            categoriaNome: i.categoriaNome || '', tipoNome: i.tipoNome || '', linhaNome: i.linhaNome || '',
+            custoUnit: i.custoUnit ?? null
+          });
+        }
+        limparCarrinho();
+        concluida = true;
+        som.venda();
+        d.querySelector('.cobrar').innerHTML = `
+          <div class="venda-concluida">
+            <div class="marca-ok" aria-hidden="true">✓</div>
+            <h2>${tipo === 'avaria' ? 'Avaria registrada' : 'Brinde registrado'}</h2>
+            <p>${pecas} ${pecas === 1 ? 'peça' : 'peças'} · ${esc(motivo)}</p>
+            <button type="button" class="btn primario btn-confirmar" id="nova">Nova venda</button>
+          </div>`;
+        d.querySelector('#nova').addEventListener('click', () => d.close());
+        d.querySelector('#nova').focus();
+      });
+    });
 
     // ---------- Gravar a venda ----------
     let gravando = false;

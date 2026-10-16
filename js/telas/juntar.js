@@ -3,6 +3,7 @@
 // Nos outros aparelhos: enviar as vendas do evento em uso.
 // No principal: receber as vendas de todos e conferir quem já mandou.
 // =========================================================
+import { ehCaixa } from '../modo.js';
 import { lerAparelho, lerEventoAtivo } from '../db.js';
 import { esc, icones, aviso, confirmar } from '../ui.js';
 import { gerarArquivoVendas, lerArquivoVendas, importarVendas, aparelhosDoEvento } from '../vendas-arquivo.js';
@@ -27,7 +28,7 @@ export async function render(el) {
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div>
       <h2>${!aparelho ? 'Identifique este aparelho' : 'Escolha o evento'}</h2>
       <p>${!aparelho ? 'Dê nome e sigla ao aparelho em Configurações.' : 'As vendas são juntadas por evento.'}</p>
-      <a class="btn primario" href="${!aparelho ? '#/configuracoes' : '#/eventos'}">${!aparelho ? 'Configurar aparelho' : 'Ir para Eventos'}</a></div>`;
+      <a class="btn primario" href="${!aparelho ? '#/configurar' : ehCaixa() ? '#/mais' : '#/eventos'}">${!aparelho ? 'Configurar aparelho' : 'Escolher o evento'}</a></div>`;
     return;
   }
   const aparelhos = await aparelhosDoEvento(evento);
@@ -36,7 +37,7 @@ export async function render(el) {
   el.innerHTML = `
     ${voltar}
     <header class="cab"><div>
-      <h1>Juntar vendas</h1>
+      <h1>${ehCaixa() ? 'Enviar vendas' : 'Juntar vendas'}</h1>
       <p class="sub">${esc(evento.nome)} · leva vendas, trocas, devoluções e caixas de cada aparelho para o principal, sem duplicar.</p>
     </div></header>
 
@@ -50,7 +51,7 @@ export async function render(el) {
       </div>
     </section>
 
-    <section class="cartao">
+    <section class="cartao so-gestao">
       <h2>Receber no aparelho principal</h2>
       <p class="sub">Junta aqui as vendas enviadas pelos outros aparelhos neste evento.</p>
       <div class="acoes">
@@ -61,7 +62,7 @@ export async function render(el) {
       <p class="sub" id="status" style="margin-top:12px" hidden></p>
     </section>
 
-    <section class="cartao">
+    <section class="cartao so-gestao">
       <h2>Aparelhos com vendas neste evento</h2>
       <p class="sub">Antes do fechamento, confira se todos os aparelhos que venderam aparecem aqui.</p>
       ${aparelhos.length ? `<ul class="lista lista-aparelhos">${aparelhos.map((a) => `

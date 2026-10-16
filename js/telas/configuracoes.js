@@ -5,6 +5,7 @@ import { procurar } from '../atualizacao.js';
 import { sonsLigados, ligarSons } from '../sons.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';
 import { aviso, confirmar, icones } from '../ui.js';
+import { definirModo } from '../modo.js';
 import { lerAparelho, gravarAparelho, listarFormasPagamento, listarCategoriasRetirada } from '../db.js';
 
 export async function render(el) {
@@ -45,6 +46,12 @@ export async function render(el) {
         <span class="seta" aria-hidden="true">›</span></a></li>
     </ul>
 
+
+    <section class="cartao">
+      <h2>Modo deste aparelho: Gestão</h2>
+      <p class="sub">No modo <strong>Caixa</strong>, o aparelho mostra só Vender, Vendas e Caixa, para a equipe de venda. Para voltar à Gestão, ${pinDefinido ? 'é preciso o PIN' : 'defina um PIN antes, ou qualquer pessoa poderá voltar'}.</p>
+      <div class="acoes" style="justify-content:flex-start"><button type="button" class="btn" id="modo-caixa">Mudar para modo Caixa</button></div>
+    </section>
 
     <section class="cartao">
       <h2>Tema</h2>
@@ -119,6 +126,14 @@ export async function render(el) {
   });
 
   // ---------- Este aparelho ----------
+  el.querySelector('#modo-caixa').addEventListener('click', async () => {
+    const ok = await confirmar({ titulo: 'Mudar para modo Caixa?', texto: `O aparelho passa a mostrar só Vender, Vendas e Caixa. Os dados não mudam. ${pinDefinido ? 'Para voltar, use Mais → Entrar no modo Gestão, com o PIN.' : 'Sem PIN, qualquer pessoa consegue voltar para a Gestão.'}`, botao: 'Mudar para Caixa' });
+    if (!ok) return;
+    await definirModo('caixa');
+    aviso('Modo Caixa.');
+    location.hash = '#/vender';
+  });
+
   el.querySelector('#form-aparelho').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nome = el.querySelector('#ap-nome').value.trim();
