@@ -11,7 +11,7 @@
 
 // ID do cliente OAuth criado no Google Cloud (é público por natureza: não é senha).
 // Enquanto estiver vazio, a seção do Drive mostra "ainda não configurado".
-export const CLIENT_ID = '';
+export const CLIENT_ID = '561803433802-l9v9c7atmu8rfsb9o1tol48epoms2uqp.apps.googleusercontent.com';
 
 const ESCOPO = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
