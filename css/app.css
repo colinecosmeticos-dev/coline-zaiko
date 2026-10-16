@@ -889,3 +889,34 @@ dialog.janela-fechamento { width: min(96vw, 860px); max-height: 96dvh; }
 .le-dif.sobra { color: #B26A00; }
 .abas-estoque { flex-wrap: wrap; }
 .contas .linha-falta { color: var(--erro); }
+
+/* ---------- Folha de códigos ---------- */
+.opcoes-folha { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.opcoes-folha .interruptor { gap: 12px; }
+.nota-folha { font-size: .8125rem; margin: 8px 0 16px; }
+.folha-codigos { background: #fff; color: #000; border: 1px solid var(--linha); border-radius: var(--raio); padding: 16px; }
+.folha-titulo { display: flex; justify-content: space-between; font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: #000; }
+.folha-titulo span { font-weight: 400; color: #555; }
+.folha-grupo + .folha-grupo { margin-top: 12px; }
+.folha-grupo h2 { font-size: .9375rem; margin: 0 0 6px; padding-bottom: 2px; border-bottom: 1px solid #000; color: #000; }
+.folha-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.etiqueta-codigo { border: 1px dashed #999; border-radius: 4px; padding: 6px 8px 4px; break-inside: avoid; page-break-inside: avoid; display: flex; flex-direction: column; gap: 2px; color: #000; background: #fff; }
+.ec-nome { font-size: .8125rem; line-height: 1.2; }
+.ec-nome span { color: #444; }
+.ec-preco { font-size: .8125rem; font-weight: 700; }
+.ean13 { width: 100%; max-width: 46mm; height: auto; display: block; margin: 2px auto 0; }
+
+@media print {
+  @page { size: A4; margin: 10mm; }
+  html, body { background: #fff !important; }
+  .nav, .avisos, .nao-imprimir, .faixa-atualizacao { display: none !important; }
+  main, #tela, .tela { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+  .folha-codigos { border: 0; padding: 0; border-radius: 0; }
+  .folha-grade { grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+  .etiqueta-codigo { border-color: #bbb; }
+  .ean13 { width: 40mm; max-width: none; }
+}
+@media print {
+  .folha-grupo h2 { break-after: avoid; page-break-after: avoid; }
+  .folha-titulo { margin-bottom: 4mm; }
+}

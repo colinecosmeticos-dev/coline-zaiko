@@ -28,6 +28,7 @@ import * as juntar from './telas/juntar.js';
 import * as estoque from './telas/estoque.js';
 import * as fechamento from './telas/fechamento.js';
 import * as backup from './telas/backup.js';
+import * as codigos from './telas/codigos.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -43,6 +44,7 @@ const rotas = [
   ['produtos', produtos.render],
   ['produtos/categorias', categorias.render],
   ['produtos/categorias/:id', categoriaForm.render],
+  ['produtos/codigos', codigos.render],
   ['produtos/novo', produtoForm.render],
   ['produtos/:id', produtoForm.render],
   ['mais', mais.render],
