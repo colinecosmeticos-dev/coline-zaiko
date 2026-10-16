@@ -44,6 +44,7 @@ export function planilhaFechamento(evento, f, registros) {
     ['Vendas', g.quantidadeVendas], ['Ticket médio', R(g.ticketMedio)], ['Itens vendidos', g.itensVendidos],
     ['Descontos concedidos', R(g.descontos)], ['Trocas', g.trocas], ['Devoluções', g.devolucoes], ['Canceladas', g.canceladas],
     ['Diferença dos caixas fechados', R(f.diferencaCaixas)],
+    ...(f.estoque.contagem.itensContados ? [['Peças faltando na contagem final', f.estoque.contagem.pecasFaltando], ['Valor das faltas (custo)', R(f.estoque.contagem.valorFaltando)]] : []),
     [],
     [N('Por forma de pagamento'), N('R$'), N('Pagamentos')],
     ...g.porForma.map((x) => [x.nome, R(x.valor), x.quantidade]),
@@ -69,9 +70,12 @@ export function planilhaFechamento(evento, f, registros) {
     if (r.descontoVendaValor) itens.push([...base, 'Desconto na venda', '', null, null, R(r.descontoVendaValor), R(-r.descontoVendaValor), '', null, '', ...fim]);
   }
 
-  const estoque = [[N('Produto'), N('Variação'), N('Levado'), N('Vendido'), N('Brindes'), N('Avarias'), N('Voltaram'), N('Sobra')],
-    ...f.estoque.linhas.map((l) => [l.produto, l.variacao, l.levado, l.vendido, l.brindes, l.avarias, l.voltaram, { v: l.sobra, estilo: 'negrito' }]),
-    [N('Total'), '', f.estoque.totais.levado, f.estoque.totais.vendido, f.estoque.totais.brindes, f.estoque.totais.avarias, f.estoque.totais.voltaram, { v: f.estoque.totais.sobra, estilo: 'negrito' }]];
+  const ct = f.estoque.contagem;
+  const estoque = [[N('Produto'), N('Variação'), N('Levado'), N('Vendido'), N('Brindes'), N('Avarias'), N('Voltaram'), N('Sobra calculada'), N('Contado'), N('Diferença'), N('Custo unit.'), N('Valor da falta')],
+    ...f.estoque.linhas.map((l) => [l.produto, l.variacao, l.levado, l.vendido, l.brindes, l.avarias, l.voltaram, { v: l.sobra, estilo: 'negrito' },
+      l.contado, l.diferenca, R(l.custoUnit), l.diferenca < 0 && l.custoUnit != null ? R(-l.diferenca * l.custoUnit) : null]),
+    [N('Total'), '', f.estoque.totais.levado, f.estoque.totais.vendido, f.estoque.totais.brindes, f.estoque.totais.avarias, f.estoque.totais.voltaram, { v: f.estoque.totais.sobra, estilo: 'negrito' },
+      ct.itensContados ? ct.pecasContadas : null, ct.itensContados ? ct.pecasSobrando - ct.pecasFaltando : null, null, ct.valorFaltando ? R(ct.valorFaltando, 'moedaNegrito') : null]];
 
   const caixas = [[N('Dia'), N('Aparelho'), N('Situação'), N('Esperado'), N('Contado'), N('Diferença')],
     ...f.caixas.map((c) => [dataBR(c.data), c.aparelho?.nome || c.aparelho?.sigla || '', c.aberto ? 'Aberto' : 'Fechado', R(c.esperado), R(c.contado), R(c.diferenca)])];
@@ -79,7 +83,7 @@ export function planilhaFechamento(evento, f, registros) {
   const blob = gerarXlsx([
     { nome: 'Resumo', larguras: [36, 16, 14, 14, 14], linhas: resumo },
     { nome: 'Itens', larguras: [11, 7, 12, 11, 11, 9, 30, 16, 6, 11, 10, 11, 7, 11, 16, 28, 13, 10], linhas: itens, congelarLinha1: true },
-    { nome: 'Estoque', larguras: [30, 16, 9, 9, 9, 9, 9, 9], linhas: estoque, congelarLinha1: true },
+    { nome: 'Estoque', larguras: [30, 16, 9, 9, 9, 9, 9, 15, 9, 10, 11, 14], linhas: estoque, congelarLinha1: true },
     { nome: 'Caixas', larguras: [12, 18, 10, 13, 13, 13], linhas: caixas, congelarLinha1: true }
   ]);
   return new File([blob], `${nomePlanilha(evento)}.xlsx`, { type: blob.type });

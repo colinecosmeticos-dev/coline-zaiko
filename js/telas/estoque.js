@@ -5,9 +5,11 @@
 //   Brindes e avarias — saídas sem venda (brinde/doação e produto com defeito),
 //             em qualquer aparelho; vão para o principal ao juntar as vendas.
 //   Sobra   — levado − vendido − brindes − avarias + itens que voltaram.
+//   Contagem final — o que sobrou de verdade, contado no fim; mostra a
+//             diferença em relação à sobra calculada.
 // =========================================================
-import { db, lerEventoAtivo, lerAparelho, listarProdutosCompletos, buscarPorCodigo, lerLevado, gravarLevado, adicionarSaida, cancelarSaida } from '../db.js';
-import { esc, icones, aviso, abrirJanela, confirmar } from '../ui.js';
+import { db, lerEventoAtivo, lerAparelho, listarProdutosCompletos, buscarPorCodigo, lerLevado, gravarLevado, adicionarSaida, cancelarSaida, lerContado, gravarContado } from '../db.js';
+import { esc, icones, aviso, abrirJanela, confirmar, dinheiro } from '../ui.js';
 import { ouvirLeitor } from '../leitor.js';
 import { som } from '../sons.js';
 import { calcularEstoque } from '../estoque/calculo.js';
@@ -32,6 +34,7 @@ export async function render(el) {
       <label><input type="radio" name="aba" value="levado" ${aba === 'levado' ? 'checked' : ''}><span>Levado</span></label>
       <label><input type="radio" name="aba" value="saidas" ${aba === 'saidas' ? 'checked' : ''}><span>Brindes e avarias</span></label>
       <label><input type="radio" name="aba" value="sobra" ${aba === 'sobra' ? 'checked' : ''}><span>Sobra</span></label>
+      <label><input type="radio" name="aba" value="contagem" ${aba === 'contagem' ? 'checked' : ''}><span>Contagem final</span></label>
     </div>
     <div id="conteudo"></div>`;
   let pararLeitor = null;
@@ -40,6 +43,7 @@ export async function render(el) {
     if (pararLeitor) { pararLeitor(); pararLeitor = null; }
     if (aba === 'levado') pararLeitor = await abaLevado(conteudo, evento, produtos);
     else if (aba === 'saidas') await abaSaidas(conteudo, evento, produtos);
+    else if (aba === 'contagem') pararLeitor = await abaContagem(conteudo, evento, produtos);
     else await abaSobra(conteudo, evento, produtos);
   };
   el.querySelectorAll('input[name="aba"]').forEach((r) => r.addEventListener('change', () => { aba = r.value; desenhar(); }));
@@ -251,12 +255,14 @@ function pedirSaida(evento, produtos, tipo) {
 
 // ---------- Sobra ----------
 async function abaSobra(el, evento, produtos) {
-  const [levado, registros, saidas] = await Promise.all([
+  const [levado, registros, saidas, contado] = await Promise.all([
     lerLevado(evento.id),
     db.vendas.where('eventoId').equals(evento.id).toArray(),
-    db.saidas.where('eventoId').equals(evento.id).toArray()
+    db.saidas.where('eventoId').equals(evento.id).toArray(),
+    lerContado(evento.id)
   ]);
-  const { linhas, totais, negativas } = calcularEstoque({ produtos, levado, registros, saidas });
+  const { linhas, totais, negativas } = calcularEstoque({ produtos, levado, registros, saidas, contado });
+  const comContagem = contado.size > 0;
   const siglas = [...new Set(registros.map((r) => r.aparelho?.sigla).filter(Boolean))];
   const kpi = (rotulo, n, classe = '') => `<div class="kpi ${classe}"><span>${rotulo}</span><strong class="num">${n.toLocaleString('pt-BR')}</strong></div>`;
   el.innerHTML = `
@@ -268,11 +274,162 @@ async function abaSobra(el, evento, produtos) {
     ${!totais.levado ? '<p class="aviso-inline">Nenhuma quantidade levada registrada: a sobra só faz sentido depois de preencher a aba Levado.</p>' : ''}
     <section class="cartao">
       ${linhas.length ? `<div class="tabela-rolagem"><table class="tabela-painel tabela-estoque">
-        <thead><tr><th>Produto</th><th class="num">Levado</th><th class="num">Vendido</th><th class="num">Brindes</th><th class="num">Avarias</th><th class="num">Voltaram</th><th class="num">Sobra</th></tr></thead>
+        <thead><tr><th>Produto</th><th class="num">Levado</th><th class="num">Vendido</th><th class="num">Brindes</th><th class="num">Avarias</th><th class="num">Voltaram</th><th class="num">Sobra</th>${comContagem ? '<th class="num">Contado</th><th class="num">Diferença</th>' : ''}</tr></thead>
         <tbody>${linhas.map((l) => `<tr class="${l.sobra < 0 ? 'negativa' : ''}">
           <td>${esc(l.produto)}${l.variacao ? ` <span class="sub">${esc(l.variacao)}</span>` : ''}</td>
           <td class="num">${l.levado}</td><td class="num">${l.vendido}</td><td class="num">${l.brindes || ''}</td><td class="num">${l.avarias || ''}</td><td class="num">${l.voltaram || ''}</td>
-          <td class="num sobra">${l.sobra}</td></tr>`).join('')}</tbody>
+          <td class="num sobra">${l.sobra}</td>${comContagem ? `<td class="num">${l.contado ?? '–'}</td><td class="num ${l.diferenca < 0 ? 'negativo' : ''}">${l.diferenca == null ? '' : l.diferenca > 0 ? `+${l.diferenca}` : l.diferenca}</td>` : ''}</tr>`).join('')}</tbody>
       </table></div>` : '<p class="sub">Nada levado nem vendido neste evento ainda.</p>'}
     </section>`;
+}
+
+// ---------- Contagem final ----------
+async function abaContagem(el, evento, produtos) {
+  const [levado, registros, saidas, contado] = await Promise.all([
+    lerLevado(evento.id),
+    db.vendas.where('eventoId').equals(evento.id).toArray(),
+    db.saidas.where('eventoId').equals(evento.id).toArray(),
+    lerContado(evento.id)
+  ]);
+  const base = calcularEstoque({ produtos, levado, registros, saidas });
+  // Itens do evento (levados ou movimentados) + o resto do catálogo, para achar algo inesperado
+  const linhas = new Map(base.linhas.map((l) => [l.variacaoId, l]));
+  for (const p of produtos) for (const v of p.variacoes) if (!linhas.has(v.id)) linhas.set(v.id, { variacaoId: v.id, produto: p.nome, variacao: v.nome || '', sobra: 0, levado: 0, custoUnit: v.custo ?? p.custo ?? null, foraDoEvento: true });
+  const codigo = new Map();
+  for (const p of produtos) for (const v of p.variacoes) codigo.set(v.id, v.codigo || '');
+  let busca = '';
+
+  el.innerHTML = `
+    <section class="cartao">
+      <div class="cab-cartao"><h2>Contagem final</h2><strong class="num" id="resumo-contagem"></strong></div>
+      <p class="sub">No fim do evento, conte o que sobrou de cada item: use − e +, digite, ou leia o código de cada peça (cada leitura soma 1). Salva sozinho. Item sem número = ainda não contado.</p>
+      <div class="placar placar-contagem" id="placar"></div>
+      <div class="acoes" style="margin-top:8px">
+        <label class="busca" style="flex:1 1 220px"><span class="oculto">Buscar produto</span>${icones.busca}
+          <input class="entrada" id="busca-contagem" type="search" placeholder="Buscar produto" autocomplete="off"></label>
+        <button type="button" class="btn texto perigo" id="limpar-contagem">Limpar contagem</button>
+      </div>
+    </section>
+    <div id="lista-contagem"></div>`;
+
+  const difTexto = (d) => d == null ? '' : d === 0 ? 'Confere' : d < 0 ? `Falta ${-d}` : `Sobra ${d}`;
+  const difClasse = (d) => d == null ? '' : d === 0 ? 'confere' : d < 0 ? 'falta' : 'sobra';
+
+  function resumo() {
+    const lista = [...linhas.values()].filter((l) => !l.foraDoEvento || contado.has(l.variacaoId));
+    const contados = lista.filter((l) => contado.has(l.variacaoId));
+    let falta = 0, sobra = 0, valor = 0;
+    for (const l of contados) {
+      const d = contado.get(l.variacaoId) - l.sobra;
+      if (d < 0) { falta -= d; valor += (l.custoUnit || 0) * -d; } else sobra += d;
+    }
+    el.querySelector('#resumo-contagem').textContent = `${contados.length} de ${lista.length} itens contados`;
+    el.querySelector('#placar').innerHTML = `
+      <div><span>Peças contadas</span><strong class="num">${contados.reduce((s, l) => s + contado.get(l.variacaoId), 0)}</strong></div>
+      <div class="${falta ? 'falta' : 'confere'}"><span>Faltando</span><strong class="num">${falta}${valor ? ` · ${dinheiro(valor)}` : ''}</strong></div>
+      <div class="${sobra ? 'sobra' : ''}"><span>Sobrando</span><strong class="num">${sobra}</strong></div>`;
+  }
+
+  function desenharLista() {
+    const t = busca.toLowerCase();
+    const visiveis = [...linhas.values()].filter((l) => (!l.foraDoEvento || contado.has(l.variacaoId) || t)
+      && (!t || `${l.produto} ${l.variacao} ${codigo.get(l.variacaoId) || ''}`.toLowerCase().includes(t)));
+    const grupos = new Map();
+    for (const l of visiveis) { if (!grupos.has(l.produto)) grupos.set(l.produto, []); grupos.get(l.produto).push(l); }
+    el.querySelector('#lista-contagem').innerHTML = grupos.size ? [...grupos.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).map(([produto, ls]) => `
+      <section class="cartao grupo-estoque">
+        <h3>${esc(produto)}</h3>
+        <ul class="linhas-estoque">${ls.map((l) => {
+          const c = contado.has(l.variacaoId) ? contado.get(l.variacaoId) : null;
+          const d = c == null ? null : c - l.sobra;
+          return `<li data-variacao="${esc(l.variacaoId)}">
+            <span class="le-nome">${esc(l.variacao || 'Único')}<span class="sub">calculado: ${l.sobra}${l.foraDoEvento ? ' · fora do evento' : ''}</span></span>
+            <span class="le-dif ${difClasse(d)}" data-dif>${difTexto(d)}</span>
+            <span class="quantidade pequena">
+              <button type="button" class="btn-icone" data-menos aria-label="Menos">−</button>
+              <input class="entrada num le-qtd" type="number" inputmode="numeric" min="0" step="1" value="${c ?? ''}" placeholder="–" aria-label="Contado de ${esc(produto)} ${esc(l.variacao)}">
+              <button type="button" class="btn-icone" data-mais aria-label="Mais">+</button>
+            </span>
+          </li>`;
+        }).join('')}</ul>
+      </section>`).join('') : '<div class="cartao"><p class="sub">Nenhum item encontrado.</p></div>';
+  }
+
+  async function definir(variacaoId, n) {
+    const valor = n === '' || n == null ? null : Math.max(0, Math.floor(Number(n) || 0));
+    if (valor == null) contado.delete(variacaoId); else contado.set(variacaoId, valor);
+    await gravarContado(evento.id, variacaoId, valor);
+    const li = el.querySelector(`[data-variacao="${CSS.escape(variacaoId)}"]`);
+    if (li) {
+      const campo = li.querySelector('.le-qtd');
+      if (document.activeElement !== campo) campo.value = valor ?? '';
+      const d = valor == null ? null : valor - linhas.get(variacaoId).sobra;
+      const dif = li.querySelector('[data-dif]');
+      dif.textContent = difTexto(d); dif.className = `le-dif ${difClasse(d)}`;
+    }
+    resumo();
+  }
+
+  const lista = el.querySelector('#lista-contagem');
+  lista.addEventListener('click', (e) => {
+    const li = e.target.closest('[data-variacao]');
+    if (!li) return;
+    const atual = contado.get(li.dataset.variacao);
+    if (e.target.closest('[data-mais]')) definir(li.dataset.variacao, (atual ?? 0) + 1);
+    if (e.target.closest('[data-menos]')) definir(li.dataset.variacao, atual == null ? 0 : Math.max(0, atual - 1));
+  });
+  lista.addEventListener('change', (e) => {
+    const li = e.target.closest('[data-variacao]');
+    if (li && e.target.classList.contains('le-qtd')) definir(li.dataset.variacao, e.target.value.trim());
+  });
+  lista.addEventListener('focusin', (e) => { if (e.target.classList.contains('le-qtd')) requestAnimationFrame(() => e.target.select()); });
+  // Leitura com o campo selecionado (o código "cai" no campo)
+  lista.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !e.target.classList.contains('le-qtd')) return;
+    e.preventDefault();
+    const li = e.target.closest('[data-variacao]');
+    const valor = e.target.value.trim();
+    if (valor.length >= 6) {
+      const anterior = String(contado.get(li.dataset.variacao) ?? '');
+      e.target.value = anterior;
+      e.target.blur();
+      (async () => {
+        const candidatos = [valor];
+        if (anterior && valor.startsWith(anterior)) candidatos.push(valor.slice(anterior.length));
+        if (anterior && valor.endsWith(anterior)) candidatos.push(valor.slice(0, -anterior.length));
+        let cod = valor;
+        for (const c of candidatos) if (await buscarPorCodigo(c)) { cod = c; break; }
+        lerCodigo(cod);
+      })();
+    } else e.target.blur();
+  });
+  el.querySelector('#busca-contagem').addEventListener('input', (e) => { busca = e.target.value.trim(); desenharLista(); });
+  el.querySelector('#busca-contagem').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (/^\d{6,}$/.test(e.target.value.trim())) lerCodigo(e.target.value.trim());
+  });
+  el.querySelector('#limpar-contagem').addEventListener('click', async () => {
+    if (!contado.size) return;
+    if (!(await confirmar({ titulo: 'Limpar a contagem?', texto: 'Todas as quantidades contadas deste evento serão apagadas.', botao: 'Limpar', perigo: true }))) return;
+    for (const id of [...contado.keys()]) await gravarContado(evento.id, id, null);
+    contado.clear();
+    desenharLista(); resumo();
+  });
+
+  async function lerCodigo(cod) {
+    if (document.querySelector('dialog[open]')) return;
+    const v = await buscarPorCodigo(cod);
+    if (!v) { som.erro(); aviso(`Código ${cod} não cadastrado.`, { tipo: 'erro' }); return; }
+    if (busca) { busca = ''; el.querySelector('#busca-contagem').value = ''; }
+    if (!el.querySelector(`[data-variacao="${CSS.escape(v.id)}"]`)) { contado.set(v.id, contado.get(v.id) ?? 0); desenharLista(); }
+    await definir(v.id, (contado.get(v.id) ?? 0) + 1);
+    som.item();
+    const li = el.querySelector(`[data-variacao="${CSS.escape(v.id)}"]`);
+    if (li) { li.classList.remove('lido'); void li.offsetWidth; li.classList.add('lido'); li.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  }
+
+  desenharLista();
+  resumo();
+  return ouvirLeitor(lerCodigo);
 }

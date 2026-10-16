@@ -45,6 +45,11 @@ db.version(6).stores({
   saidas: 'id, eventoId, criadoEm'
 });
 
+// Versão 7: contagem final do estoque (quantidade contada no fim do evento, por variação)
+db.version(7).stores({
+  estoqueContado: 'id, eventoId'
+});
+
 // Gera um identificador único (ex.: "3f2b9c1e-..."). Usamos isso em vez de
 // 1, 2, 3... porque os dois aparelhos vão trocar dados entre si e os números
 // iguais se misturariam.
@@ -333,4 +338,15 @@ export async function adicionarSaida(dados) {
 }
 export async function cancelarSaida(id) {
   await db.saidas.update(id, { status: 'cancelado', canceladoEm: new Date().toISOString() });
+}
+
+// Contagem final: um registro por evento + variação. Sem registro = item ainda não contado.
+export async function lerContado(eventoId) {
+  const lista = await db.estoqueContado.where('eventoId').equals(eventoId).toArray();
+  return new Map(lista.map((r) => [r.variacaoId, r.quantidade]));
+}
+export async function gravarContado(eventoId, variacaoId, quantidade) {
+  const id = `${eventoId}:${variacaoId}`;
+  if (quantidade == null) { await db.estoqueContado.delete(id); return; }
+  await db.estoqueContado.put({ id, eventoId, variacaoId, quantidade, atualizadoEm: new Date().toISOString() });
 }

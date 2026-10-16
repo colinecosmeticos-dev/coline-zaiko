@@ -11,11 +11,11 @@ import { calcularPainel } from '../painel/calculo.js';
 import { calcularEstoque } from '../estoque/calculo.js';
 import { diaLocal } from '../telas/vendas.js';
 
-export function calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado }) {
+export function calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado }) {
   const doEvento = registros.filter((r) => !r.posEvento);
   const posEvento = registros.filter((r) => r.posEvento && r.status !== 'cancelada');
   const geral = calcularPainel(doEvento);
-  const estoque = calcularEstoque({ produtos, levado, registros: doEvento, saidas });
+  const estoque = calcularEstoque({ produtos, levado, registros: doEvento, saidas, contado });
 
   // Despesas do caixa (retiradas). Sangria e outras "não despesa" ficam à parte.
   const retiradas = movimentos.filter((m) => m.tipo === 'retirada' && m.status !== 'cancelado');

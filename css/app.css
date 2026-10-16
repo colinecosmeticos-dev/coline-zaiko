@@ -881,3 +881,11 @@ dialog.janela-fechamento { width: min(96vw, 860px); max-height: 96dvh; }
 .item-backup:hover { background: var(--superficie-2); }
 .item-backup .sub { color: var(--texto-2); font-size: .875rem; }
 .item-backup .seta { color: var(--texto-2); font-size: 1.25rem; }
+.placar-contagem { margin: 12px 0 0; }
+.placar .sobra strong { color: #B26A00; }
+.le-dif { margin-left: auto; font-size: .8125rem; font-weight: 700; white-space: nowrap; }
+.le-dif.confere { color: var(--ok); }
+.le-dif.falta { color: var(--erro); }
+.le-dif.sobra { color: #B26A00; }
+.abas-estoque { flex-wrap: wrap; }
+.contas .linha-falta { color: var(--erro); }

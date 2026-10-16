@@ -5,7 +5,7 @@
 // resultado, formas de pagamento, dias, aparelhos, despesas, caixas,
 // estoque e exportação em planilha. Aqui também se encerra o evento.
 // =========================================================
-import { db, lerEventoAtivo, listarProdutosCompletos, lerLevado } from '../db.js';
+import { db, lerEventoAtivo, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
 import { esc, dinheiro, icones, aviso, confirmar, periodo } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { calcularFechamento } from '../fechamento/calculo.js';
@@ -35,14 +35,15 @@ export async function render(el, { mostrar = false } = {}) {
     return;
   }
 
-  const [registros, caixas, movimentos, saidas, produtos, levado, aparelhos] = await Promise.all([
+  const [registros, caixas, movimentos, saidas, produtos, levado, aparelhos, contado] = await Promise.all([
     db.vendas.where('eventoId').equals(evento.id).toArray(),
     db.caixas.where('eventoId').equals(evento.id).toArray(),
     db.movimentos.where('eventoId').equals(evento.id).toArray(),
     db.saidas.where('eventoId').equals(evento.id).toArray(),
-    listarProdutosCompletos(), lerLevado(evento.id), aparelhosDoEvento(evento)
+    listarProdutosCompletos(), lerLevado(evento.id), aparelhosDoEvento(evento), lerContado(evento.id)
   ]);
-  const f = calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado });
+  const f = calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado });
+  const ct = f.estoque.contagem;
   const g = f.geral;
   const encerrado = evento.status === 'encerrado';
   const linha = (rotulo, valor, sinal = '', classe = '') => `<div class="${classe}"><span>${rotulo}</span><span class="num">${sinal}${dinheiro(valor)}</span></div>`;
@@ -64,6 +65,7 @@ export async function render(el, { mostrar = false } = {}) {
         <li class="${aparelhos.length ? 'ok' : 'atencao'}">${aparelhos.length ? `Vendas de ${aparelhos.map((a) => `<strong>${esc(a.nome)}</strong> (${a.vendas})`).join(', ')}.` : 'Nenhuma venda neste evento.'} Algum outro aparelho vendeu? <a href="#/juntar">Juntar vendas</a></li>
         <li class="${f.caixasAbertos.length ? 'atencao' : 'ok'}">${f.caixasAbertos.length ? `${qtd(f.caixasAbertos.length, 'caixa ainda aberto', 'caixas ainda abertos')}: ${f.caixasAbertos.map((c) => `${esc(c.aparelho?.sigla || '')} ${dia(c.data)}`).join(', ')}. Feche no aparelho e junte de novo.` : 'Todos os caixas estão fechados.'}</li>
         <li class="${f.estoque.totais.levado ? 'ok' : 'atencao'}">${f.estoque.totais.levado ? `Estoque levado registrado (${qtd(f.estoque.totais.levado, 'peça', 'peças')}).` : 'Estoque levado não registrado: a sobra não pode ser calculada.'} <a href="#/estoque">Estoque</a></li>
+        <li class="${ct.itensContados ? 'ok' : 'atencao'}">${ct.itensContados ? `Contagem final: ${ct.itensContados} de ${ct.itensTotal} itens contados.` : 'Contagem final do estoque não feita.'} <a href="#/estoque">Contar</a></li>
         ${g.itensSemCusto ? `<li class="atencao">${qtd(g.itensSemCusto, 'item vendido sem custo', 'itens vendidos sem custo')} cadastrado: o lucro aparece maior do que é.</li>` : ''}
         ${g.pagamentosSemTaxa ? `<li class="atencao">${qtd(g.pagamentosSemTaxa, 'pagamento sem', 'pagamentos sem')} taxa informada: as taxas aparecem menores do que são.</li>` : ''}
       </ul>
@@ -152,6 +154,11 @@ export async function render(el, { mostrar = false } = {}) {
           <div><span>Voltaram (trocas e devoluções)</span><span class="num">${f.estoque.totais.voltaram}</span></div>
           <div class="total"><span>Sobra</span><strong class="num">${qtd(f.estoque.totais.sobra, 'peça', 'peças')}</strong></div>
         </div>
+        ${ct.itensContados ? `<div class="contas" style="margin-top:8px">
+          <div><span>Contado no fim (${ct.itensContados} ${ct.itensContados === 1 ? 'item' : 'itens'})</span><span class="num">${qtd(ct.pecasContadas, 'peça', 'peças')}</span></div>
+          <div class="${ct.pecasFaltando ? 'linha-falta' : ''}"><span>Faltando</span><span class="num">${ct.pecasFaltando}${ct.valorFaltando ? ` · ${dinheiro(ct.valorFaltando)} ao custo` : ''}</span></div>
+          ${ct.pecasSobrando ? `<div><span>Sobrando</span><span class="num">${ct.pecasSobrando}</span></div>` : ''}
+        </div>` : ''}
         ${f.estoque.negativas ? `<p class="aviso-inline">${qtd(f.estoque.negativas, 'item com sobra negativa', 'itens com sobra negativa')}.</p>` : ''}
         <div class="acoes"><a class="btn" href="#/estoque">Ver item por item</a></div>
       </section>
