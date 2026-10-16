@@ -423,7 +423,8 @@ export async function render(el) {
     const concluida = carrinho.troca && total <= 0
       ? await finalizarTrocaSemCobranca({ evento, caixa, pagoCom: carrinho.troca.pagoCom })
       : await abrirCobranca({ evento, caixa });
-    if (concluida) {
+    // (se a pessoa já saiu da tela Vender, não há o que redesenhar)
+    if (concluida && el.isConnected && $('#carrinho')) {
       $('#carrinho').classList.remove('aberto');
       desenharCarrinho();
     }

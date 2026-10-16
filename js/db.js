@@ -285,7 +285,7 @@ export async function proximoNumeroVenda(consumir = false) {
 // Se o caixa da venda já estiver fechado, o cancelamento entra como ajuste daquele dia.
 export async function cancelarVenda(vendaId, { motivo, observacao }) {
   const aparelho = await lerAparelho();
-  return db.transaction('rw', db.vendas, db.caixas, async () => {
+  return db.transaction('rw', db.vendas, db.caixas, db.config, async () => {
     const venda = await db.vendas.get(vendaId);
     if (!venda || venda.status === 'cancelada') return venda;
     const caixaDaVenda = venda.caixaId ? await db.caixas.get(venda.caixaId) : null;

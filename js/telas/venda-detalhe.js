@@ -2,7 +2,7 @@
 // Detalhe de uma venda, troca ou devolução: itens, descontos,
 // pagamentos e situação. Daqui se devolve, troca ou cancela.
 // =========================================================
-import { db, cancelarVenda, caixaAbertoDoEvento } from '../db.js';
+import { db, cancelarVenda, caixaAbertoDoEvento, lerAparelho } from '../db.js';
 import { esc, dinheiro, icones, aviso, abrirJanela } from '../ui.js';
 import { hora } from './vendas.js';
 import { gravarRegistro, registrosLigados, quantidadesDevolvidas } from '../venda/registro.js';
@@ -52,7 +52,7 @@ function pedirCancelamento(venda) {
         </div>
         <div class="acoes">
           <button type="button" class="btn" id="voltar">Voltar</button>
-          <button type="submit" class="btn primario perigo-cheio" id="confirmar" disabled>Cancelar venda</button>
+          <button type="submit" class="btn primario perigo-cheio" id="confirmar" disabled>${venda.tipo === 'troca' ? 'Cancelar troca' : venda.tipo === 'devolucao' ? 'Cancelar devolução' : 'Cancelar venda'}</button>
         </div>
       </form>`, { classe: 'janela-cancelar', aoFechar: () => { if (!feito) resolver(null); } });
     const $ = (s) => d.querySelector(s);
@@ -94,6 +94,9 @@ export async function render(el, { id }) {
   const devolvidas = await quantidadesDevolvidas(venda);
   const sobra = venda.itens.some((i, k) => i.quantidade - (devolvidas.get(k) || 0) > 0);
   const origem = venda.origemId ? await db.vendas.get(venda.origemId) : null;
+  // Venda que veio de outro aparelho (no principal): só consulta
+  const aqui = await lerAparelho();
+  const deOutro = !!(venda.aparelho && aqui && venda.aparelho.id !== aqui.id);
 
   const itens = venda.itens.map((i, k) => linhaItem(i, devolvidas.get(k) ? ` · <span class="voltou">${devolvidas.get(k)} ${devolvidas.get(k) === 1 ? 'voltou' : 'voltaram'}</span>` : '')).join('');
   const devolvidosHtml = (venda.devolvidos || []).map((x) => `
@@ -158,7 +161,7 @@ export async function render(el, { id }) {
         </section>` : ''}
       </div>
     </div>
-    ${cancelada ? '' : `<div class="acoes-venda">
+    ${cancelada ? '' : deOutro ? `<p class="sub nota-acoes">Feita no ${esc(venda.aparelho.nome)}: cancelar, trocar e devolver só no próprio aparelho, que depois envia as vendas de novo.</p>` : `<div class="acoes-venda">
       ${venda.itens.length && sobra ? `<button type="button" class="btn" id="devolver">Devolver</button><button type="button" class="btn" id="trocar">Trocar</button>` : ''}
       <button type="button" class="btn perigo" id="cancelar" ${ligados.length ? 'disabled' : ''}>Cancelar ${tipo === 'venda' ? 'venda' : nomeTipo.toLowerCase()}</button>
     </div>

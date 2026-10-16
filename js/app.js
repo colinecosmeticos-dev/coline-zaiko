@@ -24,6 +24,7 @@ import * as vendas from './telas/vendas.js';
 import * as vendaDetalhe from './telas/venda-detalhe.js';
 import * as caixa from './telas/caixa.js';
 import * as painel from './telas/painel.js';
+import * as juntar from './telas/juntar.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -48,6 +49,7 @@ const rotas = [
   ['configuracoes/formas/:id', formaForm.render],
   ['configuracoes/retiradas', retiradas.render],
   ['pacote', pacote.render],
+  ['juntar', juntar.render],
   ['eventos', eventos.render],
   ['eventos/novo', eventoForm.render],
   ['eventos/:id', eventoForm.render],

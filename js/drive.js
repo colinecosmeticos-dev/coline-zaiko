@@ -1,5 +1,5 @@
 // =========================================================
-// Google Drive: enviar e receber o pacote com um toque.
+// Google Drive: enviar e receber o pacote (catálogo) e as vendas com um toque.
 //
 // Permissão usada: "drive.file" — o app só enxerga os arquivos que ELE
 // MESMO criou no Drive. Não vê, não baixa e não sincroniza mais nada
@@ -113,8 +113,37 @@ export async function ultimoPacote() {
   if (!f) return null;
   return { id: f.id, nome: f.name, criadoEm: f.createdTime, aparelho: f.appProperties?.nomeAparelho || f.appProperties?.aparelho || '' };
 }
+// ---------- Vendas de cada aparelho ----------
+// Um arquivo por aparelho e por evento: cada envio substitui o anterior daquele aparelho.
+export async function enviarVendas(arquivo, { aparelho, eventoId, nomeEvento }) {
+  await autorizar();
+  const pasta = await pastaDoApp();
+  const metadados = {
+    name: arquivo.name, parents: [pasta], mimeType: 'text/plain',
+    appProperties: { zaiko: 'vendas', aparelho: aparelho.sigla, nomeAparelho: aparelho.nome, evento: eventoId, nomeEvento: (nomeEvento || '').slice(0, 60) }
+  };
+  const corpo = new FormData();
+  corpo.append('metadata', new Blob([JSON.stringify(metadados)], { type: 'application/json' }));
+  corpo.append('file', arquivo);
+  const novo = await (await chamar(`${UPLOAD}/files?uploadType=multipart&fields=id`, { method: 'POST', body: corpo })).json();
+  const antigos = (await arquivosDeVendas(eventoId)).filter((f) => f.id !== novo.id && f.appProperties?.aparelho === aparelho.sigla);
+  await Promise.all(antigos.map((f) => chamar(`${API}/files/${f.id}`, { method: 'DELETE' }).catch(() => null)));
+}
+const arquivosDeVendas = (eventoId) => consulta(
+  `appProperties has { key='zaiko' and value='vendas' } and appProperties has { key='evento' and value='${eventoId.replace(/'/g, '')}' } and trashed = false`,
+  'id,name,createdTime,appProperties', '&orderBy=createdTime desc');
+// Lista os arquivos de vendas do evento (um por aparelho, o mais recente de cada)
+export async function listarVendasNoDrive(eventoId) {
+  await autorizar();
+  const vistos = new Set();
+  return (await arquivosDeVendas(eventoId))
+    .filter((f) => { const k = f.appProperties?.aparelho; if (vistos.has(k)) return false; vistos.add(k); return true; })
+    .map((f) => ({ id: f.id, nome: f.name, criadoEm: f.createdTime, sigla: f.appProperties?.aparelho || '', aparelho: f.appProperties?.nomeAparelho || '' }));
+}
+
 export async function baixarPacote(info) {
   await autorizar();
   const texto = await (await chamar(`${API}/files/${info.id}?alt=media`)).text();
   return new File([texto], info.nome, { type: 'text/plain' });
 }
+export const baixarArquivo = baixarPacote;
