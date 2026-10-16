@@ -34,6 +34,11 @@ db.version(4).stores({
   vendas: 'id, eventoId, caixaId, numero, criadoEm'
 });
 
+// Versão 5: movimentos do caixa (reforços e retiradas)
+db.version(5).stores({
+  movimentos: 'id, caixaId, eventoId, criadoEm'
+});
+
 // Gera um identificador único (ex.: "3f2b9c1e-..."). Usamos isso em vez de
 // 1, 2, 3... porque os dois aparelhos vão trocar dados entre si e os números
 // iguais se misturariam.
@@ -181,19 +186,75 @@ export async function listarFormasPagamento() {
 
 // ---------- Caixa do dia ----------
 // Um caixa por aparelho e por dia do evento. Abre com o troco inicial.
+// Só os caixas DESTE aparelho (no principal, também haverá caixas importados dos outros)
+async function caixasDesteAparelho(eventoId) {
+  const aparelho = await lerAparelho();
+  return (await db.caixas.where('eventoId').equals(eventoId).toArray())
+    .filter((c) => !aparelho || !c.aparelho || c.aparelho.id === aparelho.id);
+}
 export async function caixaAbertoDoEvento(eventoId) {
-  const abertos = await db.caixas.where('eventoId').equals(eventoId).filter((c) => c.status === 'aberto').toArray();
+  const abertos = (await caixasDesteAparelho(eventoId)).filter((c) => c.status === 'aberto');
   return abertos.sort((a, b) => b.abertoEm.localeCompare(a.abertoEm))[0] || null;
+}
+// Caixa de um dia (aberto ou fechado), deste aparelho
+export async function caixaDoDia(eventoId, data) {
+  return (await caixasDesteAparelho(eventoId)).find((c) => c.data === data) || null;
+}
+export async function listarCaixasDoEvento(eventoId) {
+  return (await caixasDesteAparelho(eventoId)).sort((a, b) => b.data.localeCompare(a.data));
 }
 export async function abrirCaixa({ eventoId, data, trocoInicial }) {
   const aparelho = await lerAparelho();
   const caixa = {
     id: novoId(), eventoId, data, trocoInicial,
     aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null,
-    status: 'aberto', abertoEm: new Date().toISOString()
+    status: 'aberto', abertoEm: new Date().toISOString(),
+    fechamentos: [], reaberturas: []
   };
   await db.caixas.add(caixa);
   return caixa;
+}
+
+// Fecha o caixa guardando a "foto" do fechamento (valores daquele momento).
+// Se depois houver cancelamentos, o app mostra o original e o ajustado.
+export async function fecharCaixa(caixaId, fechamento) {
+  const aparelho = await lerAparelho();
+  const caixa = await db.caixas.get(caixaId);
+  caixa.status = 'fechado';
+  caixa.fechamentos = [...(caixa.fechamentos || []), {
+    ...fechamento, em: new Date().toISOString(),
+    aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null
+  }];
+  await db.caixas.put(caixa);
+  return caixa;
+}
+// Reabre o caixa do dia (fica registrado quando foi reaberto)
+export async function reabrirCaixa(caixaId) {
+  const caixa = await db.caixas.get(caixaId);
+  caixa.status = 'aberto';
+  caixa.reaberturas = [...(caixa.reaberturas || []), { em: new Date().toISOString() }];
+  await db.caixas.put(caixa);
+  return caixa;
+}
+
+// ---------- Reforços e retiradas ----------
+// tipo: 'reforco' (entra dinheiro) | 'retirada' (sai dinheiro, com categoria)
+export async function adicionarMovimento(caixa, dados) {
+  const aparelho = await lerAparelho();
+  const mov = {
+    id: novoId(), caixaId: caixa.id, eventoId: caixa.eventoId,
+    criadoEm: new Date().toISOString(), status: 'ativo',
+    aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null,
+    ...dados
+  };
+  await db.movimentos.add(mov);
+  return mov;
+}
+export async function cancelarMovimento(id) {
+  const mov = await db.movimentos.get(id);
+  mov.status = 'cancelado';
+  mov.canceladoEm = new Date().toISOString();
+  await db.movimentos.put(mov);
 }
 
 // ---------- Número da venda ----------

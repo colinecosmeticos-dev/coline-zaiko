@@ -4,7 +4,7 @@
 // Direita: carrinho, desconto da venda, total e botão Cobrar.
 // No celular, o carrinho vira uma barra no rodapé.
 // =========================================================
-import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, listarCategorias, listarProdutosCompletos, buscarPorCodigo, proximoNumeroVenda } from '../db.js';
+import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, caixaDoDia, listarCategorias, listarProdutosCompletos, buscarPorCodigo, proximoNumeroVenda } from '../db.js';
 import { esc, dinheiro, iniciais, icones, aviso, abrirJanela, campoDinheiro, campoPercentual, lerCentavos, escreverCentavos, hojeISO } from '../ui.js';
 import { ouvirLeitor } from '../leitor.js';
 import { som } from '../sons.js';
@@ -41,12 +41,24 @@ export async function render(el) {
 
   // ---------- Caixa do dia ----------
   let caixa = await caixaAbertoDoEvento(evento.id);
-  if (!caixa || caixa.data !== hojeISO()) {
-    const novo = await pedirAberturaCaixa(evento, caixa);
+  const bloquear = (titulo, texto, botao) => {
+    el.innerHTML = `<header class="cab"><h1>Vender</h1></header>
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
+  };
+  // Caixa de outro dia esquecido aberto: fechar antes de vender
+  if (caixa && caixa.data !== hojeISO()) {
+    bloquear('Feche o caixa anterior', `O caixa de ${new Date(caixa.data + 'T12:00').toLocaleDateString('pt-BR')} ainda está aberto. Feche-o (com a contagem do dinheiro) para abrir o de hoje.`, '<a class="btn primario" href="#/caixa">Ir para o Caixa</a>');
+    return;
+  }
+  if (!caixa) {
+    const deHoje = await caixaDoDia(evento.id, hojeISO());
+    if (deHoje) {
+      bloquear('Caixa de hoje fechado', 'Para voltar a vender, reabra o caixa na tela Caixa.', '<a class="btn primario" href="#/caixa">Ir para o Caixa</a>');
+      return;
+    }
+    const novo = await pedirAberturaCaixa(evento);
     if (!novo) {
-      el.innerHTML = `<header class="cab"><h1>Vender</h1></header>
-        <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Caixa fechado</h2>
-        <p>Abra o caixa do dia para começar a vender.</p><button class="btn primario" id="abrir">Abrir caixa</button></div>`;
+      bloquear('Caixa fechado', 'Abra o caixa do dia para começar a vender.', '<button class="btn primario" id="abrir">Abrir caixa</button>');
       el.querySelector('#abrir').addEventListener('click', () => render(el));
       return;
     }

@@ -22,6 +22,7 @@ import * as pacote from './telas/pacote.js';
 import * as vender from './telas/vender.js';
 import * as vendas from './telas/vendas.js';
 import * as vendaDetalhe from './telas/venda-detalhe.js';
+import * as caixa from './telas/caixa.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -32,7 +33,8 @@ const rotas = [
   ['vender', vender.render],
   ['vendas', vendas.render],
   ['vendas/:id', vendaDetalhe.render],
-  ['caixa', emBreve('Caixa', 'Abertura do dia, reforços, retiradas e fechamento.')],
+  ['caixa', caixa.render],
+  ['caixa/:id', caixa.render],
   ['produtos', produtos.render],
   ['produtos/categorias', categorias.render],
   ['produtos/categorias/:id', categoriaForm.render],
