@@ -137,9 +137,16 @@ const CATEGORIAS_PADRAO = [
   ['Ajudante', true], ['Material', true], ['Outros', true]
 ];
 export async function garantirCategoriasPadrao() {
-  if (await lerConfig('categoriasRetiradaCriadas')) return;
+  if (await lerConfig('categoriasRetiradaCriadas')) { await removerCategoriasRepetidas(); return; }
   await db.categoriasRetirada.bulkAdd(CATEGORIAS_PADRAO.map(([nome, despesa], ordem) => ({ id: novoId(), nome, despesa, ativo: true, ordem })));
   await gravarConfig('categoriasRetiradaCriadas', true);
+}
+// Conserta listas com nomes repetidos (deixadas pela importação antiga): fica a primeira de cada nome
+async function removerCategoriasRepetidas() {
+  const todas = (await db.categoriasRetirada.toArray()).sort((a, b) => a.ordem - b.ordem);
+  const vistos = new Set();
+  const repetidas = todas.filter((c) => { const k = c.nome.trim().toLowerCase(); if (vistos.has(k)) return true; vistos.add(k); return false; });
+  if (repetidas.length) await db.categoriasRetirada.bulkDelete(repetidas.map((c) => c.id));
 }
 export async function listarCategoriasRetirada() {
   return (await db.categoriasRetirada.toArray()).sort((a, b) => a.ordem - b.ordem);

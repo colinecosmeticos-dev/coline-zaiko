@@ -53,8 +53,9 @@ export function bloquear() {
 }
 
 // Pede o PIN numa janela. Devolve true se acertou (e libera por alguns minutos).
-export async function pedirPin({ titulo = 'PIN do dono', texto = '' } = {}) {
-  if (await liberado()) return true;
+// manterLiberado = false: o PIN vale só para esta ação (pede sempre e não libera o resto do app)
+export async function pedirPin({ titulo = 'PIN do dono', texto = '', manterLiberado = true } = {}) {
+  if (manterLiberado ? await liberado() : !(await temPin())) return true;
   return new Promise((resolver) => {
     const d = document.createElement('dialog');
     d.className = 'dialogo';
@@ -82,7 +83,7 @@ export async function pedirPin({ titulo = 'PIN do dono', texto = '' } = {}) {
       e.preventDefault();
       if (await conferirPin(campo.value)) {
         ok = true;
-        liberadoAte = Date.now() + MINUTOS_LIBERADO * 60 * 1000;
+        if (manterLiberado) liberadoAte = Date.now() + MINUTOS_LIBERADO * 60 * 1000;
         d.close();
       } else {
         erro.hidden = false;

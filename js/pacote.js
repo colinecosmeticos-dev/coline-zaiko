@@ -63,6 +63,9 @@ export async function importarPacote(pacote) {
     await db.categorias.bulkPut(categorias);
     await db.produtos.bulkPut(produtos);
     await db.variacoes.bulkPut(pacote.catalogo.variacoes);
+    // Categorias de retirada: as do pacote substituem as deste aparelho
+    // (antes eram somadas, e cada aparelho tinha criado as suas: ficavam repetidas)
+    await db.categoriasRetirada.clear();
     await db.categoriasRetirada.bulkPut(pacote.categoriasRetirada);
     await db.eventos.bulkPut(pacote.eventos);
     // Formas de pagamento: as do pacote substituem as deste aparelho

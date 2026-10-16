@@ -1,13 +1,14 @@
 // =========================================================
 // Tela Caixa: caixa do dia deste aparelho no evento em uso.
 // Reforço e retirada são livres. Ver os totais e fechar o caixa
-// pedem o PIN do dono. O caixa fechado pode ser reaberto no mesmo dia.
+// pedem o PIN do dono. O PIN vale só nesta tela: ao sair, os totais
+// voltam a ficar escondidos. O caixa fechado pode ser reaberto no mesmo dia.
 // Caixa de um dia anterior esquecido aberto precisa ser fechado antes
 // de abrir o de hoje.
 // =========================================================
 import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, caixaDoDia, listarCaixasDoEvento, cancelarMovimento, reabrirCaixa } from '../db.js';
 import { esc, dinheiro, icones, aviso, hojeISO, confirmar } from '../ui.js';
-import { pedirPin, liberado } from '../pin.js';
+import { pedirPin, temPin } from '../pin.js';
 import { resumoCaixa } from '../caixa/resumo.js';
 import { pedirMovimento, pedirFechamento, htmlResumo } from '../caixa/janelas.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
@@ -20,7 +21,7 @@ const vazio = (titulo, texto, botao = '') => `
   <header class="cab"><h1>Caixa</h1></header>
   <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
 
-export async function render(el, { id } = {}) {
+export async function render(el, { id, mostrarTotais = false } = {}) {
   const aparelho = await lerAparelho();
   const evento = await lerEventoAtivo();
   if (!aparelho) { el.innerHTML = vazio('Identifique este aparelho', 'Dê nome e sigla ao aparelho em Configurações.', '<a class="btn primario" href="#/configuracoes">Configurar aparelho</a>'); return; }
@@ -29,7 +30,7 @@ export async function render(el, { id } = {}) {
   if (id) {
     const caixa = await db.caixas.get(id);
     if (!caixa) { location.replace('#/caixa'); return; }
-    await desenharCaixa(el, caixa, { voltar: true });
+    await desenharCaixa(el, caixa, { voltar: true, mostrarTotais });
     return;
   }
 
@@ -39,11 +40,11 @@ export async function render(el, { id } = {}) {
 
   // Caixa de outro dia esquecido aberto: precisa fechar primeiro
   if (aberto && aberto.data !== hoje) {
-    await desenharCaixa(el, aberto, { atrasado: true });
+    await desenharCaixa(el, aberto, { atrasado: true, mostrarTotais });
     return;
   }
   const deHoje = aberto || await caixaDoDia(evento.id, hoje);
-  if (deHoje) { await desenharCaixa(el, deHoje, {}); return; }
+  if (deHoje) { await desenharCaixa(el, deHoje, { mostrarTotais }); return; }
 
   // Nenhum caixa hoje
   el.innerHTML = vazio('Caixa fechado', `${esc(evento.nome)}. Abra o caixa do dia com o troco inicial.`, '<button type="button" class="btn primario" id="abrir">Abrir caixa</button>') + await htmlAnteriores(evento, null);
@@ -62,13 +63,14 @@ async function htmlAnteriores(evento, atual) {
   </section>`;
 }
 
-async function desenharCaixa(el, caixa, { atrasado = false, voltar = false }) {
+async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, mostrarTotais = false }) {
   const evento = await db.eventos.get(caixa.eventoId);
   const aberto = caixa.status === 'aberto';
   const ehHoje = caixa.data === hojeISO();
   const movimentos = (await db.movimentos.where('caixaId').equals(caixa.id).toArray()).sort((a, b) => a.criadoEm.localeCompare(b.criadoEm));
   const fechamento = (caixa.fechamentos || []).at(-1);
-  const verTotais = await liberado();
+  const comPin = await temPin();
+  const verTotais = !comPin || mostrarTotais;
 
   const linhasMov = [
     `<li class="mov"><span class="mov-hora num">${hora(caixa.abertoEm)}</span><span class="mov-desc">Abertura (troco)</span><span class="num mov-valor">${dinheiro(caixa.trocoInicial)}</span><span></span></li>`,
@@ -90,7 +92,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false }) {
       const ajustado = atual.esperado !== fechamento.esperado;
       blocoFechamento = `
         <section class="cartao">
-          <h2>Fechamento <span class="sub">${hora(fechamento.em)}</span></h2>
+          <div class="cab-cartao"><h2>Fechamento <span class="sub">${hora(fechamento.em)}</span></h2>${comPin ? `<button type="button" class="btn texto" id="ocultar-totais">${icones.cadeado} Ocultar</button>` : ''}</div>
           <div class="placar">
             <div><span>Esperado</span><strong class="num">${dinheiro(fechamento.esperado)}</strong></div>
             <div><span>Contado</span><strong class="num">${dinheiro(fechamento.contado)}</strong></div>
@@ -109,7 +111,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false }) {
   let blocoResumo = '';
   if (aberto) {
     blocoResumo = verTotais
-      ? `<section class="cartao"><h2>Resumo até agora</h2>${htmlResumo(await resumoCaixa(caixa))}</section>`
+      ? `<section class="cartao"><div class="cab-cartao"><h2>Resumo até agora</h2>${comPin ? `<button type="button" class="btn texto" id="ocultar-totais">${icones.cadeado} Ocultar</button>` : ''}</div>${htmlResumo(await resumoCaixa(caixa))}</section>`
       : `<section class="cartao"><h2>Resumo até agora</h2><p class="sub">Totais do dia protegidos pelo PIN do dono.</p>
           <div class="acoes"><button type="button" class="btn" id="ver-totais">${icones.cadeado} Ver resumo</button></div></section>`;
   }
@@ -138,19 +140,23 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false }) {
     </div>
     ${voltar || !evento ? '' : await htmlAnteriores(evento, caixa)}`;
 
-  const recarregar = () => (voltar ? render(el, { id: caixa.id }) : render(el));
+  // Recarrega a tela mantendo (ou não) os totais à mostra
+  const recarregar = (mostrar = mostrarTotais) => render(el, voltar ? { id: caixa.id, mostrarTotais: mostrar } : { mostrarTotais: mostrar });
+  const pin = (titulo) => pedirPin({ titulo, texto: 'Digite o PIN do dono.', manterLiberado: false });
   const $ = (s) => el.querySelector(s);
 
   $('#reforco')?.addEventListener('click', async () => { if (await pedirMovimento(caixa, 'reforco')) { aviso('Reforço registrado.'); recarregar(); } });
   $('#retirada')?.addEventListener('click', async () => { if (await pedirMovimento(caixa, 'retirada')) { aviso('Retirada registrada.'); recarregar(); } });
-  $('#ver-totais')?.addEventListener('click', async () => { if (await pedirPin({ titulo: 'Totais do caixa', texto: 'Digite o PIN do dono.' })) recarregar(); });
+  $('#ver-totais')?.addEventListener('click', async () => { if (await pin('Totais do caixa')) recarregar(true); });
+  $('#ocultar-totais')?.addEventListener('click', () => recarregar(false));
   $('#fechar')?.addEventListener('click', async () => {
-    if (!(await pedirPin({ titulo: 'Fechar o caixa', texto: 'Digite o PIN do dono.' }))) return;
+    if (!mostrarTotais && !(await pin('Fechar o caixa'))) return;
     const atualizado = await db.caixas.get(caixa.id);
-    if (await pedirFechamento(atualizado, await resumoCaixa(atualizado))) { aviso('Caixa fechado.'); recarregar(); }
+    if (await pedirFechamento(atualizado, await resumoCaixa(atualizado))) { aviso('Caixa fechado.'); recarregar(true); }
+    else recarregar(true);
   });
   $('#reabrir')?.addEventListener('click', async () => {
-    if (!(await pedirPin({ titulo: 'Reabrir o caixa', texto: 'Digite o PIN do dono.' }))) return;
+    if (!mostrarTotais && !(await pin('Reabrir o caixa'))) return;
     const ok = await confirmar({ titulo: 'Reabrir o caixa de hoje?', texto: 'Fica registrado que o caixa foi reaberto. Depois, feche de novo com a nova contagem.', botao: 'Reabrir' });
     if (!ok) return;
     await reabrirCaixa(caixa.id);
