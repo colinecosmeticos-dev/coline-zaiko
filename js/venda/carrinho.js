@@ -6,7 +6,7 @@
 // =========================================================
 
 export const carrinho = {
-  itens: [],              // { chave, variacaoId, produtoId, nome, variacaoNome, codigo, quantidade, precoUnit, custoUnit, desconto, brinde }
+  itens: [],              // { chave, variacaoId, produtoId, nome, variacaoNome, categoriaNome, tipoNome, linhaNome, codigo, quantidade, precoUnit, custoUnit, desconto, brinde }
   descontoVenda: null,    // { tipo: 'R$' | '%', valor } ou null
   troca: null             // troca em andamento: { origemId, origemNumero, devolvidos, credito, modoValor, motivo }
 };
@@ -27,6 +27,10 @@ export function adicionarItem(produto, variacao) {
     produtoId: produto.id,
     nome: produto.nome,
     variacaoNome: variacao.nome || '',
+    // Categoria, tipo e linha da hora da venda (para os relatórios)
+    categoriaNome: produto.categoria || '',
+    tipoNome: produto.tipo || '',
+    linhaNome: produto.linha || '',
     codigo: variacao.codigo,
     quantidade: 1,
     precoUnit: variacao.preco ?? produto.preco,

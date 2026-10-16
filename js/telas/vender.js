@@ -1,29 +1,26 @@
 // =========================================================
 // Tela Vender.
-// Esquerda: busca/leitor e produtos (modo Categorias ou Produtos).
+// Esquerda: busca/leitor, botões de categoria e um botão por item
+// vendável (cada variação é um botão; um toque adiciona).
+//   - produtos com linha: um grupo por linha, com cada tipo sempre
+//     na mesma coluna (shampoo na 1ª, condicionador na 2ª...);
+//   - produtos sem linha: um grupo por tipo.
 // Direita: carrinho, desconto da venda, total e botão Cobrar.
 // No celular, o carrinho vira uma barra no rodapé.
 // =========================================================
-import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, caixaDoDia, listarCategorias, listarProdutosCompletos, buscarPorCodigo, proximoNumeroVenda } from '../db.js';
+import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, caixaDoDia, listarCategorias, listarTipos, listarLinhas, listarProdutosCompletos, buscarPorCodigo, proximoNumeroVenda } from '../db.js';
 import { esc, dinheiro, iniciais, icones, aviso, abrirJanela, campoDinheiro, campoPercentual, lerCentavos, escreverCentavos, hojeISO } from '../ui.js';
 import { ouvirLeitor } from '../leitor.js';
 import { som } from '../sons.js';
-import { quadradoCor } from '../cores.js';
+import { corValida } from '../cores.js';
 import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho } from '../venda/carrinho.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
 import { abrirCobranca, finalizarTrocaSemCobranca } from '../venda/cobrar.js';
+import { montarGrupos, SEM_CATEGORIA } from '../venda/grupos.js';
 
-const CHAVE_MODO = 'zaiko-modo-venda';
-// Plural simples para nomes de atributo: fragrância → fragrâncias, cor → cores, opção → opções
-function plural(p, n) {
-  if (n === 1 || /s$/.test(p)) return p;
-  if (/ão$/.test(p)) return p.replace(/ão$/, 'ões');
-  if (/[rz]$/.test(p)) return p + 'es';
-  if (/l$/.test(p)) return p.replace(/l$/, 'is');
-  return p + 's';
-}
-const lerModo = () => { try { return localStorage.getItem(CHAVE_MODO) || 'categorias'; } catch (e) { return 'categorias'; } };
-const gravarModo = (m) => { try { localStorage.setItem(CHAVE_MODO, m); } catch (e) { /* ok */ } };
+const CHAVE_CATEGORIA = 'zaiko-categoria-venda';
+const lerCategoria = () => { try { return localStorage.getItem(CHAVE_CATEGORIA); } catch (e) { return null; } };
+const gravarCategoria = (c) => { try { localStorage.setItem(CHAVE_CATEGORIA, c); } catch (e) { /* ok */ } };
 
 export async function render(el) {
   // ---------- Pré-requisitos ----------
@@ -75,7 +72,7 @@ export async function render(el) {
   }
 
   // ---------- Dados ----------
-  const categorias = await listarCategorias();
+  const [categorias, tipos, linhas] = await Promise.all([listarCategorias(), listarTipos(), listarLinhas()]);
   // Preço do evento: onde houver, substitui o preço normal (que fica guardado em precoBase)
   const precosEvento = evento.precos || {};
   const produtos = (await listarProdutosCompletos()).filter((p) => p.ativo && p.variacoes.length)
@@ -86,13 +83,19 @@ export async function render(el) {
     }) }));
   const urls = [];
   const urlFoto = (blob) => { const u = URL.createObjectURL(blob); urls.push(u); return u; };
-  const fotoCategoria = new Map(categorias.filter((c) => c.foto).map((c) => [c.id, urlFoto(c.foto)]));
   const fotoProduto = new Map(produtos.filter((p) => p.foto).map((p) => [p.id, urlFoto(p.foto)]));
+  const fotoVariacao = new Map();
+  for (const p of produtos) for (const v of p.variacoes) if (v.foto) fotoVariacao.set(v.id, urlFoto(v.foto));
 
-  let modo = lerModo();          // 'categorias' | 'produtos'
-  let categoriaAberta = null;    // id da categoria aberta no modo Categorias ('' = todas)
-  let filtroCategoria = '';      // filtro de chips no modo Produtos
+  // Botões de categoria: as que têm produto, na ordem cadastrada (+ "Outros" para quem não tem categoria)
+  const idsCategorias = new Set(categorias.map((c) => c.id));
+  const categoriaDe = (p) => (idsCategorias.has(p.categoriaId) ? p.categoriaId : SEM_CATEGORIA);
+  const botoesCategoria = categorias.filter((c) => produtos.some((p) => p.categoriaId === c.id)).map((c) => ({ id: c.id, nome: c.nome }));
+  if (produtos.some((p) => categoriaDe(p) === SEM_CATEGORIA)) botoesCategoria.push({ id: SEM_CATEGORIA, nome: botoesCategoria.length ? 'Outros' : 'Todos os produtos' });
+  let categoriaAtual = lerCategoria();
+  if (!botoesCategoria.some((c) => c.id === categoriaAtual)) categoriaAtual = botoesCategoria[0] ? botoesCategoria[0].id : SEM_CATEGORIA;
   let busca = '';
+  let estreito = null;   // celular: 2 botões por fileira; tablet e computador: até 4
 
   el.classList.add('tela-venda');
   document.body.classList.add('em-venda');
@@ -105,13 +108,9 @@ export async function render(el) {
             ${icones.busca}
             <input class="entrada" id="busca" type="search" placeholder="Buscar ou ler código" autocomplete="off">
           </label>
-          <div class="segmentos" role="radiogroup" aria-label="Mostrar">
-            <label><input type="radio" name="modo" value="categorias" ${modo === 'categorias' ? 'checked' : ''}><span>Categorias</span></label>
-            <label><input type="radio" name="modo" value="produtos" ${modo === 'produtos' ? 'checked' : ''}><span>Produtos</span></label>
-          </div>
         </div>
         <div class="venda-navegacao" id="navegacao"></div>
-        <div class="venda-grade" id="grade"></div>
+        <div class="venda-itens" id="grade"></div>
       </section>
 
       <aside class="venda-carrinho" id="carrinho" aria-label="Carrinho">
@@ -138,74 +137,88 @@ export async function render(el) {
   const $ = (s) => el.querySelector(s);
 
   // ---------- Área de produtos ----------
-  function produtosVisiveis() {
-    const t = busca.toLowerCase();
-    if (t) return produtos.filter((p) => p.nome.toLowerCase().includes(t) || p.variacoes.some((v) => v.nome.toLowerCase().includes(t) || v.codigo.includes(t)));
-    if (modo === 'categorias') return categoriaAberta === '' ? produtos : produtos.filter((p) => p.categoriaId === categoriaAberta);
-    return filtroCategoria ? produtos.filter((p) => p.categoriaId === filtroCategoria) : produtos;
-  }
-
-  function cartaoProduto(p) {
-    const precos = p.variacoes.map((v) => v.preco ?? p.preco);
-    const min = Math.min(...precos), max = Math.max(...precos);
-    const temVar = p.variacoes.length > 1 || p.variacoes[0].nome;
-    const normais = p.variacoes.map((v) => v.precoBase ?? v.preco ?? p.preco);
-    const minNormal = Math.min(...normais);
-    const especial = p.variacoes.some((v) => v.precoBase != null);
+  // Um botão por item vendável: foto da variação → foto do produto → cor → iniciais
+  function botaoItem(it) {
+    const { p, v } = it;
+    const foto = fotoVariacao.get(v.id) || fotoProduto.get(p.id);
+    const cor = corValida(v.cor);
+    const imagem = foto ? `<img src="${foto}" alt="">`
+      : cor ? '' : `<span>${iniciais(it.nome)}</span>`;
+    const preco = v.preco ?? p.preco;
     return `
-      <button type="button" class="ladrilho" data-produto="${esc(p.id)}">
-        <span class="ladrilho-foto">${fotoProduto.has(p.id) ? `<img src="${fotoProduto.get(p.id)}" alt="">` : `<span>${iniciais(p.nome)}</span>`}</span>
-        <span class="ladrilho-nome">${esc(p.nome)}</span>
-        ${especial ? `<span class="ladrilho-especial"><s class="num">${dinheiro(minNormal)}</s> preço do evento</span>` : ''}
-        <span class="ladrilho-info"><strong class="num">${min === max ? dinheiro(min) : `${dinheiro(min)}+`}</strong>${temVar ? `<span>${p.variacoes.length} ${esc(plural((p.atributo || 'opção').toLowerCase(), p.variacoes.length))}</span>` : ''}</span>
+      <button type="button" class="item-venda" data-v="${esc(v.id)}">
+        <span class="iv-foto ${foto ? 'tem-foto' : ''}" ${!foto && cor ? `style="background:${cor}"` : ''}>${imagem}</span>
+        <span class="iv-nome">${esc(it.nome)}</span>
+        <span class="iv-info">
+          <span class="iv-sub">${esc(it.sub || '')}</span>
+          <span class="iv-preco num">${v.precoBase != null ? `<s>${dinheiro(v.precoBase)}</s> ` : ''}<strong>${dinheiro(preco)}</strong></span>
+        </span>
       </button>`;
+  }
+  const vaga = '<span class="vaga-venda" aria-hidden="true"></span>';
+  const encher = '<span class="vaga-venda invisivel" aria-hidden="true"></span>';
+
+  function desenharGrupo(g, porFileira) {
+    const colunas = Math.min(g.colunas || porFileira, porFileira);
+    let celulas = [];
+    if (g.fileiras) {
+      // Linha: cada fileira tem um lugar fixo por tipo; lugar sem produto fica vazio.
+      // Completa a fileira até o fim da grade, para a próxima começar alinhada.
+      // (só a 1ª fileira mostra o lugar vazio; as seguintes, de produtos com mais de uma variação, não)
+      g.fileiras.forEach((fileira, k) => {
+        celulas.push(...fileira.map((it) => (it ? botaoItem(it) : k === 0 ? vaga : encher)));
+        const sobra = (colunas - (fileira.length % colunas)) % colunas;
+        for (let i = 0; i < sobra; i++) celulas.push(encher);
+      });
+    } else {
+      celulas = g.itens.map(botaoItem);
+    }
+    return `
+      <section class="grupo-venda">
+        <h3 class="grupo-titulo">${esc(g.titulo)}</h3>
+        <div class="grupo-itens" style="grid-template-columns:repeat(${colunas}, minmax(0, 1fr))">${celulas.join('')}</div>
+      </section>`;
   }
 
   function desenharProdutos() {
     const nav = $('#navegacao'), grade = $('#grade');
-    const categoriasComProduto = categorias.filter((c) => produtos.some((p) => p.categoriaId === c.id));
-
-    if (!busca && modo === 'categorias' && categoriaAberta === null) {
-      nav.innerHTML = '';
-      grade.className = 'venda-grade grade-categorias';
-      grade.innerHTML = [
-        ...categoriasComProduto.map((c) => `
-          <button type="button" class="ladrilho ladrilho-categoria" data-categoria="${esc(c.id)}">
-            <span class="ladrilho-foto">${fotoCategoria.has(c.id) ? `<img src="${fotoCategoria.get(c.id)}" alt="">` : `<span>${iniciais(c.nome)}</span>`}</span>
-            <span class="ladrilho-nome">${esc(c.nome)}</span>
-          </button>`),
-        `<button type="button" class="ladrilho ladrilho-categoria todos" data-categoria=""><span class="ladrilho-foto"><span>${icones.grade}</span></span><span class="ladrilho-nome">Todos os produtos</span></button>`
-      ].join('');
+    const porFileira = estreito ? 2 : 4;
+    const t = busca.toLowerCase();
+    if (t) {
+      nav.innerHTML = `<span class="sub">Resultado da busca</span>`;
+      const achados = [];
+      for (const p of produtos) for (const v of p.variacoes) {
+        if (p.nome.toLowerCase().includes(t) || (v.nome || '').toLowerCase().includes(t) || v.codigo.includes(t)) achados.push({ p, v, nome: p.nome, sub: v.nome || '' });
+      }
+      grade.innerHTML = achados.length ? desenharGrupo({ titulo: `${achados.length} ${achados.length === 1 ? 'item' : 'itens'}`, itens: achados }, porFileira)
+        : '<p class="sub vazio-grade">Nenhum produto encontrado.</p>';
       return;
     }
-
-    if (busca) {
-      nav.innerHTML = `<span class="sub">Resultado da busca</span>`;
-    } else if (modo === 'categorias') {
-      const nome = categoriaAberta === '' ? 'Todos os produtos' : (categorias.find((c) => c.id === categoriaAberta) || {}).nome || 'Sem categoria';
-      nav.innerHTML = `<button type="button" class="btn texto" id="voltar-categorias">${icones.voltar} Categorias</button><strong>${esc(nome)}</strong>`;
-      $('#voltar-categorias').addEventListener('click', () => { categoriaAberta = null; desenharProdutos(); });
-    } else {
-      nav.innerHTML = `<div class="chips">
-        <button type="button" class="chip" aria-pressed="${filtroCategoria === ''}" data-filtro="">Todas</button>
-        ${categoriasComProduto.map((c) => `<button type="button" class="chip" aria-pressed="${filtroCategoria === c.id}" data-filtro="${esc(c.id)}">${esc(c.nome)}</button>`).join('')}
-      </div>`;
-      nav.querySelectorAll('[data-filtro]').forEach((b) => b.addEventListener('click', () => { filtroCategoria = b.dataset.filtro; desenharProdutos(); }));
-    }
-    const lista = produtosVisiveis();
-    grade.className = 'venda-grade';
-    grade.innerHTML = lista.length ? lista.map(cartaoProduto).join('') : '<p class="sub vazio-grade">Nenhum produto encontrado.</p>';
+    nav.innerHTML = botoesCategoria.length > 1 ? `<div class="chips chips-venda" role="group" aria-label="Categorias">
+      ${botoesCategoria.map((c) => `<button type="button" class="chip" aria-pressed="${c.id === categoriaAtual}" data-categoria="${esc(c.id)}">${esc(c.nome)}</button>`).join('')}
+    </div>` : '';
+    const grupos = montarGrupos(produtos.filter((p) => categoriaDe(p) === categoriaAtual), tipos, linhas);
+    grade.innerHTML = grupos.length ? grupos.map((g) => desenharGrupo(g, porFileira)).join('') : '<p class="sub vazio-grade">Nenhum produto nesta categoria.</p>';
   }
 
-  $('#grade').addEventListener('click', (e) => {
-    const cat = e.target.closest('[data-categoria]');
-    if (cat) { categoriaAberta = cat.dataset.categoria; desenharProdutos(); $('#grade').scrollTop = 0; return; }
-    const prod = e.target.closest('[data-produto]');
-    if (prod) escolherProduto(produtos.find((p) => p.id === prod.dataset.produto));
+  $('#navegacao').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-categoria]');
+    if (!b) return;
+    categoriaAtual = b.dataset.categoria; gravarCategoria(categoriaAtual);
+    desenharProdutos(); $('#grade').scrollTop = 0;
   });
-  el.querySelectorAll('input[name="modo"]').forEach((r) => r.addEventListener('change', () => {
-    modo = r.value; gravarModo(modo); categoriaAberta = null; desenharProdutos();
-  }));
+  $('#grade').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    for (const p of produtos) { const v = p.variacoes.find((x) => x.id === b.dataset.v); if (v) { adicionar(p, v); return; } }
+  });
+  // Girar a tela ou mudar o tamanho da janela: redesenha só se mudar de celular para tablet (ou o contrário)
+  const observador = new ResizeObserver(() => {
+    const agora = $('#grade').clientWidth < 520;
+    if (agora !== estreito) { estreito = agora; desenharProdutos(); }
+  });
+  observador.observe($('#grade'));
+  estreito = $('#grade').clientWidth < 520;
   $('#busca').addEventListener('input', (e) => { busca = e.target.value.trim(); desenharProdutos(); });
   $('#busca').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
@@ -215,26 +228,6 @@ export async function render(el) {
   });
 
   // ---------- Adicionar produtos ----------
-  function escolherProduto(p) {
-    if (!p) return;
-    if (p.variacoes.length === 1 && !p.variacoes[0].nome) return adicionar(p, p.variacoes[0]);
-    const d = abrirJanela(`
-      <h2>${esc(p.nome)}</h2>
-      <p>Escolha ${esc((p.atributo || 'a opção').toLowerCase())}:</p>
-      <div class="grade-variacoes">
-        ${p.variacoes.map((v) => `
-          <button type="button" class="btn botao-variacao" data-variacao="${esc(v.id)}">
-            <span class="nome-variacao">${quadradoCor(v.cor)}<span>${esc(v.nome)}</span></span>${v.precoBase != null ? `<small class="num"><s>${dinheiro(v.precoBase)}</s> ${dinheiro(v.preco)}</small>` : (v.preco ?? p.preco) !== p.preco ? `<small class="num">${dinheiro(v.preco)}</small>` : ''}
-          </button>`).join('')}
-      </div>
-      <div class="acoes"><button type="button" class="btn" value="x">Cancelar</button></div>`, { classe: 'janela-variacoes' });
-    d.querySelector('[value="x"]').addEventListener('click', () => d.close());
-    d.querySelectorAll('[data-variacao]').forEach((b) => b.addEventListener('click', () => {
-      adicionar(p, p.variacoes.find((v) => v.id === b.dataset.variacao));
-      d.close();
-    }));
-  }
-
   function adicionar(p, v) {
     const item = adicionarItem(p, v);
     som.item();
@@ -455,6 +448,7 @@ export async function render(el) {
 
   return () => {
     pararLeitor();
+    observador.disconnect();
     urls.forEach(URL.revokeObjectURL);
     el.classList.remove('tela-venda');
     document.body.classList.remove('em-venda');

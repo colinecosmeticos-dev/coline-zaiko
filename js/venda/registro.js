@@ -48,6 +48,7 @@ export function registroDoCarrinho({ evento, caixa, pagamentos = [], reembolsos 
     itens: carrinho.itens.map((i) => {
       const c = calcularItem(i);
       return { variacaoId: i.variacaoId, produtoId: i.produtoId, nome: i.nome, variacaoNome: i.variacaoNome, codigo: i.codigo,
+        categoriaNome: i.categoriaNome || '', tipoNome: i.tipoNome || '', linhaNome: i.linhaNome || '',
         quantidade: i.quantidade, precoUnit: i.precoUnit, precoBase: i.precoBase ?? null, custoUnit: i.custoUnit, desconto: i.desconto, descontoValor: c.desconto,
         brinde: i.brinde, total: c.total };
     }),

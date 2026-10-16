@@ -187,7 +187,7 @@ export async function render(el, { mostrar = false } = {}) {
     </section>`;
 
   el.querySelector('#ocultar')?.addEventListener('click', () => render(el));
-  el.querySelector('#planilha-baixar').addEventListener('click', () => baixar(planilhaFechamento(evento, f, registros)));
+  el.querySelector('#planilha-baixar').addEventListener('click', () => baixar(planilhaFechamento(evento, f, registros, produtos)));
   if (driveConfigurado()) {
     const status = el.querySelector('#planilha-status');
     prepararDrive().catch((e) => { status.hidden = false; status.textContent = e.message; });
@@ -198,7 +198,7 @@ export async function render(el, { mostrar = false } = {}) {
       try {
         await pedido;
         status.hidden = false; status.textContent = 'Enviando a planilha…';
-        const link = await enviarPlanilha(planilhaFechamento(evento, f, registros), { eventoId: evento.id, titulo: `Fechamento — ${evento.nome}` });
+        const link = await enviarPlanilha(planilhaFechamento(evento, f, registros, produtos), { eventoId: evento.id, titulo: `Fechamento — ${evento.nome}` });
         status.innerHTML = `Planilha salva no Drive. <a href="${esc(link)}" target="_blank" rel="noopener">Abrir no Google Planilhas</a>`;
         aviso('Planilha salva no Drive.');
       } catch (erro) {

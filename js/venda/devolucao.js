@@ -109,6 +109,7 @@ export async function escolherItensDevolvidos(venda, modo) {
       const devolvidos = escolhidas().map((l) => ({
         itemIndice: l.indice,
         variacaoId: l.item.variacaoId, produtoId: l.item.produtoId, nome: l.item.nome, variacaoNome: l.item.variacaoNome, codigo: l.item.codigo,
+        categoriaNome: l.item.categoriaNome || '', tipoNome: l.item.tipoNome || '', linhaNome: l.item.linhaNome || '',
         quantidade: l.qtd, precoUnit: l.item.precoUnit, custoUnit: l.item.custoUnit,
         valor: valorUnidades(venda, l.item, l.qtd, m),
         estado: l.estado

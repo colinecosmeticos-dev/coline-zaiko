@@ -9,8 +9,8 @@
 //    se quiser, um preço próprio.
 // Código em branco = o app gera um código interno ao salvar.
 // =========================================================
-import { db, novoId, listarCategorias, buscarPorCodigo } from '../db.js';
-import { esc, dinheiro, campoDinheiro, lerCentavos, escreverCentavos, aviso, confirmar, icones } from '../ui.js';
+import { db, novoId, listarCategorias, listarTipos, listarLinhas, buscarPorCodigo } from '../db.js';
+import { esc, dinheiro, campoDinheiro, lerCentavos, escreverCentavos, aviso, confirmar, abrirJanela, icones } from '../ui.js';
 import { gerarCodigoInterno, normalizarCodigo, ehCodigoInterno } from '../codigos.js';
 import { prepararFoto } from '../foto.js';
 import { abrirCamera, cameraDisponivel } from '../camera.js';
@@ -27,6 +27,8 @@ export async function render(el, { id, consulta }) {
   }
   const variacoesSalvas = editando ? (await db.variacoes.where('produtoId').equals(id).toArray()).sort((a, b) => a.ordem - b.ordem) : [];
   const categorias = await listarCategorias();
+  const tipos = await listarTipos();
+  const linhasProduto = await listarLinhas();
   // Custo e lucro só aparecem com o PIN, e só enquanto esta tela está aberta.
   // Sem PIN definido, ficam visíveis.
   const pinDefinido = await temPin();
@@ -35,6 +37,8 @@ export async function render(el, { id, consulta }) {
   const idsCategorias = new Set(categorias.map((c) => c.id));
   const sugerida = produto ? produto.categoriaId : (consulta && consulta.get('categoria'));
   const categoriaInicial = sugerida && idsCategorias.has(sugerida) ? sugerida : (categorias.length ? '' : '__nova');
+  const tipoInicial = produto && tipos.some((t) => t.id === produto.tipoId) ? produto.tipoId : (tipos.length ? '' : '__nova');
+  const linhaInicial = produto && linhasProduto.some((l) => l.id === produto.linhaId) ? produto.linhaId : '';
   const comVariacoes = editando ? (variacoesSalvas.length > 1 || !!(variacoesSalvas[0] && variacoesSalvas[0].nome)) : false;
   const unica = !comVariacoes ? variacoesSalvas[0] : null;
   const codigoInicial = consulta && consulta.get('codigo') ? consulta.get('codigo') : '';
@@ -64,22 +68,45 @@ export async function render(el, { id, consulta }) {
             <!-- capture="environment" abre direto a câmera traseira no tablet/celular -->
             <input type="file" accept="image/*" capture="environment" id="arquivo-camera" hidden>
             <input type="file" accept="image/*" id="arquivo-galeria" hidden>
+            <input type="file" accept="image/*" capture="environment" id="arquivo-camera-var" hidden>
+            <input type="file" accept="image/*" id="arquivo-galeria-var" hidden>
           </div>
 
           <div class="campo">
             <label for="f-nome">Nome do produto</label>
             <input class="entrada" id="f-nome" maxlength="80" autocomplete="off" value="${esc(produto ? produto.nome : '')}">
+            <span class="dica">Ao escolher o tipo e a linha abaixo, o app sugere o nome (ex.: Shampoo Umeboshi).</span>
           </div>
 
           <div class="campo">
             <span class="rotulo" id="r-categoria">Categoria</span>
             <div class="opcoes" role="radiogroup" aria-labelledby="r-categoria">
-              <label><input type="radio" name="categoria" value="" ${categoriaInicial === '' ? 'checked' : ''}><span>Sem categoria</span></label>
               ${categorias.map((c) => `<label><input type="radio" name="categoria" value="${esc(c.id)}" ${categoriaInicial === c.id ? 'checked' : ''}><span>${esc(c.nome)}</span></label>`).join('')}
               <label><input type="radio" name="categoria" value="__nova" ${categoriaInicial === '__nova' ? 'checked' : ''}><span>+ Nova categoria</span></label>
             </div>
-            <input class="entrada" id="f-categoria-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova categoria" placeholder="Nome da nova categoria (ex.: Shampoo)" ${categoriaInicial === '__nova' ? '' : 'hidden'}>
-            ${categorias.length ? '' : '<span class="dica">Nenhuma categoria cadastrada ainda. Digite o nome da primeira, ou deixe em branco.</span>'}
+            <input class="entrada" id="f-categoria-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova categoria" placeholder="Nome da nova categoria (ex.: Capilar)" ${categoriaInicial === '__nova' ? '' : 'hidden'}>
+            <span class="dica">${categorias.length ? 'O grupo grande (ex.: Capilar, Corpo e Mãos). Vira o filtro do topo na tela de venda.' : 'Nenhuma categoria cadastrada ainda. Digite o nome da primeira (ex.: Capilar).'}</span>
+          </div>
+
+          <div class="campo">
+            <span class="rotulo" id="r-tipo">Tipo</span>
+            <div class="opcoes" role="radiogroup" aria-labelledby="r-tipo">
+              ${tipos.map((t) => `<label><input type="radio" name="tipo" value="${esc(t.id)}" ${tipoInicial === t.id ? 'checked' : ''}><span>${esc(t.nome)}</span></label>`).join('')}
+              <label><input type="radio" name="tipo" value="__nova" ${tipoInicial === '__nova' ? 'checked' : ''}><span>+ Novo tipo</span></label>
+            </div>
+            <input class="entrada" id="f-tipo-nova" maxlength="40" autocomplete="off" aria-label="Nome do novo tipo" placeholder="Nome do novo tipo (ex.: Shampoo)" ${tipoInicial === '__nova' ? '' : 'hidden'}>
+            <span class="dica">O que é o produto. Na venda, cada tipo fica sempre na mesma coluna.</span>
+          </div>
+
+          <div class="campo">
+            <span class="rotulo" id="r-linha">Linha <span class="sub" style="font-weight:400">(opcional)</span></span>
+            <div class="opcoes" role="radiogroup" aria-labelledby="r-linha">
+              <label><input type="radio" name="linha" value="" ${linhaInicial === '' ? 'checked' : ''}><span>Sem linha</span></label>
+              ${linhasProduto.map((l) => `<label><input type="radio" name="linha" value="${esc(l.id)}" ${linhaInicial === l.id ? 'checked' : ''}><span>${esc(l.nome)}</span></label>`).join('')}
+              <label><input type="radio" name="linha" value="__nova"><span>+ Nova linha</span></label>
+            </div>
+            <input class="entrada" id="f-linha-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova linha" placeholder="Nome da nova linha (ex.: Umeboshi)" hidden>
+            <span class="dica">Família do produto (ex.: Umeboshi). Na venda, os produtos da mesma linha ficam lado a lado.</span>
           </div>
 
           <div class="grade-campos duas">
@@ -229,12 +256,81 @@ export async function render(el, { id, consulta }) {
   $('#remover-foto').addEventListener('click', () => { fotoBlob = null; desenharFoto(); });
   desenharFoto();
 
-  // ---------- Categoria ----------
-  form.querySelectorAll('input[name="categoria"]').forEach((r) => r.addEventListener('change', () => {
-    const nova = form.categoria.value === '__nova';
-    $('#f-categoria-nova').hidden = !nova;
-    if (nova) $('#f-categoria-nova').focus();
-  }));
+  // ---------- Categoria, tipo e linha ----------
+  // "+ Nova..." mostra o campo para digitar o nome
+  for (const campo of ['categoria', 'tipo', 'linha']) {
+    form.querySelectorAll(`input[name="${campo}"]`).forEach((r) => r.addEventListener('change', () => {
+      const nova = form[campo].value === '__nova';
+      $(`#f-${campo}-nova`).hidden = !nova;
+      if (nova) $(`#f-${campo}-nova`).focus();
+      sugerirNome();
+    }));
+    $(`#f-${campo}-nova`).addEventListener('input', sugerirNome);
+  }
+  // Nome sugerido: tipo + linha (ex.: "Shampoo Umeboshi"). Só preenche se o nome
+  // estiver vazio ou ainda for a sugestão anterior (não apaga o que a pessoa digitou).
+  const nomeEscolhido = (campo, lista) => {
+    const v = form[campo].value;
+    if (v === '__nova') return $(`#f-${campo}-nova`).value.trim();
+    const achado = lista.find((x) => x.id === v);
+    return achado ? achado.nome : '';
+  };
+  let ultimaSugestao = '';
+  function sugerirNome() {
+    const sugestao = [nomeEscolhido('tipo', tipos), nomeEscolhido('linha', linhasProduto)].filter(Boolean).join(' ');
+    const campoNome = $('#f-nome');
+    const atual = campoNome.value.trim();
+    if (sugestao && (!atual || atual === ultimaSugestao)) campoNome.value = sugestao;
+    ultimaSugestao = sugestao;
+  }
+  ultimaSugestao = [nomeEscolhido('tipo', tipos), nomeEscolhido('linha', linhasProduto)].filter(Boolean).join(' ');
+
+  // ---------- Foto das variações ----------
+  const fotosVar = new Map();   // linha da variação (div) → Blob da foto, ou null
+  const urlsVar = new Map();
+  let linhaFoto = null;         // variação que está escolhendo foto agora
+  function desenharFotoVar(div) {
+    const b = div.querySelector('.btn-foto-var');
+    if (urlsVar.has(div)) { URL.revokeObjectURL(urlsVar.get(div)); urlsVar.delete(div); }
+    const blob = fotosVar.get(div);
+    if (blob) {
+      const u = URL.createObjectURL(blob); urlsVar.set(div, u);
+      b.innerHTML = `<img src="${u}" alt="">`; b.classList.add('tem-foto'); b.title = 'Foto da variação';
+    } else {
+      b.innerHTML = icones.camera; b.classList.remove('tem-foto'); b.title = 'Sem foto (toque para escolher)';
+    }
+  }
+  async function usarFotoVar(arquivo) {
+    if (!arquivo || !linhaFoto) return;
+    try { fotosVar.set(linhaFoto, await prepararFoto(arquivo)); desenharFotoVar(linhaFoto); }
+    catch (erro) { aviso('Não foi possível usar essa imagem. Tente outra.', { tipo: 'erro' }); }
+  }
+  $('#arquivo-camera-var').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; usarFotoVar(f); });
+  $('#arquivo-galeria-var').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; usarFotoVar(f); });
+  function escolherFotoVar(div) {
+    linhaFoto = div;
+    const nomeVar = div.querySelector('.v-nome').value.trim();
+    const temFoto = !!fotosVar.get(div);
+    const toque = matchMedia('(pointer: coarse)').matches;
+    const d = abrirJanela(`
+      <h2>${nomeVar ? `Foto de ${esc(nomeVar)}` : 'Foto da variação'}</h2>
+      <p>Aparece no botão desta variação na tela de venda. Sem foto, o botão usa a foto do produto ou a cor.</p>
+      <div class="acoes" style="flex-wrap:wrap">
+        ${temFoto ? '<button type="button" class="btn texto perigo" data-acao="remover" style="margin-right:auto">Remover foto</button>' : ''}
+        <button type="button" class="btn" data-acao="cancelar">Cancelar</button>
+        <button type="button" class="btn" data-acao="galeria">${icones.imagem} Galeria</button>
+        ${toque ? `<button type="button" class="btn primario" data-acao="camera">${icones.camera} Tirar foto</button>` : ''}
+      </div>`);
+    d.querySelector('[data-acao="cancelar"]').addEventListener('click', () => d.close());
+    d.querySelector('[data-acao="galeria"]').addEventListener('click', () => { d.close(); $('#arquivo-galeria-var').click(); });
+    if (temFoto) d.querySelector('[data-acao="remover"]').addEventListener('click', () => { fotosVar.set(div, null); desenharFotoVar(div); d.close(); });
+    if (toque) d.querySelector('[data-acao="camera"]').addEventListener('click', async () => {
+      d.close();
+      if (!cameraDisponivel()) { $('#arquivo-camera-var').click(); return; }
+      try { const foto = await abrirCamera(); if (foto) await usarFotoVar(foto); }
+      catch (erro) { aviso('Não foi possível abrir a câmera.', { tipo: 'erro', acao: 'Usar app da câmera', aoClicar: () => $('#arquivo-camera-var').click() }); }
+    });
+  }
 
   // ---------- Variações ----------
   function adicionarLinha(v = {}) {
@@ -242,7 +338,7 @@ export async function render(el, { id, consulta }) {
     div.className = 'linha-variacao';
     div.dataset.id = v.id || '';
     div.innerHTML = `
-      <div class="campo c-valor"><label class="rotulo-m">Variação</label><div class="nome-com-cor"><button type="button" class="btn-cor" aria-label="Cor da variação"></button><input class="entrada v-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Lavanda" value="${esc(v.nome || '')}"></div></div>
+      <div class="campo c-valor"><label class="rotulo-m">Variação</label><div class="nome-com-cor"><button type="button" class="btn-foto-var" aria-label="Foto da variação"></button><button type="button" class="btn-cor" aria-label="Cor da variação"></button><input class="entrada v-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Lavanda" value="${esc(v.nome || '')}"></div></div>
       <div class="campo c-codigo"><label class="rotulo-m">Código de barras</label><input class="entrada codigo v-codigo" inputmode="numeric" maxlength="40" autocomplete="off" placeholder="Em branco: código interno" value="${esc(v.codigo || '')}"></div>
       <div class="campo c-preco"><label class="rotulo-m">Preço próprio</label><input class="entrada v-preco" placeholder="Igual ao produto"></div>
       <div class="campo c-custo so-dono"><label class="rotulo-m">Custo próprio</label><input class="entrada v-custo" placeholder="Igual ao produto"></div>
@@ -270,13 +366,17 @@ export async function render(el, { id, consulta }) {
       div.dataset.cor = escolha || '';
       desenharCor();
     });
+    // Foto opcional da variação (aparece no botão da tela de venda)
+    fotosVar.set(div, v.foto || null);
+    desenharFotoVar(div);
+    div.querySelector('.btn-foto-var').addEventListener('click', () => escolherFotoVar(div));
     const preco = div.querySelector('.v-preco');
     campoDinheiro(preco);
     escreverCentavos(preco, v.preco ?? null);
     const custo = div.querySelector('.v-custo');
     campoDinheiro(custo);
     escreverCentavos(custo, v.custo ?? null);
-    div.querySelector('.btn-icone').addEventListener('click', () => { div.remove(); if (!linhas.children.length) adicionarLinha(); });
+    div.querySelector('.btn-icone').addEventListener('click', () => { fotosVar.delete(div); div.remove(); if (!linhas.children.length) adicionarLinha(); });
     linhas.append(div);
     return div;
   }
@@ -341,11 +441,26 @@ export async function render(el, { id, consulta }) {
     const custo = lerCentavos($('#f-custo'));
     const escolhaCategoria = form.categoria.value;
     const nomeCategoria = escolhaCategoria === '__nova' ? $('#f-categoria-nova').value.trim() : '';
+    const escolhaTipo = form.tipo.value;
+    const nomeTipo = escolhaTipo === '__nova' ? $('#f-tipo-nova').value.trim() : '';
+    const escolhaLinha = form.linha.value;
+    const nomeLinha = escolhaLinha === '__nova' ? $('#f-linha-nova').value.trim() : '';
     const modo = form.modo.value;
     const atributo = $('#f-atributo').value.trim();
 
     if (!nome) marcarErro($('#f-nome'), 'Informe o nome do produto.');
     if (!preco) marcarErro($('#f-preco'), 'Informe o preço de venda.');
+    const erroEscolha = (campo, texto) => {
+      const nova = form[campo].value === '__nova';
+      if (nova) { marcarErro($(`#f-${campo}-nova`), texto); return; }
+      const grupo = form.querySelector(`[aria-labelledby="r-${campo}"]`);
+      grupo.setAttribute('aria-invalid', 'true');
+      const msg = document.createElement('span'); msg.className = 'msg-erro'; msg.textContent = texto;
+      grupo.after(msg);
+    };
+    if (!escolhaCategoria || (escolhaCategoria === '__nova' && !nomeCategoria)) erroEscolha('categoria', 'Escolha a categoria (ex.: Capilar).');
+    if (!escolhaTipo || (escolhaTipo === '__nova' && !nomeTipo)) erroEscolha('tipo', 'Escolha o tipo (ex.: Shampoo).');
+    if (escolhaLinha === '__nova' && !nomeLinha) erroEscolha('linha', 'Digite o nome da nova linha, ou escolha "Sem linha".');
 
     // Monta a lista de variações a partir da tela
     let itens;
@@ -360,6 +475,7 @@ export async function render(el, { id, consulta }) {
         preco: lerCentavos(div.querySelector('.v-preco')),
         custo: lerCentavos(div.querySelector('.v-custo')),
         cor: corValida(div.dataset.cor),
+        foto: fotosVar.get(div) || null,
         inputNome: div.querySelector('.v-nome'),
         input: div.querySelector('.v-codigo')
       }));
@@ -387,7 +503,7 @@ export async function render(el, { id, consulta }) {
 
     const primeiroErro = form.querySelector('[aria-invalid="true"]');
     if (primeiroErro) {
-      primeiroErro.focus();
+      if (primeiroErro.focus) primeiroErro.focus();
       primeiroErro.scrollIntoView({ block: 'center' });
       aviso('Revise os campos destacados.', { tipo: 'erro' });
       return;
@@ -418,12 +534,25 @@ export async function render(el, { id, consulta }) {
         categoriaId = existente ? existente.id : novoId();
         if (!existente) await db.categorias.add({ id: categoriaId, nome: nomeCategoria.charAt(0).toUpperCase() + nomeCategoria.slice(1), ordem: categorias.length });
       }
+      // Tipo e linha: mesma regra (usa o existente com o mesmo nome, ou cria)
+      const escolherOuCriar = async (escolha, nomeNovo, lista, tabela) => {
+        if (escolha !== '__nova') return escolha || null;
+        const existente = lista.find((x) => x.nome.toLowerCase() === nomeNovo.toLowerCase());
+        if (existente) return existente.id;
+        const novo = { id: novoId(), nome: nomeNovo.charAt(0).toUpperCase() + nomeNovo.slice(1), ordem: lista.length };
+        await db[tabela].add(novo);
+        return novo.id;
+      };
+      const tipoId = await escolherOuCriar(escolhaTipo, nomeTipo, tipos, 'tipos');
+      const linhaId = await escolherOuCriar(escolhaLinha, nomeLinha, linhasProduto, 'linhas');
 
       const agora = new Date().toISOString();
       const registro = {
         id: id || novoId(),
         nome,
         categoriaId,
+        tipoId,
+        linhaId,
         atributo: modo === 'variacoes' ? atributo : '',
         preco,
         custo: custo || null,
@@ -446,6 +575,7 @@ export async function render(el, { id, consulta }) {
           preco: modo === 'variacoes' && it.preco ? it.preco : null,
           custo: modo === 'variacoes' && it.custo ? it.custo : null,
           cor: modo === 'variacoes' ? it.cor || null : null,
+          foto: modo === 'variacoes' ? it.foto || null : null,
           ativo: true,
           ordem
         })));
@@ -488,5 +618,5 @@ export async function render(el, { id, consulta }) {
   if (!editando && matchMedia('(pointer: fine)').matches) $('#f-nome').focus();
 
   // Ao sair da tela
-  return () => { pararLeitor(); if (urlFoto) URL.revokeObjectURL(urlFoto); };
+  return () => { pararLeitor(); if (urlFoto) URL.revokeObjectURL(urlFoto); urlsVar.forEach((u) => URL.revokeObjectURL(u)); };
 }

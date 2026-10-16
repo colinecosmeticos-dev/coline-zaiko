@@ -1,7 +1,7 @@
 // =========================================================
 // Pacote para preparar outros aparelhos.
 // Um arquivo com tudo que o aparelho principal define:
-//   catálogo (produtos, variações, categorias e fotos), formas de pagamento com taxas,
+//   catálogo (produtos, variações, categorias, tipos, linhas e fotos), formas de pagamento com taxas,
 //   categorias de retirada, PIN (só a "impressão digital") e eventos.
 // NÃO leva: nome/sigla do aparelho, tema, evento em uso, vendas e caixas.
 //
@@ -11,17 +11,21 @@
 import { db, lerAparelho, lerConfig, gravarConfig } from './db.js';
 
 const TIPO = 'coline-zaiko-pacote';
-const VERSAO_PACOTE = 1;
+// Versão 2 (v0.20.0): leva também tipos, linhas e as fotos das variações.
+// Um app antigo recusa o pacote 2 (pede para atualizar), em vez de importar pela metade.
+const VERSAO_PACOTE = 2;
 
 // ---------- Gerar ----------
 export async function gerarPacote() {
-  const [produtos, variacoes, categorias, categoriasRetirada, eventos, formasPagamento] = await Promise.all([
+  const [produtos, variacoes, categorias, categoriasRetirada, eventos, formasPagamento, tipos, linhas] = await Promise.all([
     db.produtos.toArray(), db.variacoes.toArray(), db.categorias.toArray(),
-    db.categoriasRetirada.toArray(), db.eventos.toArray(), db.formasPagamento.toArray()
+    db.categoriasRetirada.toArray(), db.eventos.toArray(), db.formasPagamento.toArray(),
+    db.tipos.toArray(), db.linhas.toArray()
   ]);
   // Fotos viram texto (base64) para caberem no arquivo
   const produtosComFoto = await Promise.all(produtos.map(async (p) => ({ ...p, foto: p.foto ? await blobParaTexto(p.foto) : null })));
   const categoriasComFoto = await Promise.all(categorias.map(async (c) => ({ ...c, foto: c.foto ? await blobParaTexto(c.foto) : null })));
+  const variacoesComFoto = await Promise.all(variacoes.map(async (v) => ({ ...v, foto: v.foto ? await blobParaTexto(v.foto) : null })));
   const aparelho = await lerAparelho();
 
   const pacote = {
@@ -29,7 +33,7 @@ export async function gerarPacote() {
     versao: VERSAO_PACOTE,
     geradoEm: new Date().toISOString(),
     geradoPor: aparelho ? { nome: aparelho.nome, sigla: aparelho.sigla } : null,
-    catalogo: { produtos: produtosComFoto, variacoes, categorias: categoriasComFoto },
+    catalogo: { produtos: produtosComFoto, variacoes: variacoesComFoto, categorias: categoriasComFoto, tipos, linhas },
     formasPagamento,
     categoriasRetirada,
     pin: { hash: await lerConfig('pinHash'), sal: await lerConfig('pinSal') },
@@ -56,13 +60,18 @@ export async function lerPacote(arquivo) {
 export async function importarPacote(pacote) {
   const produtos = await Promise.all(pacote.catalogo.produtos.map(async (p) => ({ ...p, foto: p.foto ? await textoParaBlob(p.foto) : null })));
   const categorias = await Promise.all(pacote.catalogo.categorias.map(async (c) => ({ ...c, foto: c.foto ? await textoParaBlob(c.foto) : null })));
-  await db.transaction('rw', [db.produtos, db.variacoes, db.categorias, db.categoriasRetirada, db.eventos, db.formasPagamento, db.config], async () => {
+  const variacoes = await Promise.all(pacote.catalogo.variacoes.map(async (v) => ({ ...v, foto: typeof v.foto === 'string' ? await textoParaBlob(v.foto) : null })));
+  const { tipos, linhas } = pacote.catalogo;
+  await db.transaction('rw', [db.produtos, db.variacoes, db.categorias, db.tipos, db.linhas, db.categoriasRetirada, db.eventos, db.formasPagamento, db.config], async () => {
     await db.variacoes.clear();
     await db.produtos.clear();
     await db.categorias.clear();
     await db.categorias.bulkPut(categorias);
     await db.produtos.bulkPut(produtos);
-    await db.variacoes.bulkPut(pacote.catalogo.variacoes);
+    await db.variacoes.bulkPut(variacoes);
+    // Tipos e linhas (pacotes antigos não têm: ficam os deste aparelho)
+    if (tipos) { await db.tipos.clear(); await db.tipos.bulkPut(tipos); await db.config.put({ chave: 'tiposCriados', valor: true }); }
+    if (linhas) { await db.linhas.clear(); await db.linhas.bulkPut(linhas); }
     // Categorias de retirada: as do pacote substituem as deste aparelho
     // (antes eram somadas, e cada aparelho tinha criado as suas: ficavam repetidas)
     await db.categoriasRetirada.clear();

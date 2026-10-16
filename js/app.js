@@ -3,7 +3,7 @@
 // O endereço depois do # diz qual tela mostrar:
 //   #/inicio  #/produtos  #/produtos/novo  #/produtos/<id>  #/mais ...
 // =========================================================
-import { pedirArmazenamentoPersistente, garantirCategoriasPadrao, garantirFormasPadrao } from './db.js';
+import { pedirArmazenamentoPersistente, garantirCategoriasPadrao, garantirFormasPadrao, garantirTiposPadrao } from './db.js';
 import { aplicarTemaSalvo } from './tema.js';
 import { saida, confirmar } from './ui.js';
 import { iniciarAtualizacoes } from './atualizacao.js';
@@ -16,6 +16,8 @@ import * as formas from './telas/formas.js';
 import * as formaForm from './telas/forma-form.js';
 import * as categorias from './telas/categorias.js';
 import * as categoriaForm from './telas/categoria-form.js';
+import * as agrupadores from './telas/agrupadores.js';
+import * as organizar from './telas/organizar.js';
 import * as retiradas from './telas/retiradas.js';
 import * as eventos from './telas/eventos.js';
 import * as eventoForm from './telas/evento-form.js';
@@ -46,6 +48,9 @@ const rotas = [
   ['produtos', produtos.render],
   ['produtos/categorias', categorias.render],
   ['produtos/categorias/:id', categoriaForm.render],
+  ['produtos/tipos', agrupadores.renderTipos],
+  ['produtos/linhas', agrupadores.renderLinhas],
+  ['produtos/organizar', organizar.render],
   ['produtos/codigos', codigos.render],
   ['produtos/novo', produtoForm.render],
   ['produtos/:id', produtoForm.render],
@@ -137,7 +142,7 @@ window.addEventListener('beforeunload', (e) => {
 
 // ---------- Inicialização ----------
 aplicarTemaSalvo();
-Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao()]).catch((e) => console.error(e)).finally(navegar);
+Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao()]).catch((e) => console.error(e)).finally(navegar);
 pedirArmazenamentoPersistente().catch(() => {});
 
 // ---------- Atualizações do app ----------

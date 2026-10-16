@@ -35,7 +35,7 @@ export async function render(el) {
         <p class="sub">${produtos.length} ${produtos.length === 1 ? 'produto' : 'produtos'}, ${totalItens} ${totalItens === 1 ? 'item vendável' : 'itens vendáveis'}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a class="btn" href="#/produtos/categorias">Categorias</a>
+        <a class="btn" href="#/produtos/organizar">Organizar</a>
         <a class="btn" href="#/produtos/codigos">Folha de códigos</a>
         <a class="btn primario" href="#/produtos/novo">${icones.mais} Novo produto</a>
       </div>
@@ -89,6 +89,7 @@ export async function render(el) {
           <div class="nome">${esc(p.nome)}</div>
           <div class="detalhe">
             ${p.categoria ? `<span class="etiqueta">${esc(p.categoria)}</span>` : ''}
+            ${p.linha ? `<span class="etiqueta">${esc(p.linha)}</span>` : ''}
             ${temVariacoes ? `<span>${qtd} ${esc((p.atributo || 'variação').toLowerCase())}${qtd === 1 ? '' : 's'}</span>` : ''}
             ${p.ativo ? '' : '<span class="etiqueta">Inativo</span>'}
           </div>

@@ -1,6 +1,6 @@
 // =========================================================
 // Tela Categorias de produto (Produtos → Categorias).
-// Foto e ordem aparecem na tela de venda, no modo Categorias.
+// A ordem é a ordem dos botões de categoria no topo da tela de venda.
 // =========================================================
 import { db, listarCategorias } from '../db.js';
 import { esc, icones, iniciais } from '../ui.js';
@@ -17,10 +17,10 @@ export async function render(el) {
   };
 
   el.innerHTML = `
-    <a class="voltar" href="#/produtos">${icones.voltar} Produtos</a>
+    <a class="voltar" href="#/produtos/organizar">${icones.voltar} Organizar produtos</a>
     <header class="cab">
       <div><h1>Categorias</h1>
-        <p class="sub">A foto e a ordem aparecem na tela de venda. Use as setas para mudar a ordem.</p></div>
+        <p class="sub">O grupo grande (ex.: Capilar, Corpo e Mãos). Na tela de venda, as categorias são os botões do topo, nesta ordem. Use as setas para mudar a ordem.</p></div>
       <a class="btn primario" href="#/produtos/categorias/nova">${icones.mais} Nova categoria</a>
     </header>
     ${categorias.length ? `

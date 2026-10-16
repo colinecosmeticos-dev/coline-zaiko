@@ -309,7 +309,7 @@ img { display: block; max-width: 100%; }
 .linha-variacao .c-valor { padding-right: 52px; }
 @media (min-width: 720px) {
   .linha-variacao {
-    grid-template-columns: 1.2fr 1.4fr .9fr .9fr auto;
+    grid-template-columns: 1.7fr 1.3fr .9fr .9fr auto;
     grid-template-areas: "valor codigo preco custo remover";
     padding: 0; border: 0; background: none;
   }
@@ -319,7 +319,7 @@ img { display: block; max-width: 100%; }
   .cab-variacoes { display: grid !important; }
 }
 .cab-variacoes {
-  display: none; grid-template-columns: 1.2fr 1.4fr .9fr .9fr 48px; gap: 10px;
+  display: none; grid-template-columns: 1.7fr 1.3fr .9fr .9fr 48px; gap: 10px;
   font-size: .875rem; font-weight: 600;
 }
 
@@ -352,8 +352,8 @@ img { display: block; max-width: 100%; }
 .form-produto.custo-bloqueado .trancado { display: flex; }
 .form-produto.custo-bloqueado .linha-variacao { grid-template-areas: "valor valor" "codigo codigo" "preco preco"; }
 @media (min-width: 720px) {
-  .form-produto.custo-bloqueado .linha-variacao { grid-template-columns: 1.2fr 1.4fr .9fr auto; grid-template-areas: "valor codigo preco remover"; }
-  .form-produto.custo-bloqueado .cab-variacoes { grid-template-columns: 1.2fr 1.4fr .9fr 48px; }
+  .form-produto.custo-bloqueado .linha-variacao { grid-template-columns: 1.7fr 1.3fr .9fr auto; grid-template-areas: "valor codigo preco remover"; }
+  .form-produto.custo-bloqueado .cab-variacoes { grid-template-columns: 1.7fr 1.3fr .9fr 48px; }
 }
 .entrada-pin { font-size: 1.5rem; letter-spacing: .4em; text-align: center; }
 
@@ -988,3 +988,65 @@ dialog.janela-cor { width: min(94vw, 460px); }
 dialog.janela-cor .acoes { align-items: center; flex-wrap: wrap; }
 :root[data-tema="escuro"] .amostra-cor { border-color: rgba(255, 255, 255, .3); }
 @media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .amostra-cor { border-color: rgba(255, 255, 255, .3); } }
+
+/* ---------- Tela de venda: grupos e um botão por item (v0.20.0) ---------- */
+.venda-itens { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 12px; }
+.venda-itens .vazio-grade { text-align: center; padding: 32px 0; }
+.chips-venda .chip { min-height: 44px; padding: 0 18px; font-size: 1rem; }
+.grupo-venda + .grupo-venda { margin-top: 14px; }
+.grupo-titulo { font-size: .875rem; font-weight: 700; color: var(--texto-2); margin: 0 0 6px 2px; text-transform: none; letter-spacing: .01em; }
+.grupo-itens { display: grid; gap: 8px; }
+.item-venda {
+  display: flex; flex-direction: column; gap: 4px; padding: 6px; min-width: 0; text-align: left;
+  background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio);
+  color: inherit; font: inherit; cursor: pointer; transition: transform .08s;
+}
+.item-venda:active { transform: scale(.97); }
+.item-venda:hover { border-color: var(--marca); }
+.item-venda:focus-visible { outline: 3px solid var(--marca); outline-offset: 2px; }
+.iv-foto {
+  flex: 0 0 auto; width: 100%; aspect-ratio: 5 / 4; border-radius: var(--raio-p); overflow: hidden; background: var(--superficie-2);
+  display: grid; place-items: center; color: var(--texto-2); font-size: 1.25rem; font-weight: 700;
+}
+.iv-foto img { width: 100%; height: 100%; object-fit: contain; }
+.iv-nome { font-weight: 600; font-size: .9375rem; line-height: 1.2; padding: 0 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.iv-info { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 6px; padding: 0 2px; margin-top: auto; font-size: .8125rem; color: var(--texto-2); }
+.iv-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+.iv-preco { white-space: nowrap; }
+.iv-preco strong { color: var(--texto); font-size: .9375rem; }
+.iv-preco s { font-size: .75rem; }
+/* Lugar vazio: linha sem aquele tipo (ex.: Mango sem leave-in). Discreto e sem ação. */
+.vaga-venda { border: 1px dashed var(--linha); border-radius: var(--raio); opacity: .6; min-height: 60px; }
+.vaga-venda.invisivel { visibility: hidden; }
+@media (max-width: 839px) { .grupo-titulo { font-size: .8125rem; } }
+
+/* ---------- Cadastro do produto: foto da variação (v0.20.0) ---------- */
+.btn-foto-var {
+  flex: 0 0 48px; width: 48px; min-height: 48px; padding: 0; cursor: pointer; overflow: hidden;
+  display: grid; place-items: center; color: var(--texto-2);
+  border: 1px solid var(--linha); border-radius: var(--raio-p); background: var(--superficie);
+}
+.btn-foto-var svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.btn-foto-var img { width: 100%; height: 100%; object-fit: cover; }
+.btn-foto-var:focus-visible { outline: 3px solid var(--marca); outline-offset: 2px; }
+.opcoes[aria-invalid="true"] span { border-color: var(--erro); }
+
+/* ---------- Tipos e Linhas; Organizar produtos (v0.20.0) ---------- */
+.linha-forma button.info { background: none; border: 0; font: inherit; cursor: pointer; }
+.cab-organizar { display: none; }
+.linha-organizar { display: grid; gap: 8px; padding: 12px 16px; grid-template-columns: 1fr 1fr; }
+.linha-organizar + .linha-organizar { border-top: 1px solid var(--linha); }
+.linha-organizar .org-nome { grid-column: 1 / -1; color: inherit; text-decoration: none; }
+.linha-organizar .org-nome:hover strong { text-decoration: underline; }
+.linha-organizar .org-campo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.linha-organizar .org-campo:last-child { grid-column: 1 / -1; }
+.linha-organizar select.entrada { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+.linha-organizar .rotulo-m { font-size: .75rem; color: var(--texto-2); }
+.linha-organizar.pendente { box-shadow: inset 4px 0 0 var(--marca); }
+@media (min-width: 840px) {
+  .cab-organizar { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 10px; padding: 0 16px 6px; font-size: .875rem; font-weight: 600; }
+  .linha-organizar { grid-template-columns: 1.4fr 1fr 1fr 1fr; align-items: center; gap: 10px; }
+  .linha-organizar .org-nome, .linha-organizar .org-campo:last-child { grid-column: auto; }
+  .linha-organizar .rotulo-m { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+@media (max-width: 520px) { .iv-foto { aspect-ratio: 16 / 10; } }

@@ -24,7 +24,7 @@ export async function render(el, { id }) {
             <div class="seletor-foto" id="seletor-foto" aria-hidden="true"></div>
             <div class="acoes-foto">
               <span class="rotulo">Foto</span>
-              <span class="dica">Aparece no botão da categoria na tela de venda.</span>
+              <span class="dica">Opcional. Aparece na lista de categorias.</span>
               <div class="botoes-foto">
                 <button type="button" class="btn" id="tirar-foto">${icones.camera} Tirar foto</button>
                 <button type="button" class="btn" id="galeria-foto">${icones.imagem} Galeria</button>
@@ -35,7 +35,7 @@ export async function render(el, { id }) {
             <input type="file" accept="image/*" id="arquivo-galeria" hidden>
           </div>
           <div class="campo"><label for="c-nome">Nome</label>
-            <input class="entrada" id="c-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Shampoo" value="${esc(c.nome)}"></div>
+            <input class="entrada" id="c-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Capilar" value="${esc(c.nome)}"></div>
           ${nova ? '' : `<p class="sub">${qtdProdutos} ${qtdProdutos === 1 ? 'produto' : 'produtos'} nesta categoria.</p>`}
         </div>
       </section>

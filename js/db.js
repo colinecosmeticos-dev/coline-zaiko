@@ -50,6 +50,22 @@ db.version(7).stores({
   estoqueContado: 'id, eventoId'
 });
 
+// Versão 8: tipos de produto (Shampoo, Higienizador...) e linhas (Umeboshi, Ice Melon...).
+// Cada produto passa a ter categoria, tipo e linha (opcional). Os tipos já vêm
+// criados na ordem que o dono definiu (a ordem vira a ordem das colunas na venda).
+db.version(8).stores({
+  tipos: 'id, ordem',
+  linhas: 'id, ordem'
+});
+const TIPOS_INICIAIS = ['Higienizador', 'Higi Case', 'Shampoo', 'Condicionador', 'Máscara', 'Leave-in', 'Sabonete', 'Esfoliante', 'Sérum', 'Camiseta'];
+// Cria os tipos iniciais uma vez só (depois podem ser renomeados, reordenados e excluídos à vontade).
+// Se a lista já tiver vindo por um pacote, não cria nada.
+export async function garantirTiposPadrao() {
+  if (await lerConfig('tiposCriados')) return;
+  if (!(await db.tipos.count())) await db.tipos.bulkAdd(TIPOS_INICIAIS.map((nome, ordem) => ({ id: novoId(), nome, ordem })));
+  await gravarConfig('tiposCriados', true);
+}
+
 // Gera um identificador único (ex.: "3f2b9c1e-..."). Usamos isso em vez de
 // 1, 2, 3... porque os dois aparelhos vão trocar dados entre si e os números
 // iguais se misturariam.
@@ -85,14 +101,23 @@ export async function listarCategorias() {
   return lista.sort((a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
-// Produtos com suas variações e o nome da categoria, prontos para exibir
+// Tipos e linhas, na ordem definida pelo dono
+const porOrdem = (a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999) || a.nome.localeCompare(b.nome, 'pt-BR');
+export async function listarTipos() { return (await db.tipos.toArray()).sort(porOrdem); }
+export async function listarLinhas() { return (await db.linhas.toArray()).sort(porOrdem); }
+
+// Produtos com suas variações e os nomes de categoria, tipo e linha, prontos para exibir
 export async function listarProdutosCompletos() {
-  const [produtos, variacoes, categorias] = await Promise.all([
+  const [produtos, variacoes, categorias, tipos, linhas] = await Promise.all([
     db.produtos.toArray(),
     db.variacoes.toArray(),
-    db.categorias.toArray()
+    db.categorias.toArray(),
+    db.tipos.toArray(),
+    db.linhas.toArray()
   ]);
   const nomeCategoria = new Map(categorias.map((c) => [c.id, c.nome]));
+  const nomeTipo = new Map(tipos.map((t) => [t.id, t.nome]));
+  const nomeLinha = new Map(linhas.map((l) => [l.id, l.nome]));
   const porProduto = new Map();
   for (const v of variacoes) {
     if (!porProduto.has(v.produtoId)) porProduto.set(v.produtoId, []);
@@ -102,6 +127,8 @@ export async function listarProdutosCompletos() {
     .map((p) => ({
       ...p,
       categoria: nomeCategoria.get(p.categoriaId) || '',
+      tipo: nomeTipo.get(p.tipoId) || '',
+      linha: nomeLinha.get(p.linhaId) || '',
       variacoes: (porProduto.get(p.id) || []).sort((a, b) => a.ordem - b.ordem)
     }))
     .sort((a, b) => (b.ativo - a.ativo) || a.nome.localeCompare(b.nome, 'pt-BR'));
