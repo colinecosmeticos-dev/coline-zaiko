@@ -152,7 +152,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   $('#fechar')?.addEventListener('click', async () => {
     if (!mostrarTotais && !(await pin('Fechar o caixa'))) return;
     const atualizado = await db.caixas.get(caixa.id);
-    if (await pedirFechamento(atualizado, await resumoCaixa(atualizado))) { aviso('Caixa fechado.'); recarregar(true); }
+    if (await pedirFechamento(atualizado, await resumoCaixa(atualizado))) { aviso('Caixa fechado. Bom momento para um backup.', { acao: 'Fazer backup', aoClicar: () => { location.hash = '#/backup'; } }); recarregar(true); }
     else recarregar(true);
   });
   $('#reabrir')?.addEventListener('click', async () => {

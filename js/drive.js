@@ -162,6 +162,28 @@ export async function enviarPlanilha(arquivo, { eventoId, titulo }) {
   return novo.webViewLink || `https://docs.google.com/spreadsheets/d/${novo.id}/edit`;
 }
 
+// ---------- Backup ----------
+// Guarda as 3 cópias mais recentes de cada aparelho; as mais antigas são apagadas.
+const BACKUPS_POR_APARELHO = 3;
+const backupsNoDrive = () => consulta(`appProperties has { key='zaiko' and value='backup' } and trashed = false`,
+  'id,name,createdTime,size,appProperties', '&orderBy=createdTime desc');
+export async function enviarBackup(arquivo, aparelho) {
+  await autorizar();
+  const pasta = await pastaDoApp();
+  const sigla = aparelho ? aparelho.sigla : '?';
+  const metadados = { name: arquivo.name, parents: [pasta], mimeType: 'text/plain', appProperties: { zaiko: 'backup', aparelho: sigla, nomeAparelho: aparelho ? aparelho.nome : '' } };
+  const corpo = new FormData();
+  corpo.append('metadata', new Blob([JSON.stringify(metadados)], { type: 'application/json' }));
+  corpo.append('file', arquivo);
+  await chamar(`${UPLOAD}/files?uploadType=multipart&fields=id`, { method: 'POST', body: corpo });
+  const destes = (await backupsNoDrive()).filter((f) => f.appProperties?.aparelho === sigla);
+  await Promise.all(destes.slice(BACKUPS_POR_APARELHO).map((f) => chamar(`${API}/files/${f.id}`, { method: 'DELETE' }).catch(() => null)));
+}
+export async function listarBackups() {
+  await autorizar();
+  return (await backupsNoDrive()).map((f) => ({ id: f.id, nome: f.name, criadoEm: f.createdTime, tamanho: Number(f.size) || 0, sigla: f.appProperties?.aparelho || '', aparelho: f.appProperties?.nomeAparelho || '' }));
+}
+
 export async function baixarPacote(info) {
   await autorizar();
   const texto = await (await chamar(`${API}/files/${info.id}?alt=media`)).text();

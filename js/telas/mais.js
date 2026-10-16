@@ -6,6 +6,7 @@ const itens = [
   ['#/estoque', 'Estoque do evento', 'Quantidades levadas, brindes e avarias'],
   ['#/fechamento', 'Fechamento do evento', 'Totais, resumo por dia e exportação'],
   ['#/painel', 'Painel de vendas', 'Vendas do aparelho, protegido por PIN'],
+  ['#/backup', 'Backup', 'Cópia completa do aparelho no Drive ou em arquivo, e restauração'],
   ['#/configuracoes', 'Configurações', 'Aparelho, formas de pagamento, retiradas, PIN e tema']
 ];
 

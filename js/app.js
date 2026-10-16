@@ -27,6 +27,7 @@ import * as painel from './telas/painel.js';
 import * as juntar from './telas/juntar.js';
 import * as estoque from './telas/estoque.js';
 import * as fechamento from './telas/fechamento.js';
+import * as backup from './telas/backup.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -52,6 +53,7 @@ const rotas = [
   ['configuracoes/retiradas', retiradas.render],
   ['pacote', pacote.render],
   ['juntar', juntar.render],
+  ['backup', backup.render],
   ['eventos', eventos.render],
   ['eventos/novo', eventoForm.render],
   ['eventos/:id', eventoForm.render],
