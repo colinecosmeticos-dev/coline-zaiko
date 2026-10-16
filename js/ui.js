@@ -22,6 +22,11 @@ function centavosParaTexto(centavos) {
 // Transforma um <input> em campo de dinheiro estilo maquininha:
 // os números entram pela direita (1 → 0,01 · 129 → 1,29 · 1290 → 12,90).
 // Campo vazio = valor não informado.
+// Telas com alterações ainda não salvas: a tela define saida.pendente
+// (uma função que devolve true enquanto houver mudança pendente) e o
+// app pergunta antes de sair dela.
+export const saida = { pendente: null };
+
 export function campoDinheiro(input, { permitirZero = false } = {}) {
   input.inputMode = 'numeric';
   input.autocomplete = 'off';

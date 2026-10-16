@@ -5,6 +5,7 @@
 // =========================================================
 import { pedirArmazenamentoPersistente, garantirCategoriasPadrao, garantirFormasPadrao } from './db.js';
 import { aplicarTemaSalvo } from './tema.js';
+import { saida, confirmar } from './ui.js';
 import { iniciarAtualizacoes } from './atualizacao.js';
 import * as inicio from './telas/inicio.js';
 import * as produtos from './telas/produtos.js';
@@ -81,7 +82,23 @@ function encontrarRota(caminho) {
   return null;
 }
 
+let hashAtual = location.hash;
 async function navegar() {
+  // Tela com alterações não salvas: confirma antes de sair
+  if (saida.pendente && location.hash !== hashAtual) {
+    let pendente = false;
+    try { pendente = saida.pendente(); } catch (e) { console.error(e); }
+    if (pendente) {
+      const destino = location.hash;
+      history.replaceState(null, '', hashAtual);
+      const sair = await confirmar({ titulo: 'Sair sem salvar?', texto: 'Há alterações que ainda não foram salvas. Se sair agora, elas serão perdidas.', botao: 'Sair sem salvar', cancelar: 'Continuar editando', perigo: true });
+      if (!sair) return;
+      saida.pendente = null;
+      history.replaceState(null, '', destino);
+    }
+  }
+  saida.pendente = null;
+  hashAtual = location.hash;
   const [caminhoBruto, consulta = ''] = location.hash.replace(/^#\/?/, '').split('?');
   const caminho = caminhoBruto || 'inicio';
   const rota = encontrarRota(caminho);
@@ -113,6 +130,10 @@ async function navegar() {
 }
 
 window.addEventListener('hashchange', navegar);
+// Fechar a aba ou recarregar com alterações não salvas: o navegador pergunta
+window.addEventListener('beforeunload', (e) => {
+  try { if (saida.pendente && saida.pendente()) { e.preventDefault(); e.returnValue = ''; } } catch (erro) { /* ok */ }
+});
 
 // ---------- Inicialização ----------
 aplicarTemaSalvo();

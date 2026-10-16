@@ -924,6 +924,22 @@ dialog.janela-fechamento { width: min(96vw, 860px); max-height: 96dvh; }
 /* ---------- Preços do evento ---------- */
 .preco-evento { width: 120px; flex: none; text-align: right; font-weight: 700; }
 .linhas-estoque li.com-preco { background: var(--marca-suave); border-radius: var(--raio-p); padding-left: 8px; padding-right: 8px; }
+.linhas-estoque li.alterado { background: color-mix(in srgb, #E8A100 16%, var(--superficie)); box-shadow: inset 3px 0 0 #E8A100; border-radius: var(--raio-p); padding-left: 8px; padding-right: 8px; }
+.antes-preco { display: flex; align-items: center; gap: 4px; font-size: .78rem; color: var(--texto-2); }
+.antes-preco[hidden] { display: none; }
+.antes-preco s { color: var(--texto); }
+.btn.mini { min-height: 28px; padding: 0 6px; font-size: .78rem; }
+.barra-rascunho {
+  position: sticky; z-index: 6; bottom: calc(68px + env(safe-area-inset-bottom));
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+  margin-top: 12px; padding: 12px 14px; border-radius: var(--raio);
+  background: var(--superficie); border: 1px solid var(--linha); box-shadow: var(--sombra);
+}
+.barra-rascunho[hidden] { display: none; }
+.br-texto { display: flex; flex-direction: column; gap: 2px; }
+.br-filtro { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--texto-2); }
+.br-botoes { display: flex; gap: 8px; margin-left: auto; }
+@media (min-width: 840px) { .barra-rascunho { bottom: 12px; } }
 .ladrilho-especial { font-size: .75rem; color: var(--marca-texto); font-weight: 600; }
 .ladrilho-especial s { color: var(--texto-2); font-weight: 400; margin-right: 2px; }
 .botao-variacao small s { color: var(--texto-2); margin-right: 4px; }
