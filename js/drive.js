@@ -141,6 +141,27 @@ export async function listarVendasNoDrive(eventoId) {
     .map((f) => ({ id: f.id, nome: f.name, criadoEm: f.createdTime, sigla: f.appProperties?.aparelho || '', aparelho: f.appProperties?.nomeAparelho || '' }));
 }
 
+// ---------- Planilha do fechamento ----------
+// Envia o .xlsx e o próprio Google converte em Google Planilhas.
+// Fica uma planilha por evento: a nova substitui a anterior. Devolve o link para abrir.
+export async function enviarPlanilha(arquivo, { eventoId, titulo }) {
+  await autorizar();
+  const pasta = await pastaDoApp();
+  const metadados = {
+    name: titulo, parents: [pasta], mimeType: 'application/vnd.google-apps.spreadsheet',
+    appProperties: { zaiko: 'planilha', evento: eventoId }
+  };
+  const corpo = new FormData();
+  corpo.append('metadata', new Blob([JSON.stringify(metadados)], { type: 'application/json' }));
+  corpo.append('file', arquivo);
+  const novo = await (await chamar(`${UPLOAD}/files?uploadType=multipart&fields=id,webViewLink`, { method: 'POST', body: corpo })).json();
+  const antigas = (await consulta(
+    `appProperties has { key='zaiko' and value='planilha' } and appProperties has { key='evento' and value='${eventoId.replace(/'/g, '')}' } and trashed = false`, 'id'))
+    .filter((f) => f.id !== novo.id);
+  await Promise.all(antigas.map((f) => chamar(`${API}/files/${f.id}`, { method: 'DELETE' }).catch(() => null)));
+  return novo.webViewLink || `https://docs.google.com/spreadsheets/d/${novo.id}/edit`;
+}
+
 export async function baixarPacote(info) {
   await autorizar();
   const texto = await (await chamar(`${API}/files/${info.id}?alt=media`)).text();

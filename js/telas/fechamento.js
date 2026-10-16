@@ -9,7 +9,8 @@ import { db, lerEventoAtivo, listarProdutosCompletos, lerLevado } from '../db.js
 import { esc, dinheiro, icones, aviso, confirmar, periodo } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { calcularFechamento } from '../fechamento/calculo.js';
-import { planilhaItens, planilhaResumo } from '../fechamento/planilha.js';
+import { planilhaFechamento } from '../fechamento/planilha.js';
+import { driveConfigurado, prepararDrive, autorizar, enviarPlanilha } from '../drive.js';
 import { aparelhosDoEvento } from '../vendas-arquivo.js';
 
 const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '');
@@ -164,11 +165,12 @@ export async function render(el, { mostrar = false } = {}) {
 
     <section class="cartao" style="margin-top:16px">
       <h2>Planilhas</h2>
-      <p class="sub">Arquivos .csv que abrem no Excel e no Google Planilhas.</p>
+      <p class="sub">Uma planilha com as abas Resumo, Itens, Estoque e Caixas.${driveConfigurado() ? ' No Drive, ela vira um Google Planilhas na pasta "Coline Zaiko" (a nova substitui a anterior deste evento).' : ''}</p>
       <div class="acoes">
-        <button type="button" class="btn" id="csv-resumo">${icones.baixar} Resumo do fechamento</button>
-        <button type="button" class="btn" id="csv-itens">${icones.baixar} Itens vendidos</button>
+        ${driveConfigurado() ? `<button type="button" class="btn primario" id="planilha-drive">${icones.compartilhar} Salvar no Drive</button>` : ''}
+        <button type="button" class="btn" id="planilha-baixar">${icones.baixar} Baixar no aparelho (.xlsx)</button>
       </div>
+      <p class="sub" id="planilha-status" style="margin-top:12px" hidden></p>
     </section>
 
     <section class="cartao" style="margin-top:16px">
@@ -178,8 +180,27 @@ export async function render(el, { mostrar = false } = {}) {
     </section>`;
 
   el.querySelector('#ocultar')?.addEventListener('click', () => render(el));
-  el.querySelector('#csv-resumo').addEventListener('click', () => baixar(planilhaResumo(evento, f)));
-  el.querySelector('#csv-itens').addEventListener('click', () => baixar(planilhaItens(evento, registros)));
+  el.querySelector('#planilha-baixar').addEventListener('click', () => baixar(planilhaFechamento(evento, f, registros)));
+  if (driveConfigurado()) {
+    const status = el.querySelector('#planilha-status');
+    prepararDrive().catch((e) => { status.hidden = false; status.textContent = e.message; });
+    el.querySelector('#planilha-drive').addEventListener('click', async (e) => {
+      const botao = e.currentTarget;
+      const pedido = autorizar();   // abre o Google no mesmo toque
+      botao.disabled = true;
+      try {
+        await pedido;
+        status.hidden = false; status.textContent = 'Enviando a planilha…';
+        const link = await enviarPlanilha(planilhaFechamento(evento, f, registros), { eventoId: evento.id, titulo: `Fechamento — ${evento.nome}` });
+        status.innerHTML = `Planilha salva no Drive. <a href="${esc(link)}" target="_blank" rel="noopener">Abrir no Google Planilhas</a>`;
+        aviso('Planilha salva no Drive.');
+      } catch (erro) {
+        console.error(erro);
+        status.hidden = false; status.textContent = erro.message;
+        aviso(erro.message, { tipo: 'erro' });
+      } finally { botao.disabled = false; }
+    });
+  }
   el.querySelector('#encerrar').addEventListener('click', async () => {
     const ok = encerrado
       ? await confirmar({ titulo: 'Reabrir o evento?', texto: 'As vendas voltam a ser permitidas neste evento.', botao: 'Reabrir' })
