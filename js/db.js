@@ -134,12 +134,19 @@ export async function gravarTaxas(taxas) {
 // "despesa: false" = não é gasto (ex.: Sangria, dinheiro guardado em local seguro)
 const CATEGORIAS_PADRAO = [
   ['Sangria', false], ['Alimentação', true], ['Transporte/Estacionamento', true],
-  ['Ajudante', true], ['Material', true], ['Outros', true]
+  ['Equipe', true], ['Material', true], ['Outros', true]
 ];
 export async function garantirCategoriasPadrao() {
-  if (await lerConfig('categoriasRetiradaCriadas')) { await removerCategoriasRepetidas(); return; }
+  if (await lerConfig('categoriasRetiradaCriadas')) { await removerCategoriasRepetidas(); await renomearAjudante(); return; }
   await db.categoriasRetirada.bulkAdd(CATEGORIAS_PADRAO.map(([nome, despesa], ordem) => ({ id: novoId(), nome, despesa, ativo: true, ordem })));
   await gravarConfig('categoriasRetiradaCriadas', true);
+}
+// "Ajudante" passou a se chamar "Equipe" (uma vez só; depois o nome pode ser editado à vontade)
+async function renomearAjudante() {
+  if (await lerConfig('ajudanteRenomeado')) return;
+  const antiga = (await db.categoriasRetirada.toArray()).find((c) => c.nome.trim().toLowerCase() === 'ajudante');
+  if (antiga) await db.categoriasRetirada.update(antiga.id, { nome: 'Equipe' });
+  await gravarConfig('ajudanteRenomeado', true);
 }
 // Conserta listas com nomes repetidos (deixadas pela importação antiga): fica a primeira de cada nome
 async function removerCategoriasRepetidas() {

@@ -1,9 +1,9 @@
 // =========================================================
-// PIN do dono.
+// PIN.
 // Protege o que só o dono deve ver (custo, lucro, painel de vendas).
 // O PIN não é guardado como texto: guardamos uma "impressão digital"
 // dele (hash SHA-256), então nem olhando o banco dá para lê-lo.
-// Depois de digitado, fica liberado por alguns minutos neste aparelho.
+// O PIN vale só para a tela em que foi digitado: ao sair dela, tudo volta a ficar escondido.
 // =========================================================
 import { lerConfig, gravarConfig, db } from './db.js';
 import { esc } from './ui.js';
@@ -53,8 +53,9 @@ export function bloquear() {
 }
 
 // Pede o PIN numa janela. Devolve true se acertou (e libera por alguns minutos).
-// manterLiberado = false: o PIN vale só para esta ação (pede sempre e não libera o resto do app)
-export async function pedirPin({ titulo = 'PIN do dono', texto = '', manterLiberado = true } = {}) {
+// Pede sempre o PIN (se houver um definido) e não libera o resto do app.
+// manterLiberado = true reativa a liberação por alguns minutos (não é usado hoje).
+export async function pedirPin({ titulo = 'PIN', texto = '', manterLiberado = false } = {}) {
   if (manterLiberado ? await liberado() : !(await temPin())) return true;
   return new Promise((resolver) => {
     const d = document.createElement('dialog');

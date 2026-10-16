@@ -18,7 +18,7 @@ export async function render(el) {
     <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
     <header class="cab"><div>
       <h1>Preparar outros aparelhos</h1>
-      <p class="sub">Leva catálogo, fotos, formas de pagamento e taxas, categorias de retirada, PIN do dono e eventos de um aparelho para outro.</p>
+      <p class="sub">Leva catálogo, fotos, formas de pagamento e taxas, categorias de retirada, PIN e eventos de um aparelho para outro.</p>
     </div></header>
 
     <section class="cartao">
@@ -58,7 +58,7 @@ export async function render(el) {
     const origem = resumo.geradoPor ? `do ${resumo.geradoPor.nome} (${resumo.geradoPor.sigla})` : '';
     const ok = await confirmar({
       titulo: 'Importar este pacote?',
-      texto: `Pacote ${origem} gerado em ${dataHora(resumo.geradoEm)}: ${resumoTexto(resumo)}. O catálogo deste aparelho será substituído.${resumo.comPin ? ' O PIN do dono também passa a valer aqui.' : ''}`,
+      texto: `Pacote ${origem} gerado em ${dataHora(resumo.geradoEm)}: ${resumoTexto(resumo)}. O catálogo deste aparelho será substituído.${resumo.comPin ? ' O PIN também passa a valer aqui.' : ''}`,
       botao: 'Importar'
     });
     if (!ok) return false;

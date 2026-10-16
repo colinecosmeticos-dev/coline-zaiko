@@ -1,7 +1,7 @@
 // =========================================================
 // Tela Caixa: caixa do dia deste aparelho no evento em uso.
 // Reforço e retirada são livres. Ver os totais e fechar o caixa
-// pedem o PIN do dono. O PIN vale só nesta tela: ao sair, os totais
+// pedem o PIN. O PIN vale só nesta tela: ao sair, os totais
 // voltam a ficar escondidos. O caixa fechado pode ser reaberto no mesmo dia.
 // Caixa de um dia anterior esquecido aberto precisa ser fechado antes
 // de abrir o de hoje.
@@ -104,7 +104,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
           ${htmlResumo(ajustado ? atual : fechamento.resumo)}
         </section>`;
     } else {
-      blocoFechamento = `<section class="cartao"><h2>Fechamento</h2><p class="sub">Caixa fechado às ${hora(fechamento.em)}. Os valores ficam protegidos pelo PIN do dono.</p>
+      blocoFechamento = `<section class="cartao"><h2>Fechamento</h2><p class="sub">Caixa fechado às ${hora(fechamento.em)}. Os valores ficam protegidos pelo PIN.</p>
         <div class="acoes"><button type="button" class="btn" id="ver-totais">${icones.cadeado} Ver fechamento</button></div></section>`;
     }
   }
@@ -112,7 +112,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   if (aberto) {
     blocoResumo = verTotais
       ? `<section class="cartao"><div class="cab-cartao"><h2>Resumo até agora</h2>${comPin ? `<button type="button" class="btn texto" id="ocultar-totais">${icones.cadeado} Ocultar</button>` : ''}</div>${htmlResumo(await resumoCaixa(caixa))}</section>`
-      : `<section class="cartao"><h2>Resumo até agora</h2><p class="sub">Totais do dia protegidos pelo PIN do dono.</p>
+      : `<section class="cartao"><h2>Resumo até agora</h2><p class="sub">Totais do dia protegidos pelo PIN.</p>
           <div class="acoes"><button type="button" class="btn" id="ver-totais">${icones.cadeado} Ver resumo</button></div></section>`;
   }
 
@@ -142,7 +142,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
 
   // Recarrega a tela mantendo (ou não) os totais à mostra
   const recarregar = (mostrar = mostrarTotais) => render(el, voltar ? { id: caixa.id, mostrarTotais: mostrar } : { mostrarTotais: mostrar });
-  const pin = (titulo) => pedirPin({ titulo, texto: 'Digite o PIN do dono.', manterLiberado: false });
+  const pin = (titulo) => pedirPin({ titulo, texto: 'Digite o PIN.' });
   const $ = (s) => el.querySelector(s);
 
   $('#reforco')?.addEventListener('click', async () => { if (await pedirMovimento(caixa, 'reforco')) { aviso('Reforço registrado.'); recarregar(); } });

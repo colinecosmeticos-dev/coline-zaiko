@@ -15,7 +15,7 @@ import { gerarCodigoInterno, normalizarCodigo, ehCodigoInterno } from '../codigo
 import { prepararFoto } from '../foto.js';
 import { abrirCamera, cameraDisponivel } from '../camera.js';
 import { ouvirLeitor } from '../leitor.js';
-import { temPin, liberado, pedirPin, bloquear } from '../pin.js';
+import { temPin, pedirPin } from '../pin.js';
 
 export async function render(el, { id, consulta }) {
   const editando = !!id;
@@ -26,9 +26,10 @@ export async function render(el, { id, consulta }) {
   }
   const variacoesSalvas = editando ? (await db.variacoes.where('produtoId').equals(id).toArray()).sort((a, b) => a.ordem - b.ordem) : [];
   const categorias = await listarCategorias();
-  // Custo e lucro só aparecem para o dono (PIN). Sem PIN definido, ficam visíveis.
+  // Custo e lucro só aparecem com o PIN, e só enquanto esta tela está aberta.
+  // Sem PIN definido, ficam visíveis.
   const pinDefinido = await temPin();
-  const custoLiberado = await liberado();
+  const custoLiberado = !pinDefinido;
   // Categoria já marcada ao abrir: a do produto; num cadastro novo, a do último produto salvo
   const idsCategorias = new Set(categorias.map((c) => c.id));
   const sugerida = produto ? produto.categoriaId : (consulta && consulta.get('categoria'));
@@ -97,7 +98,7 @@ export async function render(el, { id, consulta }) {
             <div class="campo trancado">
               <span class="rotulo">Custo unitário</span>
               <button type="button" class="btn" id="ver-custo" style="align-self:flex-start">${icones.cadeado} Ver custo e lucro</button>
-              <span class="dica">Protegido pelo PIN do dono.</span>
+              <span class="dica">Protegido pelo PIN.</span>
             </div>
           </div>
 
@@ -173,15 +174,14 @@ export async function render(el, { id, consulta }) {
   $('#f-custo').addEventListener('keyup', atualizarMargem);
   atualizarMargem();
 
-  // Mostrar / esconder custo com o PIN do dono
+  // Mostrar / esconder custo com o PIN (vale só nesta tela)
   $('#ver-custo').addEventListener('click', async () => {
-    if (await pedirPin({ titulo: 'Ver custo e lucro', texto: 'Digite o PIN do dono.' })) {
+    if (await pedirPin({ titulo: 'Ver custo e lucro', texto: 'Digite o PIN.' })) {
       form.classList.remove('custo-bloqueado');
       $('#f-custo').focus();
     }
   });
   if ($('#ocultar-custo')) $('#ocultar-custo').addEventListener('click', () => {
-    bloquear();
     form.classList.add('custo-bloqueado');
   });
 

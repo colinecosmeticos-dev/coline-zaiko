@@ -63,7 +63,7 @@ export async function render(el) {
     </section>
 
     <section class="cartao">
-      <h2>PIN do dono</h2>
+      <h2>PIN</h2>
       <p class="sub">Protege custo, lucro e o painel de vendas. Use de 4 a 6 números e anote em lugar seguro: o PIN não pode ser recuperado.</p>
       <dl style="margin-top:8px"><div class="par"><dt>Situação</dt><dd>${pinDefinido ? 'Definido' : 'Não definido'}</dd></div></dl>
       <form id="form-pin" class="grade-campos" style="margin-top:12px" novalidate>

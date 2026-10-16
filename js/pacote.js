@@ -2,7 +2,7 @@
 // Pacote para preparar outros aparelhos.
 // Um arquivo com tudo que o aparelho principal define:
 //   catálogo (produtos, variações, categorias e fotos), formas de pagamento com taxas,
-//   categorias de retirada, PIN do dono (só a "impressão digital") e eventos.
+//   categorias de retirada, PIN (só a "impressão digital") e eventos.
 // NÃO leva: nome/sigla do aparelho, tema, evento em uso, vendas e caixas.
 //
 // O arquivo é texto (JSON) com final .txt, porque o Android só deixa

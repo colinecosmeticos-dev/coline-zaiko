@@ -792,3 +792,39 @@ dialog.janela-fechamento { width: min(96vw, 860px); max-height: 96dvh; }
 .cab-cartao { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
 .cab-cartao h2 { margin: 0; }
 .cab-cartao .btn.texto { min-height: 36px; font-size: .875rem; color: var(--texto-2); }
+
+/* ---------- Painel de vendas ---------- */
+.vazio .simbolo svg { width: 44px; height: 44px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.painel-periodo { margin-bottom: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+@media (min-width: 700px) { .kpis { grid-template-columns: 1.4fr 1fr 1fr 1fr; } }
+.kpi { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); }
+.kpi span { font-size: .8125rem; color: var(--texto-2); }
+.kpi strong { font-size: 1.5rem; line-height: 1.2; }
+.kpi.destaque { border-color: var(--marca); }
+.kpi.destaque strong { font-size: 1.75rem; }
+.painel-grade { display: grid; gap: 16px; align-items: start; }
+.painel-grade .cartao + .cartao { margin-top: 0; }
+@media (min-width: 840px) { .painel-grade { grid-template-columns: 1fr 1fr; } }
+.painel-grade h2 { font-size: 1rem; margin-bottom: 10px; }
+.painel-barras { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.painel-barras li { display: grid; grid-template-columns: minmax(0, 9em) 1fr auto; gap: 10px; align-items: center; font-size: .9375rem; }
+.pb-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-nome .sub { color: var(--texto-2); font-size: .8125rem; }
+.pb-trilho { height: 10px; border-radius: 5px; background: var(--superficie-2); overflow: hidden; }
+.pb-barra { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--marca); }
+.pb-valor { font-weight: 600; text-align: right; }
+.painel-extra { border-top: 1px solid var(--linha); padding-top: 10px; }
+.tabela-painel { width: 100%; border-collapse: collapse; font-size: .9375rem; }
+.tabela-painel th { text-align: left; font-size: .8125rem; color: var(--texto-2); font-weight: 600; padding: 0 0 6px; border-bottom: 1px solid var(--linha); }
+.tabela-painel td { padding: 8px 0; border-bottom: 1px solid var(--linha); }
+.tabela-painel .num { text-align: right; padding-left: 12px; white-space: nowrap; }
+.tabela-painel .sub { color: var(--texto-2); font-size: .8125rem; }
+.painel-horas { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding-top: 4px; }
+.ph-col { flex: 1; min-width: 0; height: 100%; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 4px; }
+.ph-area { width: 100%; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.ph-barra { display: block; width: 100%; max-width: 36px; border-radius: 4px 4px 0 0; background: var(--marca); }
+.ph-col:hover .ph-barra { filter: brightness(.9); }
+.ph-hora { font-size: .75rem; color: var(--texto-2); }
+.ph-valor { font-size: .75rem; color: var(--texto); font-weight: 600; white-space: nowrap; min-height: 1em; }
+.contas .num { white-space: nowrap; }

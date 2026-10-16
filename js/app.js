@@ -23,6 +23,7 @@ import * as vender from './telas/vender.js';
 import * as vendas from './telas/vendas.js';
 import * as vendaDetalhe from './telas/venda-detalhe.js';
 import * as caixa from './telas/caixa.js';
+import * as painel from './telas/painel.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -52,7 +53,7 @@ const rotas = [
   ['eventos/:id', eventoForm.render],
   ['estoque', emBreve('Estoque do evento', 'Quantidades levadas, brindes, avarias e sobra.')],
   ['fechamento', emBreve('Fechamento do evento', 'Totais bruto e líquido, resumo por dia e exportação.')],
-  ['painel', emBreve('Painel de vendas', 'Vendas e totais do aparelho, protegidos por PIN.')]
+  ['painel', painel.render]
 ];
 
 const tela = document.getElementById('tela');
