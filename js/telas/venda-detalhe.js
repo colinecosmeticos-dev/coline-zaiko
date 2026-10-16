@@ -125,6 +125,7 @@ export async function render(el, { id }) {
       <div><h1 class="num">${nomeTipo} ${esc(venda.numero)}</h1>
         <p class="sub">${esc(dataHora(venda.criadoEm))}${venda.aparelho ? ` · ${esc(venda.aparelho.nome)}` : ''}</p>
         ${origem ? `<p class="sub">Da venda <a href="#/vendas/${encodeURIComponent(origem.id)}">${esc(origem.numero)}</a>${venda.motivo ? ` · ${esc(venda.motivo)}` : ''}</p>` : ''}</div>
+      ${venda.posEvento ? '<span class="etiqueta grande">Pós-evento</span>' : ''}
       ${cancelada ? `<span class="etiqueta erro grande">${tipo === 'venda' ? 'Cancelada' : 'Cancelado'}</span>` : ''}
     </header>
     ${cancelada ? `<div class="cartao alerta-cancelada">
@@ -183,7 +184,8 @@ export async function render(el, { id }) {
       tipo: 'devolucao', eventoId: venda.eventoId, caixaId: caixa ? caixa.id : null,
       origemId: venda.id, origemNumero: venda.numero,
       devolvidos: r.devolvidos, credito: r.credito, modoValor: r.modoValor, motivo: r.motivo,
-      total: -r.credito, reembolsos: [r.reembolso]
+      total: -r.credito, reembolsos: [r.reembolso],
+      posEvento: (await db.eventos.get(venda.eventoId))?.status === 'encerrado'   // depois de encerrar: só histórico
     });
     const d = abrirJanela(`<div class="cobrar">${telaConcluidaDevolucao(registro)}</div>`, { classe: 'janela-cobrar janela-estreita', aoFechar: () => { location.hash = `#/vendas/${encodeURIComponent(registro.id)}`; } });
     d.querySelector('#nova').addEventListener('click', () => d.close());

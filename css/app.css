@@ -861,3 +861,15 @@ dialog.janela-fechamento { width: min(96vw, 860px); max-height: 96dvh; }
 .tabela-estoque { min-width: 560px; }
 .tabela-estoque .sobra { font-weight: 700; }
 .tabela-estoque tr.negativa .sobra { color: var(--erro); }
+
+/* ---------- Fechamento ---------- */
+.alerta-encerrado { border-color: var(--texto-2); background: var(--superficie-2); margin-bottom: 16px; }
+.alerta-encerrado p { margin: 4px 0 0; color: var(--texto-2); }
+.conferencia { margin-bottom: 16px; }
+.lista-checagem { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.lista-checagem li { position: relative; padding-left: 28px; font-size: .9375rem; }
+.lista-checagem li::before { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 700; color: #fff; }
+.lista-checagem li.ok::before { content: '✓'; background: var(--ok); }
+.lista-checagem li.atencao::before { content: '!'; background: #B26A00; }
+.lista-checagem a { color: var(--marca-texto); font-weight: 600; }
+.tabela-painel td.negativo { color: var(--erro); }

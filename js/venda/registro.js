@@ -55,7 +55,8 @@ export function registroDoCarrinho({ evento, caixa, pagamentos = [], reembolsos 
     descontoVenda: carrinho.descontoVenda,
     descontoVendaValor: t.descontoVenda,
     total: t.total,
-    pagamentos, reembolsos, troco
+    pagamentos, reembolsos, troco,
+    posEvento: evento.status === 'encerrado'   // troca depois de encerrar: só histórico
   };
   if (carrinho.troca) {
     const { origemId, origemNumero, devolvidos, credito, modoValor, motivo } = carrinho.troca;
