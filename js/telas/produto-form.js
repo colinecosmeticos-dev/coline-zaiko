@@ -16,6 +16,7 @@ import { prepararFoto } from '../foto.js';
 import { abrirCamera, cameraDisponivel } from '../camera.js';
 import { ouvirLeitor } from '../leitor.js';
 import { temPin, pedirPin } from '../pin.js';
+import { escolherCor, corValida } from '../cores.js';
 
 export async function render(el, { id, consulta }) {
   const editando = !!id;
@@ -241,7 +242,7 @@ export async function render(el, { id, consulta }) {
     div.className = 'linha-variacao';
     div.dataset.id = v.id || '';
     div.innerHTML = `
-      <div class="campo c-valor"><label class="rotulo-m">Variação</label><input class="entrada v-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Lavanda" value="${esc(v.nome || '')}"></div>
+      <div class="campo c-valor"><label class="rotulo-m">Variação</label><div class="nome-com-cor"><button type="button" class="btn-cor" aria-label="Cor da variação"></button><input class="entrada v-nome" maxlength="40" autocomplete="off" placeholder="Ex.: Lavanda" value="${esc(v.nome || '')}"></div></div>
       <div class="campo c-codigo"><label class="rotulo-m">Código de barras</label><input class="entrada codigo v-codigo" inputmode="numeric" maxlength="40" autocomplete="off" placeholder="Em branco: código interno" value="${esc(v.codigo || '')}"></div>
       <div class="campo c-preco"><label class="rotulo-m">Preço próprio</label><input class="entrada v-preco" placeholder="Igual ao produto"></div>
       <div class="campo c-custo so-dono"><label class="rotulo-m">Custo próprio</label><input class="entrada v-custo" placeholder="Igual ao produto"></div>
@@ -251,6 +252,23 @@ export async function render(el, { id, consulta }) {
       const input = c.querySelector('input');
       input.id = 'v-' + novoId();
       c.querySelector('label').htmlFor = input.id;
+    });
+    // Cor opcional: o botão mostra a cor (ou um quadrado tracejado, sem cor)
+    const btnCor = div.querySelector('.btn-cor');
+    function desenharCor() {
+      const c = corValida(div.dataset.cor);
+      btnCor.style.background = c || '';
+      btnCor.classList.toggle('sem-cor', !c);
+      btnCor.title = c ? 'Cor: ' + c : 'Sem cor (toque para escolher)';
+    }
+    div.dataset.cor = corValida(v.cor) || '';
+    desenharCor();
+    btnCor.addEventListener('click', async () => {
+      const nomeVar = div.querySelector('.v-nome').value.trim();
+      const escolha = await escolherCor({ atual: div.dataset.cor, titulo: nomeVar ? `Cor de ${nomeVar}` : 'Cor da variação' });
+      if (escolha === undefined) return; // cancelou
+      div.dataset.cor = escolha || '';
+      desenharCor();
     });
     const preco = div.querySelector('.v-preco');
     campoDinheiro(preco);
@@ -341,6 +359,7 @@ export async function render(el, { id, consulta }) {
         codigo: normalizarCodigo(div.querySelector('.v-codigo').value),
         preco: lerCentavos(div.querySelector('.v-preco')),
         custo: lerCentavos(div.querySelector('.v-custo')),
+        cor: corValida(div.dataset.cor),
         inputNome: div.querySelector('.v-nome'),
         input: div.querySelector('.v-codigo')
       }));
@@ -426,6 +445,7 @@ export async function render(el, { id, consulta }) {
           codigoInterno: ehCodigoInterno(it.codigo),
           preco: modo === 'variacoes' && it.preco ? it.preco : null,
           custo: modo === 'variacoes' && it.custo ? it.custo : null,
+          cor: modo === 'variacoes' ? it.cor || null : null,
           ativo: true,
           ordem
         })));

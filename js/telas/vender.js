@@ -8,6 +8,7 @@ import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, caixaDoDia, lista
 import { esc, dinheiro, iniciais, icones, aviso, abrirJanela, campoDinheiro, campoPercentual, lerCentavos, escreverCentavos, hojeISO } from '../ui.js';
 import { ouvirLeitor } from '../leitor.js';
 import { som } from '../sons.js';
+import { quadradoCor } from '../cores.js';
 import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho } from '../venda/carrinho.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
 import { abrirCobranca, finalizarTrocaSemCobranca } from '../venda/cobrar.js';
@@ -223,7 +224,7 @@ export async function render(el) {
       <div class="grade-variacoes">
         ${p.variacoes.map((v) => `
           <button type="button" class="btn botao-variacao" data-variacao="${esc(v.id)}">
-            <span>${esc(v.nome)}</span>${v.precoBase != null ? `<small class="num"><s>${dinheiro(v.precoBase)}</s> ${dinheiro(v.preco)}</small>` : (v.preco ?? p.preco) !== p.preco ? `<small class="num">${dinheiro(v.preco)}</small>` : ''}
+            <span class="nome-variacao">${quadradoCor(v.cor)}<span>${esc(v.nome)}</span></span>${v.precoBase != null ? `<small class="num"><s>${dinheiro(v.precoBase)}</s> ${dinheiro(v.preco)}</small>` : (v.preco ?? p.preco) !== p.preco ? `<small class="num">${dinheiro(v.preco)}</small>` : ''}
           </button>`).join('')}
       </div>
       <div class="acoes"><button type="button" class="btn" value="x">Cancelar</button></div>`, { classe: 'janela-variacoes' });
