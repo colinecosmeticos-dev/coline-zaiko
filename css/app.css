@@ -831,3 +831,33 @@ dialog.janela-fechamento { width: min(96vw, 860px); max-height: 96dvh; }
 .lista-aparelhos { margin-top: 12px; }
 .lista-aparelhos li { padding: 12px 16px; }
 .lista-aparelhos .sub { color: var(--texto-2); font-size: .875rem; }
+
+/* ---------- Estoque ---------- */
+.abas-estoque { margin-bottom: 16px; }
+.grupo-estoque { margin-top: 12px; padding-top: 12px; padding-bottom: 8px; }
+.cartao.grupo-estoque + .cartao.grupo-estoque { margin-top: 12px; }
+.grupo-estoque h3 { font-size: 1rem; margin: 0 0 4px; }
+.linhas-estoque { list-style: none; margin: 0; padding: 0; }
+.linhas-estoque li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--linha); transition: background .3s; }
+.linhas-estoque li:first-child { border-top: 0; }
+.linhas-estoque li.lido { animation: lido 1.2s ease-out; }
+@keyframes lido { 0% { background: var(--marca-suave); } 100% { background: transparent; } }
+.le-nome { display: flex; flex-direction: column; min-width: 0; }
+.le-nome .sub { font-size: .75rem; color: var(--texto-2); }
+.le-qtd { width: 72px; min-height: 44px; text-align: center; padding: 0 6px; font-weight: 700; font-size: 1.125rem; -moz-appearance: textfield; }
+.le-qtd::-webkit-outer-spin-button, .le-qtd::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.mov.saida { grid-template-columns: auto 1fr auto 40px; padding: 6px 0; }
+.opcoes-produto { display: flex; flex-direction: column; gap: 6px; }
+.opcoes-produto:empty { display: none; }
+.opcao-produto { justify-content: flex-start; white-space: normal; text-align: left; }
+.opcao-produto .sub, .escolhido .sub { color: var(--texto-2); font-weight: 400; }
+.escolhido { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--raio-p); background: var(--marca-suave); }
+.escolhido .btn { margin-left: auto; }
+.nota-sobra { margin: 0 0 12px; font-size: .875rem; }
+.kpis-6 { grid-template-columns: repeat(3, 1fr); }
+@media (min-width: 700px) { .kpis-6 { grid-template-columns: repeat(6, 1fr); } }
+.kpis-6 .kpi strong { font-size: 1.375rem; }
+.tabela-rolagem { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+.tabela-estoque { min-width: 560px; }
+.tabela-estoque .sobra { font-weight: 700; }
+.tabela-estoque tr.negativa .sobra { color: var(--erro); }

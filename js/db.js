@@ -39,6 +39,12 @@ db.version(5).stores({
   movimentos: 'id, caixaId, eventoId, criadoEm'
 });
 
+// Versão 6: estoque do evento (quantidade levada por variação) e saídas avulsas (brindes e avarias)
+db.version(6).stores({
+  estoqueLevado: 'id, eventoId',
+  saidas: 'id, eventoId, criadoEm'
+});
+
 // Gera um identificador único (ex.: "3f2b9c1e-..."). Usamos isso em vez de
 // 1, 2, 3... porque os dois aparelhos vão trocar dados entre si e os números
 // iguais se misturariam.
@@ -301,4 +307,30 @@ export async function cancelarVenda(vendaId, { motivo, observacao }) {
     await db.vendas.put(venda);
     return venda;
   });
+}
+
+// ---------- Estoque do evento ----------
+// Quantidade levada: um registro por evento + variação (o id junta os dois)
+export async function lerLevado(eventoId) {
+  const lista = await db.estoqueLevado.where('eventoId').equals(eventoId).toArray();
+  return new Map(lista.map((r) => [r.variacaoId, r.quantidade]));
+}
+export async function gravarLevado(eventoId, variacaoId, quantidade) {
+  const id = `${eventoId}:${variacaoId}`;
+  if (!quantidade) { await db.estoqueLevado.delete(id); return; }
+  await db.estoqueLevado.put({ id, eventoId, variacaoId, quantidade, atualizadoEm: new Date().toISOString() });
+}
+// Saídas avulsas: tipo 'brinde' (brinde/doação sem venda) ou 'avaria' (produto com defeito)
+export async function adicionarSaida(dados) {
+  const aparelho = await lerAparelho();
+  const saida = {
+    id: novoId(), criadoEm: new Date().toISOString(), status: 'ativo',
+    aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null,
+    ...dados
+  };
+  await db.saidas.add(saida);
+  return saida;
+}
+export async function cancelarSaida(id) {
+  await db.saidas.update(id, { status: 'cancelado', canceladoEm: new Date().toISOString() });
 }

@@ -1,6 +1,6 @@
 // =========================================================
-// Arquivo de vendas: leva as vendas, trocas, devoluções, caixas e
-// movimentos de caixa DESTE aparelho num evento para o aparelho principal.
+// Arquivo de vendas: leva as vendas, trocas, devoluções, caixas,
+// movimentos de caixa, brindes avulsos e avarias DESTE aparelho num evento para o aparelho principal.
 //
 // Juntar é seguro: cada registro tem um identificador único, então
 // importar o mesmo arquivo duas vezes não duplica nada. Se o registro
@@ -17,17 +17,19 @@ export async function gerarArquivoVendas(evento) {
   const aparelho = await lerAparelho();
   if (!aparelho) throw new Error('Dê nome e sigla a este aparelho em Configurações antes de enviar.');
   const deste = (r) => !r.aparelho || r.aparelho.id === aparelho.id;
-  const [vendas, caixas, movimentos] = await Promise.all([
+  const [vendas, caixas, movimentos, saidas] = await Promise.all([
     db.vendas.where('eventoId').equals(evento.id).toArray(),
     db.caixas.where('eventoId').equals(evento.id).toArray(),
-    db.movimentos.where('eventoId').equals(evento.id).toArray()
+    db.movimentos.where('eventoId').equals(evento.id).toArray(),
+    db.saidas.where('eventoId').equals(evento.id).toArray()
   ]);
   const dados = {
     tipo: TIPO, versao: VERSAO,
     geradoEm: new Date().toISOString(),
     aparelho: { id: aparelho.id, nome: aparelho.nome, sigla: aparelho.sigla },
     evento,
-    vendas: vendas.filter(deste), caixas: caixas.filter(deste), movimentos: movimentos.filter(deste)
+    vendas: vendas.filter(deste), caixas: caixas.filter(deste), movimentos: movimentos.filter(deste),
+    saidas: saidas.filter(deste)   // brindes avulsos e avarias
   };
   const carimbo = dados.geradoEm.slice(0, 16).replace(/[-:T]/g, '');
   const nome = `vendas-${aparelho.sigla}-${evento.codigo || 'evento'}-${carimbo}.txt`;
@@ -74,13 +76,14 @@ export async function importarVendas(dados) {
   const aqui = await lerAparelho();
   if (aqui && dados.aparelho.id === aqui.id) throw new Error('Este arquivo é deste mesmo aparelho: as vendas dele já estão aqui.');
   let r;
-  await db.transaction('rw', db.vendas, db.caixas, db.movimentos, db.eventos, db.config, async () => {
+  await db.transaction('rw', db.vendas, db.caixas, db.movimentos, db.saidas, db.eventos, db.config, async () => {
     // O evento normalmente já existe (veio no pacote); se não, entra agora
     if (!(await db.eventos.get(dados.evento.id))) await db.eventos.add(dados.evento);
     const v = await juntar(db.vendas, dados.vendas, pesoVenda);
     const c = await juntar(db.caixas, dados.caixas, pesoCaixa);
     const m = await juntar(db.movimentos, dados.movimentos, pesoMov);
-    r = { vendas: v, caixas: c, movimentos: m };
+    const sa = await juntar(db.saidas, dados.saidas || [], pesoMov);
+    r = { vendas: v, caixas: c, movimentos: { novos: m.novos + sa.novos, atualizados: m.atualizados + sa.atualizados } };
     // Guarda quando chegou o último arquivo de cada aparelho (para a conferência)
     const registro = (await lerConfig('vendasImportadas')) || {};
     registro[dados.evento.id] = { ...(registro[dados.evento.id] || {}), [dados.aparelho.sigla]: { nome: dados.aparelho.nome, geradoEm: dados.geradoEm, importadoEm: new Date().toISOString() } };
