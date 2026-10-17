@@ -14,6 +14,8 @@ import { pedirMovimento, pedirFechamento, pedirFechamentoCego, htmlResumo } from
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
 import { ehCaixa } from '../modo.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
+import { lembrarDeSincronizar } from './sincronizar.js';
+import { driveConfigurado } from '../drive.js';
 
 const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
 const diaCurto = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
@@ -162,14 +164,19 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
       const r = await pedirFechamentoCego(atual, await resumoCaixa(atual));
       if (r && r !== 'pin') {
         const f = (r.fechamentos || []).at(-1);
-        aviso(`Caixa fechado com ${dinheiro(f ? f.contado : 0)} contados.`, { acao: 'Fazer backup', aoClicar: () => { location.hash = '#/backup'; } });
         recarregar(false);
+        if (ehCaixa() && driveConfigurado()) { aviso(`Caixa fechado com ${dinheiro(f ? f.contado : 0)} contados.`); lembrarDeSincronizar(); }
+        else aviso(`Caixa fechado com ${dinheiro(f ? f.contado : 0)} contados.`, { acao: 'Fazer backup', aoClicar: () => { location.hash = '#/backup'; } });
         return;
       }
       if (r !== 'pin' || !(await pin('Fechar o caixa'))) return;
     }
     const atualizado = await db.caixas.get(caixa.id);
-    if (await pedirFechamento(atualizado, await resumoCaixa(atualizado))) { aviso('Caixa fechado. Bom momento para um backup.', { acao: 'Fazer backup', aoClicar: () => { location.hash = '#/backup'; } }); recarregar(true); }
+    if (await pedirFechamento(atualizado, await resumoCaixa(atualizado))) {
+      recarregar(true);
+      if (ehCaixa() && driveConfigurado()) { aviso('Caixa fechado.'); lembrarDeSincronizar(); }
+      else aviso('Caixa fechado. Bom momento para um backup.', { acao: 'Fazer backup', aoClicar: () => { location.hash = '#/backup'; } });
+    }
     else recarregar(true);
   });
   $('#reabrir')?.addEventListener('click', async () => {

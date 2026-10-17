@@ -88,12 +88,12 @@ const pacotesNoDrive = () => consulta(
 // ---------- Enviar ----------
 // Envia o pacote e apaga os pacotes antigos, para o Drive não acumular arquivos.
 // Devolve quantos antigos foram apagados.
-export async function enviarPacote(arquivo, aparelho) {
+export async function enviarPacote(arquivo, aparelho, { base = null } = {}) {
   await autorizar();
   const pasta = await pastaDoApp();
   const metadados = {
     name: arquivo.name, parents: [pasta], mimeType: 'text/plain',
-    appProperties: { zaiko: 'pacote', aparelho: aparelho ? aparelho.sigla : '', nomeAparelho: aparelho ? aparelho.nome : '' }
+    appProperties: { zaiko: 'pacote', aparelho: aparelho ? aparelho.sigla : '', nomeAparelho: aparelho ? aparelho.nome : '', ...(base ? { base: String(base) } : {}) }
   };
   const corpo = new FormData();
   corpo.append('metadata', new Blob([JSON.stringify(metadados)], { type: 'application/json' }));
@@ -111,7 +111,7 @@ export async function ultimoPacote() {
   await autorizar();
   const [f] = await pacotesNoDrive();
   if (!f) return null;
-  return { id: f.id, nome: f.name, criadoEm: f.createdTime, aparelho: f.appProperties?.nomeAparelho || f.appProperties?.aparelho || '' };
+  return { id: f.id, nome: f.name, criadoEm: f.createdTime, aparelho: f.appProperties?.nomeAparelho || f.appProperties?.aparelho || '', base: Number(f.appProperties?.base) || null };
 }
 // ---------- Vendas de cada aparelho ----------
 // Um arquivo por aparelho e por evento: cada envio substitui o anterior daquele aparelho.

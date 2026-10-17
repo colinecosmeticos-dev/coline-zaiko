@@ -9,6 +9,8 @@ import { saida, confirmar } from './ui.js';
 import { iniciarAtualizacoes } from './atualizacao.js';
 import { iniciarModo, modoAtual, podeAbrir, telaInicial } from './modo.js';
 import * as configurar from './telas/configurar.js';
+import * as sincronizar from './telas/sincronizar.js';
+import { prepararDrive, driveConfigurado } from './drive.js';
 import * as inicio from './telas/inicio.js';
 import * as produtos from './telas/produtos.js';
 import * as produtoForm from './telas/produto-form.js';
@@ -43,6 +45,7 @@ import { emBreve } from './telas/em-breve.js';
 const rotas = [
   ['inicio', inicio.render],
   ['configurar', configurar.render],
+  ['sincronizar', sincronizar.render],
   ['vender', vender.render],
   ['vendas', vendas.render],
   ['vendas/:id', vendaDetalhe.render],
@@ -117,7 +120,7 @@ async function navegar() {
 
   // Marca no menu o item da seção atual
   const secao = caminho.split('/')[0];
-  const secaoMenu = ['inicio', 'vender', 'vendas', 'caixa', 'produtos'].includes(secao) ? secao : 'mais';
+  const secaoMenu = ['inicio', 'vender', 'vendas', 'caixa', 'produtos', 'sincronizar'].includes(secao) ? secao : 'mais';
   document.querySelectorAll('.nav a').forEach((a) => {
     if (a.dataset.rota === secaoMenu) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -132,6 +135,7 @@ async function navegar() {
   try {
     const limpar = await rota.render(tela, { ...rota.params, consulta: new URLSearchParams(consulta) });
     if (typeof limpar === 'function') limparTelaAnterior = limpar;
+    sincronizar.atualizarIndicador();
   } catch (erro) {
     console.error(erro);
     tela.innerHTML = `<div class="cartao"><h2>Algo deu errado ao abrir esta tela</h2>
@@ -148,7 +152,11 @@ window.addEventListener('beforeunload', (e) => {
 
 // ---------- Inicialização ----------
 aplicarTemaSalvo();
-Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao(), iniciarModo()]).catch((e) => console.error(e)).finally(navegar);
+Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao(), iniciarModo()]).catch((e) => console.error(e)).finally(() => {
+  navegar();
+  // Modo Caixa: já carrega o login do Google, para o Sincronizar responder no primeiro toque
+  if (modoAtual() === 'caixa' && driveConfigurado()) prepararDrive().catch(() => {});
+});
 pedirArmazenamentoPersistente().catch(() => {});
 
 // ---------- Atualizações do app ----------

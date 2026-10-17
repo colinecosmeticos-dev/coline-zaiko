@@ -8,6 +8,7 @@ import { lerConfig, lerAparelho } from '../db.js';
 import { driveConfigurado, prepararDrive, autorizar, enviarPacote, ultimoPacote, baixarPacote } from '../drive.js';
 import { aviso, confirmar, icones, esc } from '../ui.js';
 import { ehCaixa } from '../modo.js';
+import { publicarBase } from '../sincronizar.js';
 
 const qtd = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 const dataHora = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -83,11 +84,10 @@ export async function render(el) {
       ocupado(true);
       try {
         await pedido;
-        mostrar('Gerando o pacote…');
-        const { arquivo, resumo } = await gerarPacote();
-        mostrar('Enviando para o Drive…');
-        const apagados = await enviarPacote(arquivo, await lerAparelho());
-        mostrar(`Enviado: ${resumoTexto(resumo, Math.max(1, Math.round(arquivo.size / 1024)))}.${apagados ? ` ${qtd(apagados, 'pacote antigo apagado', 'pacotes antigos apagados')}.` : ''}`);
+        // Enviar pelo Drive = publicar a base (mesma numeração da tela Sincronizar)
+        mostrar('Gerando e enviando o pacote…');
+        const r = await publicarBase();
+        mostrar(`Base nº ${r.versao} publicada: ${resumoTexto(r.resumo)}. Os caixas recebem ao tocar em Sincronizar.`);
         aviso('Pacote enviado para o Drive.');
       } catch (erro) {
         console.error(erro);

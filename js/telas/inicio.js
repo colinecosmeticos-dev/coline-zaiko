@@ -1,6 +1,8 @@
 // Tela Início: situação geral do aparelho
 import { db, lerEventoAtivo, lerAparelho } from '../db.js';
 import { esc, periodo, hojeISO, diasEntre } from '../ui.js';
+import { situacaoBase } from '../sincronizar.js';
+import { driveConfigurado } from '../drive.js';
 
 export async function render(el) {
   const totalProdutos = await db.produtos.count();
@@ -8,6 +10,7 @@ export async function render(el) {
   const evento = await lerEventoAtivo();
   const aparelho = await lerAparelho();
   const totalEventos = await db.eventos.count();
+  const base = driveConfigurado() ? await situacaoBase().catch(() => null) : null;
 
   // Em qual dia do evento estamos (ex.: "Dia 2 de 3")
   let diaDoEvento = '';
@@ -48,6 +51,13 @@ export async function render(el) {
                ? '<a class="btn primario" href="#/eventos">Escolher evento</a><a class="btn texto" href="#/eventos/novo">Novo evento</a>'
                : '<a class="btn primario" href="#/eventos/novo">Criar evento</a>'}</div>`}
       </section>
+
+      ${base ? `<section class="cartao">
+        <h2>Caixas</h2>
+        <p class="sub">${base.publicada ? `Base nº ${base.publicada.versao} publicada em ${new Date(base.publicada.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.` : 'Nenhuma base publicada ainda.'}</p>
+        <p class="sub" style="margin-top:4px"><strong>${!base.publicada ? 'Publique para os caixas receberem o catálogo e o evento.' : base.alterada ? 'Há alterações não publicadas.' : 'Os caixas estão com a versão mais nova.'}</strong></p>
+        <div class="acoes"><a class="btn ${!base.publicada || base.alterada ? 'primario' : ''}" href="#/sincronizar">${!base.publicada || base.alterada ? 'Publicar base' : 'Sincronizar'}</a></div>
+      </section>` : ''}
 
       <section class="cartao">
         <h2>Catálogo</h2>

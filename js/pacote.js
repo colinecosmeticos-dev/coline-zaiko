@@ -16,7 +16,8 @@ const TIPO = 'coline-zaiko-pacote';
 const VERSAO_PACOTE = 2;
 
 // ---------- Gerar ----------
-export async function gerarPacote() {
+// base: { versao, publicadoEm, eventoId } quando a Gestão publica a base para os caixas (v0.22.0)
+export async function gerarPacote({ base = null } = {}) {
   const [produtos, variacoes, categorias, categoriasRetirada, eventos, formasPagamento, tipos, linhas] = await Promise.all([
     db.produtos.toArray(), db.variacoes.toArray(), db.categorias.toArray(),
     db.categoriasRetirada.toArray(), db.eventos.toArray(), db.formasPagamento.toArray(),
@@ -37,7 +38,8 @@ export async function gerarPacote() {
     formasPagamento,
     categoriasRetirada,
     pin: { hash: await lerConfig('pinHash'), sal: await lerConfig('pinSal') },
-    eventos
+    eventos,
+    base
   };
   const texto = JSON.stringify(pacote);
   const data = pacote.geradoEm.slice(0, 10);

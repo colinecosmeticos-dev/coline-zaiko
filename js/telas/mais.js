@@ -7,6 +7,7 @@ import { temPin, pedirPin } from '../pin.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
 
 const itensGestao = [
+  ['#/sincronizar', 'Sincronizar com os caixas', 'Publicar a base e buscar as vendas dos caixas pelo Drive'],
   ['#/eventos', 'Eventos', 'Criar eventos e escolher o evento deste aparelho'],
   ['#/pacote', 'Preparar outros aparelhos', 'Enviar ou receber catálogo, taxas e eventos'],
   ['#/juntar', 'Juntar vendas dos aparelhos', 'Enviar as vendas ao principal e conferir quem já mandou'],
@@ -18,8 +19,12 @@ const itensGestao = [
 ];
 
 const itensCaixa = [
-  ['#/pacote', 'Receber catálogo e evento', 'Pacote preparado na Gestão (produtos, formas de pagamento e eventos)'],
-  ['#/juntar', 'Enviar vendas', 'Manda as vendas e os caixas deste aparelho para a Gestão'],
+  ['#/painel', 'Painel de vendas', 'Vendas e totais deste aparelho, protegido pelo PIN']
+];
+// Sem internet: os mesmos dados por arquivo (Quick Share, Bluetooth)
+const itensArquivo = [
+  ['#/pacote', 'Receber catálogo e evento', 'Pacote preparado na Gestão, por arquivo'],
+  ['#/juntar', 'Enviar vendas', 'Vendas e caixas deste aparelho, por arquivo'],
   ['#/backup', 'Backup', 'Cópia completa deste aparelho no Drive ou em arquivo']
 ];
 
@@ -47,6 +52,8 @@ export async function render(el) {
         <span class="seta" aria-hidden="true">›</span></button></li>
     </ul>
     <div style="margin-top:16px">${lista(itensCaixa)}</div>
+    <h2 class="titulo-secao">Sem internet: por arquivo</h2>
+    ${lista(itensArquivo)}
     <section class="cartao" style="margin-top:16px">
       <h2>Modo Gestão</h2>
       <p class="sub">Cadastros, estoque, fechamento e relatórios. ${comPin ? 'Pede o PIN.' : 'Defina um PIN na Gestão para proteger esta passagem.'}</p>
