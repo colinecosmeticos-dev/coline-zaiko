@@ -2,11 +2,15 @@
 // Tela de cadastro e edição de produto.
 // Endereços:  #/produtos/novo   e   #/produtos/<id>
 //
-// Um produto pode ser:
+// Categoria > Subcategoria (v0.23.0; a subcategoria fica na tabela "tipos",
+// campo tipoId, e pertence a uma categoria). Um produto pode ser:
 //  - sem variações: tem um único código de barras;
 //  - com variações: um atributo (ex.: Fragrância) e uma linha por
 //    valor (ex.: Lavanda, Rosa), cada uma com seu código e,
-//    se quiser, um preço próprio.
+//    se quiser, um preço próprio;
+//  - por linha: cada variação é uma linha escolhida da lista
+//    (Shampoo: Umeboshi, Ice Melon...), com código, foto e preço próprios.
+//    Variação guarda linhaId; o nome dela é o nome da linha.
 // Código em branco = o app gera um código interno ao salvar.
 //
 // Duplicar (#/produtos/novo?copiar=<id>): abre um cadastro novo já com
@@ -21,6 +25,7 @@ import { abrirCamera, cameraDisponivel } from '../camera.js';
 import { ouvirLeitor } from '../leitor.js';
 import { temPin, pedirPin } from '../pin.js';
 import { escolherCor, corValida } from '../cores.js';
+import { pedirNome } from './agrupadores.js';
 
 export async function render(el, { id, consulta }) {
   const editando = !!id;
@@ -36,7 +41,7 @@ export async function render(el, { id, consulta }) {
   const variacoesSalvas = editando ? (await db.variacoes.where('produtoId').equals(id).toArray()).sort((a, b) => a.ordem - b.ordem) : [];
   // Na cópia: só nome, preço, custo e cor das variações (sem id, código e foto)
   const variacoesOrigem = origem ? (await db.variacoes.where('produtoId').equals(origem.id).toArray()).sort((a, b) => a.ordem - b.ordem)
-    .map((v) => ({ nome: v.nome, preco: v.preco, custo: v.custo, cor: v.cor })) : [];
+    .map((v) => ({ nome: v.nome, preco: v.preco, custo: v.custo, cor: v.cor, linhaId: v.linhaId || null })) : [];
   const categorias = await listarCategorias();
   const tipos = await listarTipos();
   const linhasProduto = await listarLinhas();
@@ -48,10 +53,13 @@ export async function render(el, { id, consulta }) {
   const idsCategorias = new Set(categorias.map((c) => c.id));
   const sugerida = modelo ? modelo.categoriaId : (consulta && consulta.get('categoria'));
   const categoriaInicial = sugerida && idsCategorias.has(sugerida) ? sugerida : (categorias.length ? '' : '__nova');
-  const tipoInicial = modelo && tipos.some((t) => t.id === modelo.tipoId) ? modelo.tipoId : (tipos.length ? '' : '__nova');
-  const linhaInicial = modelo && linhasProduto.some((l) => l.id === modelo.linhaId) ? modelo.linhaId : '';
+  const tipoInicial = modelo && tipos.some((t) => t.id === modelo.tipoId) ? modelo.tipoId : '';
+  const idsLinhas = new Set(linhasProduto.map((l) => l.id));
+  const variacoesIniciais = editando ? variacoesSalvas : variacoesOrigem;
   const temVariacoes = (lista) => lista.length > 1 || !!(lista[0] && lista[0].nome);
-  const comVariacoes = editando ? temVariacoes(variacoesSalvas) : temVariacoes(variacoesOrigem);
+  // Modo inicial: por linha (variações com linha), com variações ou sem
+  const modoInicial = variacoesIniciais.some((v) => v.linhaId && idsLinhas.has(v.linhaId)) ? 'linha' : temVariacoes(variacoesIniciais) ? 'variacoes' : 'unica';
+  const comVariacoes = modoInicial !== 'unica';
   const unica = !comVariacoes ? variacoesSalvas[0] : null;
   const codigoInicial = consulta && consulta.get('codigo') ? consulta.get('codigo') : '';
 
@@ -63,7 +71,7 @@ export async function render(el, { id, consulta }) {
     <header class="cab"><h1>${editando ? esc(produto.nome) : 'Novo produto'}</h1></header>
     ${origem ? `<div class="cartao aviso-copia">
       <strong>Cópia de ${esc(origem.nome)}</strong>
-      <p class="sub">Troque o que muda (por exemplo, a linha: o nome acompanha), coloque a foto e o código de barras, e salve.</p>
+      <p class="sub">Troque o que muda (por exemplo, a subcategoria: o nome acompanha), coloque as fotos e os códigos de barras, e salve.</p>
     </div>` : ''}
 
     <form class="form-produto ${custoLiberado ? '' : 'custo-bloqueado'}" novalidate>
@@ -91,7 +99,7 @@ export async function render(el, { id, consulta }) {
           <div class="campo">
             <label for="f-nome">Nome do produto</label>
             <input class="entrada" id="f-nome" maxlength="80" autocomplete="off" value="${esc(modelo ? modelo.nome : '')}">
-            <span class="dica">Ao escolher o tipo e a linha abaixo, o app sugere o nome (ex.: Shampoo Umeboshi).</span>
+            <span class="dica">Ao escolher a subcategoria abaixo, o app sugere o nome (ex.: Shampoo).</span>
           </div>
 
           <div class="campo">
@@ -105,27 +113,10 @@ export async function render(el, { id, consulta }) {
           </div>
 
           <div class="campo">
-            <span class="rotulo" id="r-tipo">Tipo</span>
-            <div class="opcoes" role="radiogroup" aria-labelledby="r-tipo">
-              ${tipos.map((t) => `<label><input type="radio" name="tipo" value="${esc(t.id)}" ${tipoInicial === t.id ? 'checked' : ''}><span>${esc(t.nome)}</span></label>`).join('')}
-              <label><input type="radio" name="tipo" value="__nova" ${tipoInicial === '__nova' ? 'checked' : ''}><span>+ Novo tipo</span></label>
-            </div>
-            <input class="entrada" id="f-tipo-nova" maxlength="40" autocomplete="off" aria-label="Nome do novo tipo" placeholder="Nome do novo tipo (ex.: Shampoo)" ${tipoInicial === '__nova' ? '' : 'hidden'}>
-            <span class="dica">O que é o produto. Na venda, cada tipo fica sempre na mesma coluna.</span>
-          </div>
-
-          <div class="campo">
-            <span class="rotulo" id="r-linha">Linha <span class="sub" style="font-weight:400">(opcional)</span></span>
-            <div class="opcoes" role="radiogroup" aria-labelledby="r-linha">
-              <label><input type="radio" name="linha" value="" ${linhaInicial === '' ? 'checked' : ''}><span>Sem linha</span></label>
-              ${linhasProduto.map((l) => `<label><input type="radio" name="linha" value="${esc(l.id)}" ${linhaInicial === l.id ? 'checked' : ''}><span>${esc(l.nome)}</span></label>`).join('')}
-              <label><input type="radio" name="linha" value="__nova"><span>+ Nova linha</span></label>
-            </div>
-            <div class="linha-nova" id="f-linha-nova-campos" hidden>
-              <input class="entrada" id="f-linha-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova linha" placeholder="Nome da nova linha (ex.: Umeboshi)">
-              <input class="entrada" id="f-linha-descricao" maxlength="40" autocomplete="off" aria-label="Descrição da nova linha (opcional)" placeholder="Descrição, opcional (ex.: Oriental Blend)">
-            </div>
-            <span class="dica">Família do produto (ex.: Umeboshi). Na venda, os produtos da mesma linha ficam lado a lado.</span>
+            <span class="rotulo" id="r-tipo">Subcategoria</span>
+            <div class="opcoes" role="radiogroup" aria-labelledby="r-tipo" id="opcoes-tipo"></div>
+            <input class="entrada" id="f-tipo-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova subcategoria" placeholder="Nome da nova subcategoria (ex.: Shampoo)" hidden>
+            <span class="dica">O que é o produto, dentro da categoria (ex.: Capilar > Shampoo). Na venda, cada subcategoria fica sempre na mesma coluna.</span>
           </div>
 
           <div class="grade-campos duas">
@@ -161,8 +152,9 @@ export async function render(el, { id, consulta }) {
         <p class="sub" style="margin-bottom:16px">Com o leitor ligado, toque no campo de código e leia a embalagem.</p>
 
         <div class="segmentos" role="radiogroup" aria-label="Tipo de produto">
-          <label><input type="radio" name="modo" value="unica" ${comVariacoes ? '' : 'checked'}><span>Sem variações</span></label>
-          <label><input type="radio" name="modo" value="variacoes" ${comVariacoes ? 'checked' : ''}><span>Com variações</span></label>
+          <label><input type="radio" name="modo" value="unica" ${modoInicial === 'unica' ? 'checked' : ''}><span>Sem variações</span></label>
+          <label><input type="radio" name="modo" value="variacoes" ${modoInicial === 'variacoes' ? 'checked' : ''}><span>Com variações</span></label>
+          <label><input type="radio" name="modo" value="linha" ${modoInicial === 'linha' ? 'checked' : ''}><span>Por linha</span></label>
         </div>
 
         <div id="area-unica" style="margin-top:16px" ${comVariacoes ? 'hidden' : ''}>
@@ -173,7 +165,7 @@ export async function render(el, { id, consulta }) {
           </div>
         </div>
 
-        <div id="area-variacoes" style="margin-top:16px" ${comVariacoes ? '' : 'hidden'}>
+        <div id="area-variacoes" style="margin-top:16px" ${modoInicial === 'variacoes' ? '' : 'hidden'}>
           <div class="campo" style="max-width:360px;margin-bottom:16px">
             <label for="f-atributo">Tipo de variação</label>
             <input class="entrada" id="f-atributo" list="lista-atributos" maxlength="30" autocomplete="off" placeholder="Ex.: Fragrância, Cor" value="${esc(modelo ? modelo.atributo || '' : '')}">
@@ -182,6 +174,16 @@ export async function render(el, { id, consulta }) {
           <div class="cab-variacoes" aria-hidden="true"><span id="titulo-valor">Variação</span><span>Código de barras</span><span>Preço próprio</span><span class="so-dono">Custo próprio</span><span></span></div>
           <div class="variacoes" id="linhas"></div>
           <button type="button" class="btn texto" id="adicionar-linha" style="margin-top:8px">${icones.mais} Adicionar variação</button>
+        </div>
+
+        <div id="area-linha" style="margin-top:16px" ${modoInicial === 'linha' ? '' : 'hidden'}>
+          <p class="sub" style="margin-bottom:12px">Uma variação para cada linha (ex.: Shampoo: Umeboshi, Ice Melon...). Na venda, cada linha vira um grupo, com este produto sempre na mesma coluna.</p>
+          <div class="cab-variacoes" aria-hidden="true"><span>Linha</span><span>Código de barras</span><span>Preço próprio</span><span class="so-dono">Custo próprio</span><span></span></div>
+          <div class="variacoes" id="linhas-linha"></div>
+          <div class="acoes" style="justify-content:flex-start;margin-top:8px;flex-wrap:wrap">
+            <button type="button" class="btn texto" id="adicionar-var-linha">${icones.mais} Adicionar linha</button>
+            <button type="button" class="btn texto" id="todas-linhas">${icones.mais} Todas as linhas que faltam</button>
+          </div>
         </div>
       </section>
 
@@ -276,36 +278,65 @@ export async function render(el, { id, consulta }) {
   $('#remover-foto').addEventListener('click', () => { fotoBlob = null; desenharFoto(); });
   desenharFoto();
 
-  // ---------- Categoria, tipo e linha ----------
-  // "+ Nova..." mostra o campo para digitar o nome
-  for (const campo of ['categoria', 'tipo', 'linha']) {
-    form.querySelectorAll(`input[name="${campo}"]`).forEach((r) => r.addEventListener('change', () => {
-      const nova = form[campo].value === '__nova';
-      $(campo === 'linha' ? '#f-linha-nova-campos' : `#f-${campo}-nova`).hidden = !nova;
-      if (nova) $(`#f-${campo}-nova`).focus();
-      sugerirNome();
-    }));
-    $(`#f-${campo}-nova`).addEventListener('input', sugerirNome);
+  // ---------- Categoria e subcategoria ----------
+  // As opções de subcategoria dependem da categoria: mostra as dela e as que ainda
+  // não têm categoria (ao salvar, a escolhida passa a ser desta categoria).
+  // A subcategoria atual do produto aparece mesmo se for de outra categoria.
+  const idsCategoriasSet = new Set(categorias.map((c) => c.id));
+  function desenharSubcategorias(marcada) {
+    const cat = form.categoria.value;
+    const daCategoria = tipos.filter((t) => t.categoriaId && t.categoriaId === cat);
+    const soltas = tipos.filter((t) => !t.categoriaId || !idsCategoriasSet.has(t.categoriaId));
+    const atual = tipos.find((t) => t.id === marcada);
+    const visiveis = [...daCategoria, ...soltas];
+    if (atual && !visiveis.includes(atual)) visiveis.unshift(atual);
+    const opcao = (t) => `<label><input type="radio" name="tipo" value="${esc(t.id)}" ${marcada === t.id ? 'checked' : ''}><span>${esc(t.nome)}</span></label>`;
+    $('#opcoes-tipo').innerHTML = `${visiveis.map(opcao).join('')}
+      <label><input type="radio" name="tipo" value="__nova" ${marcada === '__nova' ? 'checked' : ''}><span>+ Nova subcategoria</span></label>`;
+    $('#f-tipo-nova').hidden = marcada !== '__nova';
   }
-  // Nome sugerido: tipo + linha (ex.: "Shampoo Umeboshi"). Só preenche se o nome
-  // estiver vazio ou ainda for a sugestão anterior (não apaga o que a pessoa digitou).
-  const nomeEscolhido = (campo, lista) => {
-    const v = form[campo].value;
-    if (v === '__nova') return $(`#f-${campo}-nova`).value.trim();
-    const achado = lista.find((x) => x.id === v);
+  desenharSubcategorias(tipoInicial || (tipos.length ? '' : '__nova'));
+  form.querySelectorAll('input[name="categoria"]').forEach((r) => r.addEventListener('change', () => {
+    const nova = form.categoria.value === '__nova';
+    $('#f-categoria-nova').hidden = !nova;
+    if (nova) $('#f-categoria-nova').focus();
+    const marcada = form.tipo ? form.tipo.value : '';
+    const t = tipos.find((x) => x.id === marcada);
+    // Troca de categoria: desmarca a subcategoria se ela for de outra categoria
+    desenharSubcategorias(t && t.categoriaId && idsCategoriasSet.has(t.categoriaId) && t.categoriaId !== form.categoria.value ? '' : marcada);
+    sugerirNome();
+  }));
+  $('#opcoes-tipo').addEventListener('change', () => {
+    const nova = form.tipo.value === '__nova';
+    $('#f-tipo-nova').hidden = !nova;
+    if (nova) $('#f-tipo-nova').focus();
+    sugerirNome();
+  });
+  $('#f-tipo-nova').addEventListener('input', sugerirNome);
+  // Nome sugerido: o da subcategoria (ex.: "Shampoo"). Só preenche se o nome estiver
+  // vazio ou ainda for a sugestão anterior (não apaga o que a pessoa digitou).
+  const nomeSubcategoria = () => {
+    const v = form.tipo ? form.tipo.value : '';
+    if (v === '__nova') return $('#f-tipo-nova').value.trim();
+    const achado = tipos.find((x) => x.id === v);
     return achado ? achado.nome : '';
   };
-  let ultimaSugestao = '';
+  let ultimaSugestao = nomeSubcategoria();
   function sugerirNome() {
-    const sugestao = [nomeEscolhido('tipo', tipos), nomeEscolhido('linha', linhasProduto)].filter(Boolean).join(' ');
+    const sugestao = nomeSubcategoria();
     const campoNome = $('#f-nome');
     const atual = campoNome.value.trim();
     if (sugestao && (!atual || atual === ultimaSugestao)) campoNome.value = sugestao;
     ultimaSugestao = sugestao;
   }
-  ultimaSugestao = [nomeEscolhido('tipo', tipos), nomeEscolhido('linha', linhasProduto)].filter(Boolean).join(' ');
 
   // ---------- Foto das variações ----------
+  // Nome mostrado nas janelas: o digitado ou, no modo Por linha, o da linha escolhida
+  const nomeDaVariacao = (div) => {
+    const sel = div.querySelector('.v-linha');
+    if (sel) return sel.value && sel.value !== '__nova' ? sel.selectedOptions[0].textContent : '';
+    return div.querySelector('.v-nome').value.trim();
+  };
   const fotosVar = new Map();   // linha da variação (div) → Blob da foto, ou null
   const urlsVar = new Map();
   let linhaFoto = null;         // variação que está escolhendo foto agora
@@ -329,7 +360,7 @@ export async function render(el, { id, consulta }) {
   $('#arquivo-galeria-var').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; usarFotoVar(f); });
   function escolherFotoVar(div) {
     linhaFoto = div;
-    const nomeVar = div.querySelector('.v-nome').value.trim();
+    const nomeVar = nomeDaVariacao(div);
     const temFoto = !!fotosVar.get(div);
     const toque = matchMedia('(pointer: coarse)').matches;
     const d = abrirJanela(`
@@ -400,21 +431,92 @@ export async function render(el, { id, consulta }) {
     linhas.append(div);
     return div;
   }
-  if (comVariacoes) (editando ? variacoesSalvas : variacoesOrigem).forEach(adicionarLinha);
+  if (modoInicial === 'variacoes') variacoesIniciais.forEach(adicionarLinha);
   else adicionarLinha();
+
+  // ---------- Variações por linha ----------
+  // Cada fileira: foto, a linha (escolhida da lista), código, preço e custo próprios.
+  const linhasLinha = $('#linhas-linha');
+  const opcoesLinha = (atual) => `<option value="">Escolha a linha…</option>${linhasProduto.map((l) => `<option value="${esc(l.id)}" ${l.id === atual ? 'selected' : ''}>${esc(l.nome)}${l.descricao ? ` · ${esc(l.descricao)}` : ''}</option>`).join('')}<option value="__nova">+ Nova linha…</option>`;
+  const linhasUsadas = () => [...linhasLinha.querySelectorAll('.v-linha')].map((s) => s.value).filter((x) => x && x !== '__nova');
+  function adicionarVarLinha(v = {}) {
+    const div = document.createElement('div');
+    div.className = 'linha-variacao';
+    div.dataset.id = v.id || '';
+    div.dataset.cor = corValida(v.cor) || '';   // guarda a cor que já existia (não aparece neste modo)
+    div.innerHTML = `
+      <div class="campo c-valor"><label class="rotulo-m">Linha</label><div class="nome-com-cor"><button type="button" class="btn-foto-var" aria-label="Foto da variação"></button><select class="entrada v-linha">${opcoesLinha(v.linhaId)}</select></div></div>
+      <div class="campo c-codigo"><label class="rotulo-m">Código de barras</label><input class="entrada codigo v-codigo" inputmode="numeric" maxlength="40" autocomplete="off" placeholder="Em branco: código interno" value="${esc(v.codigo || '')}"></div>
+      <div class="campo c-preco"><label class="rotulo-m">Preço próprio</label><input class="entrada v-preco" placeholder="Igual ao produto"></div>
+      <div class="campo c-custo so-dono"><label class="rotulo-m">Custo próprio</label><input class="entrada v-custo" placeholder="Igual ao produto"></div>
+      <button type="button" class="btn-icone" aria-label="Remover linha">${icones.lixo}</button>`;
+    div.querySelectorAll('.campo').forEach((c) => {
+      const input = c.querySelector('input, select');
+      input.id = 'v-' + novoId();
+      c.querySelector('label').htmlFor = input.id;
+    });
+    fotosVar.set(div, v.foto || null);
+    desenharFotoVar(div);
+    div.querySelector('.btn-foto-var').addEventListener('click', () => escolherFotoVar(div));
+    const sel = div.querySelector('.v-linha');
+    let anterior = sel.value;
+    sel.addEventListener('change', async () => {
+      if (sel.value !== '__nova') { anterior = sel.value; return; }
+      // Cria a linha na hora (nome e descrição) e já escolhe nesta fileira
+      const r = await pedirNome({ titulo: 'Nova linha', exemplo: 'Ex.: Umeboshi', itens: linhasProduto, comDescricao: true });
+      if (!r) { sel.value = anterior; return; }
+      const nova = { id: novoId(), ...r, ordem: linhasProduto.length };
+      await db.linhas.add(nova);
+      linhasProduto.push(nova);
+      idsLinhas.add(nova.id);
+      linhasLinha.querySelectorAll('.v-linha').forEach((s) => { const x = s === sel ? nova.id : s.value; s.innerHTML = opcoesLinha(x); });
+      anterior = nova.id;
+      aviso(`Linha ${nova.nome} criada.`);
+    });
+    const preco = div.querySelector('.v-preco');
+    campoDinheiro(preco);
+    escreverCentavos(preco, v.preco ?? null);
+    const custo = div.querySelector('.v-custo');
+    campoDinheiro(custo);
+    escreverCentavos(custo, v.custo ?? null);
+    div.querySelector('.btn-icone').addEventListener('click', () => { fotosVar.delete(div); div.remove(); if (!linhasLinha.children.length) adicionarVarLinha(); });
+    linhasLinha.append(div);
+    return div;
+  }
+  if (modoInicial === 'linha') variacoesIniciais.forEach(adicionarVarLinha);
+  else adicionarVarLinha();
+  $('#adicionar-var-linha').addEventListener('click', () => {
+    // Já sugere a próxima linha que ainda não está no produto
+    const proxima = linhasProduto.find((l) => !linhasUsadas().includes(l.id));
+    adicionarVarLinha({ linhaId: proxima ? proxima.id : '' }).querySelector('.v-codigo').focus();
+  });
+  $('#todas-linhas').addEventListener('click', () => {
+    // Fileira vazia (sem linha escolhida) é aproveitada antes de criar outra
+    const faltam = linhasProduto.filter((l) => !linhasUsadas().includes(l.id));
+    if (!faltam.length) { aviso(linhasProduto.length ? 'Todas as linhas já estão no produto.' : 'Nenhuma linha cadastrada ainda: use "+ Nova linha…" na lista.'); return; }
+    for (const l of faltam) {
+      const vazia = [...linhasLinha.querySelectorAll('.v-linha')].find((s) => !s.value);
+      if (vazia) { vazia.value = l.id; vazia.dispatchEvent(new Event('change')); }
+      else adicionarVarLinha({ linhaId: l.id });
+    }
+  });
 
   $('#adicionar-linha').addEventListener('click', () => adicionarLinha().querySelector('.v-nome').focus());
   $('#f-atributo').addEventListener('input', (e) => { $('#titulo-valor').textContent = e.target.value.trim() || 'Variação'; });
   $('#titulo-valor').textContent = (modelo && modelo.atributo) || 'Variação';
 
-  // Troca entre "Sem variações" e "Com variações", levando o código junto
+  // Troca entre "Sem variações", "Com variações" e "Por linha", levando o código junto
+  const listaDoModo = (m) => (m === 'linha' ? linhasLinha : linhas);
+  let modoAnterior = modoInicial;
   form.querySelectorAll('input[name="modo"]').forEach((r) => r.addEventListener('change', () => {
     const modo = form.modo.value;
     $('#area-unica').hidden = modo !== 'unica';
     $('#area-variacoes').hidden = modo !== 'variacoes';
-    const primeiraLinha = linhas.querySelector('.v-codigo');
-    if (modo === 'variacoes' && $('#f-codigo').value && !primeiraLinha.value) primeiraLinha.value = $('#f-codigo').value;
-    if (modo === 'unica' && !$('#f-codigo').value && primeiraLinha.value) $('#f-codigo').value = primeiraLinha.value;
+    $('#area-linha').hidden = modo !== 'linha';
+    const codigoAntes = modoAnterior === 'unica' ? $('#f-codigo').value : (listaDoModo(modoAnterior).querySelector('.v-codigo') || {}).value;
+    const destino = modo === 'unica' ? $('#f-codigo') : listaDoModo(modo).querySelector('.v-codigo');
+    if (codigoAntes && destino && !destino.value) destino.value = codigoAntes;
+    modoAnterior = modo;
   }));
 
   // Enter (ou o leitor) num campo pula para o próximo, em vez de salvar
@@ -429,10 +531,12 @@ export async function render(el, { id, consulta }) {
   // Leitura com nenhum campo selecionado: preenche o próximo código vazio
   const pararLeitor = ouvirLeitor((codigo) => {
     if (form.modo.value === 'unica') { $('#f-codigo').value = codigo; return; }
-    const vazio = [...linhas.querySelectorAll('.v-codigo')].find((i) => !i.value);
-    const alvo = vazio || adicionarLinha().querySelector('.v-codigo');
+    const porLinha = form.modo.value === 'linha';
+    const lista = porLinha ? linhasLinha : linhas;
+    const vazio = [...lista.querySelectorAll('.v-codigo')].find((i) => !i.value);
+    const alvo = vazio || (porLinha ? adicionarVarLinha() : adicionarLinha()).querySelector('.v-codigo');
     alvo.value = codigo;
-    alvo.closest('.linha-variacao').querySelector('.v-nome').focus();
+    alvo.closest('.linha-variacao').querySelector(porLinha ? '.v-linha' : '.v-nome').focus();
   });
 
   // ---------- Erros ----------
@@ -461,10 +565,8 @@ export async function render(el, { id, consulta }) {
     const custo = lerCentavos($('#f-custo'));
     const escolhaCategoria = form.categoria.value;
     const nomeCategoria = escolhaCategoria === '__nova' ? $('#f-categoria-nova').value.trim() : '';
-    const escolhaTipo = form.tipo.value;
+    const escolhaTipo = form.tipo ? form.tipo.value : '';
     const nomeTipo = escolhaTipo === '__nova' ? $('#f-tipo-nova').value.trim() : '';
-    const escolhaLinha = form.linha.value;
-    const nomeLinha = escolhaLinha === '__nova' ? $('#f-linha-nova').value.trim() : '';
     const modo = form.modo.value;
     const atributo = $('#f-atributo').value.trim();
 
@@ -479,13 +581,32 @@ export async function render(el, { id, consulta }) {
       grupo.after(msg);
     };
     if (!escolhaCategoria || (escolhaCategoria === '__nova' && !nomeCategoria)) erroEscolha('categoria', 'Escolha a categoria (ex.: Capilar).');
-    if (!escolhaTipo || (escolhaTipo === '__nova' && !nomeTipo)) erroEscolha('tipo', 'Escolha o tipo (ex.: Shampoo).');
-    if (escolhaLinha === '__nova' && !nomeLinha) erroEscolha('linha', 'Digite o nome da nova linha, ou escolha "Sem linha".');
+    if (!escolhaTipo || (escolhaTipo === '__nova' && !nomeTipo)) erroEscolha('tipo', 'Escolha a subcategoria (ex.: Shampoo).');
 
     // Monta a lista de variações a partir da tela
     let itens;
     if (modo === 'unica') {
       itens = [{ id: unica ? unica.id : (variacoesSalvas[0] && variacoesSalvas[0].id) || novoId(), nome: '', codigo: normalizarCodigo($('#f-codigo').value), preco: null, custo: null, input: $('#f-codigo') }];
+    } else if (modo === 'linha') {
+      const nomeDe = new Map(linhasProduto.map((l) => [l.id, l.nome]));
+      itens = [...linhasLinha.children].map((div) => ({
+        id: div.dataset.id || novoId(),
+        linhaId: div.querySelector('.v-linha').value,
+        nome: nomeDe.get(div.querySelector('.v-linha').value) || '',
+        codigo: normalizarCodigo(div.querySelector('.v-codigo').value),
+        preco: lerCentavos(div.querySelector('.v-preco')),
+        custo: lerCentavos(div.querySelector('.v-custo')),
+        cor: corValida(div.dataset.cor),
+        foto: fotosVar.get(div) || null,
+        inputNome: div.querySelector('.v-linha'),
+        input: div.querySelector('.v-codigo')
+      }));
+      const vistas = new Set();
+      for (const it of itens) {
+        if (!it.linhaId || it.linhaId === '__nova') marcarErro(it.inputNome, 'Escolha a linha.');
+        else if (vistas.has(it.linhaId)) marcarErro(it.inputNome, 'Linha repetida.');
+        vistas.add(it.linhaId);
+      }
     } else {
       if (!atributo) marcarErro($('#f-atributo'), 'Informe o tipo de variação (ex.: Fragrância).');
       itens = [...linhas.children].map((div) => ({
@@ -530,6 +651,13 @@ export async function render(el, { id, consulta }) {
     }
 
     // Avisa antes de apagar variações ao mudar para "Sem variações"
+    // (e ao trocar entre "Com variações" e "Por linha": as da outra forma saem)
+    const trocouForma = editando && modoInicial !== 'unica' && modo !== 'unica' && modo !== modoInicial;
+    if (trocouForma && !(await confirmar({
+      titulo: 'Trocar a forma das variações?',
+      texto: `As ${variacoesSalvas.length} variações de antes serão substituídas pelas que estão na tela agora.`,
+      botao: 'Trocar e salvar', perigo: true
+    }))) return;
     if (modo === 'unica' && variacoesSalvas.length > 1) {
       const ok = await confirmar({
         titulo: 'Remover as variações?',
@@ -554,7 +682,7 @@ export async function render(el, { id, consulta }) {
         categoriaId = existente ? existente.id : novoId();
         if (!existente) await db.categorias.add({ id: categoriaId, nome: nomeCategoria.charAt(0).toUpperCase() + nomeCategoria.slice(1), ordem: categorias.length });
       }
-      // Tipo e linha: mesma regra (usa o existente com o mesmo nome, ou cria)
+      // Subcategoria: mesma regra (usa a existente com o mesmo nome, ou cria, já nesta categoria)
       const escolherOuCriar = async (escolha, nomeNovo, lista, tabela, extra = {}) => {
         if (escolha !== '__nova') return escolha || null;
         const existente = lista.find((x) => x.nome.toLowerCase() === nomeNovo.toLowerCase());
@@ -563,9 +691,12 @@ export async function render(el, { id, consulta }) {
         await db[tabela].add(novo);
         return novo.id;
       };
-      const tipoId = await escolherOuCriar(escolhaTipo, nomeTipo, tipos, 'tipos');
-      const descricaoLinha = $('#f-linha-descricao').value.trim();
-      const linhaId = await escolherOuCriar(escolhaLinha, nomeLinha, linhasProduto, 'linhas', descricaoLinha ? { descricao: descricaoLinha } : {});
+      const tipoId = await escolherOuCriar(escolhaTipo, nomeTipo, tipos, 'tipos', { categoriaId });
+      // Subcategoria ainda sem categoria: passa a ser desta
+      const sub = tipos.find((t) => t.id === tipoId);
+      if (sub && categoriaId && (!sub.categoriaId || !idsCategoriasSet.has(sub.categoriaId))) await db.tipos.update(sub.id, { categoriaId });
+      // Linha no produto: só cadastros antigos (sem variação por linha) mantêm a que tinham
+      const linhaId = modo === 'linha' ? null : (produto ? produto.linhaId ?? null : null);
 
       const agora = new Date().toISOString();
       const registro = {
@@ -574,7 +705,7 @@ export async function render(el, { id, consulta }) {
         categoriaId,
         tipoId,
         linhaId,
-        atributo: modo === 'variacoes' ? atributo : '',
+        atributo: modo === 'variacoes' ? atributo : modo === 'linha' ? 'Linha' : '',
         preco,
         custo: custo || null,
         foto: fotoBlob,
@@ -593,10 +724,11 @@ export async function render(el, { id, consulta }) {
           nome: it.nome,
           codigo: it.codigo,
           codigoInterno: ehCodigoInterno(it.codigo),
-          preco: modo === 'variacoes' && it.preco ? it.preco : null,
-          custo: modo === 'variacoes' && it.custo ? it.custo : null,
-          cor: modo === 'variacoes' ? it.cor || null : null,
-          foto: modo === 'variacoes' ? it.foto || null : null,
+          preco: modo !== 'unica' && it.preco ? it.preco : null,
+          custo: modo !== 'unica' && it.custo ? it.custo : null,
+          cor: modo !== 'unica' ? it.cor || null : null,
+          foto: modo !== 'unica' ? it.foto || null : null,
+          linhaId: modo === 'linha' ? it.linhaId : null,
           ativo: true,
           ordem
         })));

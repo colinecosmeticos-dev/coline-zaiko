@@ -89,6 +89,7 @@ export async function render(el) {
           <div class="nome">${esc(p.nome)}</div>
           <div class="detalhe">
             ${p.categoria ? `<span class="etiqueta">${esc(p.categoria)}</span>` : ''}
+            ${p.tipo ? `<span class="etiqueta">${esc(p.tipo)}</span>` : ''}
             ${p.linha ? `<span class="etiqueta">${esc(p.linha)}</span>` : ''}
             ${temVariacoes ? `<span>${qtd} ${esc((p.atributo || 'variação').toLowerCase())}${qtd === 1 ? '' : 's'}</span>` : ''}
             ${p.ativo ? '' : '<span class="etiqueta">Inativo</span>'}

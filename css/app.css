@@ -1001,6 +1001,15 @@ dialog.janela-cor .acoes { align-items: center; flex-wrap: wrap; }
 .grupo-titulo { font-size: .875rem; font-weight: 700; color: var(--texto-2); margin: 0 0 6px 2px; text-transform: none; letter-spacing: .01em; }
 .grupo-itens { display: grid; gap: 8px; }
 .grupo-descricao { font-weight: 500; }
+.venda-navegacao .espaco { flex: 1; }
+.btn-exibicao { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid var(--linha); border-radius: 999px; background: var(--superficie); color: var(--texto); }
+.btn-exibicao:hover { border-color: var(--marca); }
+.categoria-venda { font-size: 1rem; font-weight: 700; margin: 18px 0 8px 2px; }
+.categoria-venda:first-child { margin-top: 0; }
+/* Só texto: sem a foto, botões baixos (cabe mais na tela) */
+.so-texto .iv-foto { display: none; }
+.so-texto .item-venda { min-height: 64px; padding: 8px 10px; }
+.so-texto .vaga-venda { min-height: 64px; }
 .item-venda {
   display: flex; flex-direction: column; gap: 4px; padding: 6px; min-width: 0; text-align: left;
   background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio);
@@ -1044,14 +1053,13 @@ dialog.janela-cor .acoes { align-items: center; flex-wrap: wrap; }
 .linha-organizar .org-nome { grid-column: 1 / -1; color: inherit; text-decoration: none; }
 .linha-organizar .org-nome:hover strong { text-decoration: underline; }
 .linha-organizar .org-campo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.linha-organizar .org-campo:last-child { grid-column: 1 / -1; }
 .linha-organizar select.entrada { min-height: 44px; padding-top: 0; padding-bottom: 0; }
 .linha-organizar .rotulo-m { font-size: .75rem; color: var(--texto-2); }
 .linha-organizar.pendente { box-shadow: inset 4px 0 0 var(--marca); }
 @media (min-width: 840px) {
-  .cab-organizar { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 10px; padding: 0 16px 6px; font-size: .875rem; font-weight: 600; }
-  .linha-organizar { grid-template-columns: 1.4fr 1fr 1fr 1fr; align-items: center; gap: 10px; }
-  .linha-organizar .org-nome, .linha-organizar .org-campo:last-child { grid-column: auto; }
+  .cab-organizar { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 10px; padding: 0 16px 6px; font-size: .875rem; font-weight: 600; }
+  .linha-organizar { grid-template-columns: 1.6fr 1fr 1fr; align-items: center; gap: 10px; }
+  .linha-organizar .org-nome { grid-column: auto; }
   .linha-organizar .rotulo-m { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 }
 @media (max-width: 520px) { .iv-foto { aspect-ratio: 16 / 10; } }

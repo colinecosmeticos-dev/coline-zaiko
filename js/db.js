@@ -57,6 +57,74 @@ db.version(8).stores({
   tipos: 'id, ordem',
   linhas: 'id, ordem'
 });
+// Versão 9 (v0.23.0): Categoria > Subcategoria e variação por linha.
+//   - Subcategoria = a tabela "tipos" (o nome interno continua tipo/tipoId),
+//     agora com categoriaId: Capilar > Shampoo, Mãos e Corpo > Higienizador...
+//   - A linha passa a poder ser da VARIAÇÃO (variação.linhaId): o produto "Shampoo"
+//     tem as variações Umeboshi, Ice Melon... (atributo "Linha").
+//   - Conversão: produtos de uma linha sem variações e com a mesma subcategoria
+//     (Shampoo Umeboshi, Shampoo Ice Melon...) viram UM produto com uma variação
+//     por linha. Os ids das variações não mudam (vendas, estoque e preços do
+//     evento continuam ligados); códigos, fotos e preços vão para a variação.
+db.version(9).stores({}).upgrade(async (tx) => {
+  const [produtos, variacoes, tipos, linhas] = await Promise.all(['produtos', 'variacoes', 'tipos', 'linhas'].map((t) => tx.table(t).toArray()));
+  // 1. Subcategoria ganha a categoria mais usada pelos seus produtos
+  for (const t of tipos) {
+    const conta = new Map();
+    for (const p of produtos) if (p.tipoId === t.id && p.categoriaId) conta.set(p.categoriaId, (conta.get(p.categoriaId) || 0) + 1);
+    const [maisUsada] = [...conta.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+    if (maisUsada) await tx.table('tipos').update(t.id, { categoriaId: maisUsada });
+  }
+  // 2. Junta os produtos de linha da mesma subcategoria
+  const linha = new Map(linhas.map((l) => [l.id, l]));
+  const nomeTipo = new Map(tipos.map((t) => [t.id, t.nome]));
+  const porProduto = new Map();
+  for (const v of variacoes) { if (!porProduto.has(v.produtoId)) porProduto.set(v.produtoId, []); porProduto.get(v.produtoId).push(v); }
+  const grupos = new Map();
+  for (const p of produtos) {
+    const vs = porProduto.get(p.id) || [];
+    // Só os ativos (um inativo fica como está, fora da venda)
+    if (p.ativo === false || !p.linhaId || !linha.has(p.linhaId) || !p.tipoId || vs.length !== 1 || vs[0].nome) continue;
+    const chave = `${p.categoriaId || ''}|${p.tipoId}`;
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push(p);
+  }
+  const maisComum = (valores) => {
+    const conta = new Map();
+    for (const x of valores) conta.set(x, (conta.get(x) || 0) + 1);
+    return [...conta.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  };
+  const agora = new Date().toISOString();
+  for (const g of grupos.values()) {
+    g.sort((a, b) => (linha.get(a.linhaId).ordem ?? 9999) - (linha.get(b.linhaId).ordem ?? 9999));
+    const fica = g[0];
+    const preco = maisComum(g.map((p) => p.preco));
+    const custo = maisComum(g.map((p) => p.custo ?? null));
+    // Nome: o do produto sem o nome da linha ("Shampoo Umeboshi 300ml" → "Shampoo 300ml");
+    // se ficarem diferentes entre si, usa o nome da subcategoria
+    const semLinha = (p) => {
+      const l = linha.get(p.linhaId).nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return p.nome.replace(new RegExp(l, 'gi'), ' ').replace(/\s+/g, ' ').trim();
+    };
+    const nomes = new Set(g.map(semLinha));
+    const nome = nomes.size === 1 && [...nomes][0] ? [...nomes][0] : (nomeTipo.get(fica.tipoId) || fica.nome);
+    await tx.table('produtos').put({
+      ...fica, nome, atributo: 'Linha', linhaId: null,
+      preco, custo, ativo: true, atualizadoEm: agora
+    });
+    for (const [ordem, p] of g.entries()) {
+      const v = porProduto.get(p.id)[0];
+      await tx.table('variacoes').put({
+        ...v, produtoId: fica.id, nome: linha.get(p.linhaId).nome, linhaId: p.linhaId,
+        preco: p.preco !== preco ? p.preco : null,
+        custo: (p.custo ?? null) !== custo ? p.custo : null,
+        foto: v.foto || p.foto || null, ativo: true, ordem
+      });
+      if (p.id !== fica.id) await tx.table('produtos').delete(p.id);
+    }
+  }
+});
+
 const TIPOS_INICIAIS = ['Higienizador', 'Higi Case', 'Shampoo', 'Condicionador', 'Máscara', 'Leave-in', 'Sabonete', 'Esfoliante', 'Sérum', 'Camiseta'];
 // Cria os tipos iniciais uma vez só (depois podem ser renomeados, reordenados e excluídos à vontade).
 // Se a lista já tiver vindo por um pacote, não cria nada.
@@ -101,7 +169,7 @@ export async function listarCategorias() {
   return lista.sort((a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
-// Tipos e linhas, na ordem definida pelo dono
+// Subcategorias (tabela tipos) e linhas, na ordem definida pelo dono
 const porOrdem = (a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999) || a.nome.localeCompare(b.nome, 'pt-BR');
 export async function listarTipos() { return (await db.tipos.toArray()).sort(porOrdem); }
 export async function listarLinhas() { return (await db.linhas.toArray()).sort(porOrdem); }
@@ -118,8 +186,14 @@ export async function listarProdutosCompletos() {
   const nomeCategoria = new Map(categorias.map((c) => [c.id, c.nome]));
   const nomeTipo = new Map(tipos.map((t) => [t.id, t.nome]));
   const nomeLinha = new Map(linhas.map((l) => [l.id, l.nome]));
+  const linhaProduto = new Map(produtos.map((p) => [p.id, p.linhaId]));
   const porProduto = new Map();
-  for (const v of variacoes) {
+  for (const v0 of variacoes) {
+    // Linha da variação (produto que varia por linha) ou, em cadastros antigos, a do produto.
+    // Variação de linha usa sempre o nome atual da linha (renomear a linha renomeia a variação).
+    const linhaId = (v0.linhaId && nomeLinha.has(v0.linhaId) ? v0.linhaId : null) || (nomeLinha.has(linhaProduto.get(v0.produtoId)) ? linhaProduto.get(v0.produtoId) : null);
+    const v = { ...v0, linhaEfetiva: linhaId, linha: linhaId ? nomeLinha.get(linhaId) : '' };
+    if (v0.linhaId && nomeLinha.has(v0.linhaId)) v.nome = nomeLinha.get(v0.linhaId);
     if (!porProduto.has(v.produtoId)) porProduto.set(v.produtoId, []);
     porProduto.get(v.produtoId).push(v);
   }

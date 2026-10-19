@@ -19,16 +19,18 @@ const slug = (t) => (t || 'evento').normalize('NFD').replace(/[̀-ͯ]/g, '').rep
 
 export const nomePlanilha = (evento) => `fechamento-${slug(evento.nome)}`;
 
-// Categoria, tipo e linha de um item: os da hora da venda; vendas antigas (sem esses dados)
-// usam os do cadastro atual do produto
+// Categoria, subcategoria (campo tipo) e linha de um item: os da hora da venda; vendas
+// antigas (sem esses dados) usam os do cadastro atual (a linha pode ser da variação)
 function classificador(produtos) {
   const doCadastro = new Map((produtos || []).map((p) => [p.id, p]));
+  const variacao = new Map((produtos || []).flatMap((p) => (p.variacoes || []).map((v) => [v.id, v])));
   return (i) => {
     const p = doCadastro.get(i.produtoId) || {};
+    const v = variacao.get(i.variacaoId) || {};
     return {
       categoria: i.categoriaNome || p.categoria || 'Sem categoria',
-      tipo: i.tipoNome || p.tipo || 'Sem tipo',
-      linha: i.linhaNome || p.linha || 'Sem linha'
+      tipo: i.tipoNome || p.tipo || 'Sem subcategoria',
+      linha: i.linhaNome || v.linha || p.linha || 'Sem linha'
     };
   };
 }
@@ -92,11 +94,11 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
     ...f.categorias.map((c) => [c.nome, R(c.valor), c.quantidade, c.despesa ? 'Sim' : 'Não']),
     // Valor dos itens = preço com o desconto do item, antes do desconto na venda inteira
     ...bloco('Por categoria de produto', 'categoria'),
-    ...bloco('Por tipo', 'tipo'),
+    ...bloco('Por subcategoria', 'tipo'),
     ...bloco('Por linha', 'linha')
   ];
 
-  const itens = [[N('Data'), N('Hora'), N('Número'), N('Tipo'), N('Situação'), N('Aparelho'), N('Produto'), N('Variação'), N('Categoria'), N('Tipo'), N('Linha'), N('Qtd.'), N('Preço unit.'), N('Desconto'), N('Total'), N('Brinde'), N('Custo unit.'), N('Estado (devolvido)'), N('Pagamento'), N('Venda original'), N('Pós-evento')]];
+  const itens = [[N('Data'), N('Hora'), N('Número'), N('Tipo'), N('Situação'), N('Aparelho'), N('Produto'), N('Variação'), N('Categoria'), N('Subcategoria'), N('Linha'), N('Qtd.'), N('Preço unit.'), N('Desconto'), N('Total'), N('Brinde'), N('Custo unit.'), N('Estado (devolvido)'), N('Pagamento'), N('Venda original'), N('Pós-evento')]];
   for (const r of [...registros].sort((a, b) => a.criadoEm.localeCompare(b.criadoEm))) {
     const base = [dataBR(diaLocal(r.criadoEm)), hora(r.criadoEm), r.numero, TIPO[r.tipo || 'venda'], r.status === 'cancelada' ? 'Cancelada' : 'Concluída', r.aparelho?.sigla || ''];
     const pagamento = [...(r.pagamentos || []).map((p) => `${p.formaNome}${p.parcelas > 1 ? ` ${p.parcelas}x` : ''}`), ...(r.reembolsos || []).map((d) => `Devolvido (${d.nome})`)].join(' + ');

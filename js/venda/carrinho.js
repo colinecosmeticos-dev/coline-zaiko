@@ -27,10 +27,10 @@ export function adicionarItem(produto, variacao) {
     produtoId: produto.id,
     nome: produto.nome,
     variacaoNome: variacao.nome || '',
-    // Categoria, tipo e linha da hora da venda (para os relatórios)
+    // Categoria, subcategoria (tipoNome) e linha da hora da venda (para os relatórios)
     categoriaNome: produto.categoria || '',
     tipoNome: produto.tipo || '',
-    linhaNome: produto.linha || '',
+    linhaNome: variacao.linha || produto.linha || '',
     codigo: variacao.codigo,
     quantidade: 1,
     precoUnit: variacao.preco ?? produto.preco,

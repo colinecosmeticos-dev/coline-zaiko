@@ -1,0 +1,5 @@
+# Arquivos de dados do app: nunca publicar (o repositório é público)
+backup-*.txt
+pacote-*.txt
+vendas-*.txt
+*.xlsx

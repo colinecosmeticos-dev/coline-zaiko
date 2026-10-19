@@ -16,13 +16,17 @@ import { corValida } from '../cores.js';
 import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho } from '../venda/carrinho.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
 import { abrirCobranca, finalizarTrocaSemCobranca } from '../venda/cobrar.js';
-import { montarGrupos, SEM_CATEGORIA } from '../venda/grupos.js';
+import { montarGrupos, temLinhas, SEM_CATEGORIA } from '../venda/grupos.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
 import { ehCaixa } from '../modo.js';
 
+// Escolhas da tela de venda lembradas em cada aparelho (só conforto; sem elas, vale o padrão)
+const lerLocal = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const gravarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ok */ } };
 const CHAVE_CATEGORIA = 'zaiko-categoria-venda';
-const lerCategoria = () => { try { return localStorage.getItem(CHAVE_CATEGORIA); } catch (e) { return null; } };
-const gravarCategoria = (c) => { try { localStorage.setItem(CHAVE_CATEGORIA, c); } catch (e) { /* ok */ } };
+const CHAVE_VER = 'zaiko-venda-ver';       // 'linha' (padrão) ou 'subcategoria'
+const CHAVE_TEXTO = 'zaiko-venda-texto';   // '1' = botões só com texto, sem foto
+const TODOS = '__todos';
 
 export async function render(el) {
   // ---------- Pré-requisitos ----------
@@ -91,7 +95,7 @@ export async function render(el) {
       return doEvento != null && doEvento !== normal ? { ...v, preco: doEvento, precoBase: normal } : v;
     }) }));
   // Descrição da linha (ex.: Mochigome → "Hidratação"): a busca também encontra por ela
-  const descricaoLinha = new Map(linhas.map((l) => [l.id, l.descricao || '']));
+  const descricaoLinha = new Map(linhas.map((l) => [l.id, l.descricao || '']));   // por linhaEfetiva da variação
   const urls = [];
   const urlFoto = (blob) => { const u = URL.createObjectURL(blob); urls.push(u); return u; };
   const fotoProduto = new Map(produtos.filter((p) => p.foto).map((p) => [p.id, urlFoto(p.foto)]));
@@ -103,8 +107,13 @@ export async function render(el) {
   const categoriaDe = (p) => (idsCategorias.has(p.categoriaId) ? p.categoriaId : SEM_CATEGORIA);
   const botoesCategoria = categorias.filter((c) => produtos.some((p) => p.categoriaId === c.id)).map((c) => ({ id: c.id, nome: c.nome }));
   if (produtos.some((p) => categoriaDe(p) === SEM_CATEGORIA)) botoesCategoria.push({ id: SEM_CATEGORIA, nome: botoesCategoria.length ? 'Outros' : 'Todos os produtos' });
-  let categoriaAtual = lerCategoria();
-  if (!botoesCategoria.some((c) => c.id === categoriaAtual)) categoriaAtual = botoesCategoria[0] ? botoesCategoria[0].id : SEM_CATEGORIA;
+  // "Todos" (todas as categorias, uma embaixo da outra) quando há mais de uma
+  if (botoesCategoria.length > 1) botoesCategoria.unshift({ id: TODOS, nome: 'Todos' });
+  let verPor = lerLocal(CHAVE_VER) === 'subcategoria' ? 'subcategoria' : 'linha';
+  let soTexto = lerLocal(CHAVE_TEXTO) === '1';
+  const comLinhas = temLinhas(produtos, linhas);
+  let categoriaAtual = lerLocal(CHAVE_CATEGORIA);
+  if (!botoesCategoria.some((c) => c.id === categoriaAtual)) categoriaAtual = botoesCategoria.find((c) => c.id !== TODOS)?.id || SEM_CATEGORIA;
   let busca = '';
   let estreito = null;   // celular: 2 botões por fileira; tablet e computador: até 4
 
@@ -170,9 +179,11 @@ export async function render(el) {
   const encher = '<span class="vaga-venda invisivel" aria-hidden="true"></span>';
 
   function desenharGrupo(g, porFileira) {
-    // A grade tem sempre o mesmo número de colunas da tela (4, ou 2 no celular),
-    // para o botão ter o mesmo tamanho em todos os grupos, mesmo num grupo com 1 item.
-    const colunas = porFileira;
+    // A grade tem o mesmo número de colunas da tela (4, ou 2 no celular), para o botão
+    // ter o mesmo tamanho em todos os grupos, mesmo num grupo com 1 item.
+    // Exceção no tablet: tabela com 5 ou 6 colunas fixas (ex.: 5 linhas na visão por
+    // subcategoria) usa todas numa fileira só, em vez de quebrar 4 + 1.
+    const colunas = g.fileiras && !estreito ? Math.max(porFileira, Math.min(g.colunas, 6)) : porFileira;
     let celulas = [];
     if (g.fileiras) {
       // Linha: cada fileira tem um lugar fixo por tipo; lugar sem produto fica vazio.
@@ -197,27 +208,69 @@ export async function render(el) {
     const nav = $('#navegacao'), grade = $('#grade');
     const porFileira = estreito ? 2 : 4;
     const t = busca.toLowerCase();
+    grade.classList.toggle('so-texto', soTexto);
     if (t) {
       nav.innerHTML = `<span class="sub">Resultado da busca</span>`;
       const achados = [];
       for (const p of produtos) for (const v of p.variacoes) {
-        if (p.nome.toLowerCase().includes(t) || (v.nome || '').toLowerCase().includes(t) || v.codigo.includes(t) || (descricaoLinha.get(p.linhaId) || '').toLowerCase().includes(t)) achados.push({ p, v, nome: p.nome, sub: v.nome || '' });
+        if (p.nome.toLowerCase().includes(t) || (v.nome || '').toLowerCase().includes(t) || v.codigo.includes(t) || (descricaoLinha.get(v.linhaEfetiva) || '').toLowerCase().includes(t)) achados.push({ p, v, nome: p.nome, sub: v.nome || '' });
       }
       grade.innerHTML = achados.length ? desenharGrupo({ titulo: `${achados.length} ${achados.length === 1 ? 'item' : 'itens'}`, itens: achados }, porFileira)
         : '<p class="sub vazio-grade">Nenhum produto encontrado.</p>';
       return;
     }
-    nav.innerHTML = botoesCategoria.length > 1 ? `<div class="chips chips-venda" role="group" aria-label="Categorias">
+    nav.innerHTML = `${botoesCategoria.length > 1 ? `<div class="chips chips-venda" role="group" aria-label="Categorias">
       ${botoesCategoria.map((c) => `<button type="button" class="chip" aria-pressed="${c.id === categoriaAtual}" data-categoria="${esc(c.id)}">${esc(c.nome)}</button>`).join('')}
-    </div>` : '';
-    const grupos = montarGrupos(produtos.filter((p) => categoriaDe(p) === categoriaAtual), tipos, linhas);
+    </div>` : '<span class="espaco"></span>'}
+      <button type="button" class="btn-icone btn-exibicao" id="exibicao" aria-label="Exibição: ${verPor === 'linha' ? 'por linha' : 'por subcategoria'}${soTexto ? ', só texto' : ''}" title="Exibição">${icones.ajustes}</button>`;
+    const daCategoria = (id) => montarGrupos(produtos.filter((p) => categoriaDe(p) === id), tipos, linhas, verPor);
+    if (categoriaAtual === TODOS) {
+      // Todas as categorias, uma embaixo da outra, com o nome no título
+      grade.innerHTML = botoesCategoria.filter((c) => c.id !== TODOS).map((c) => {
+        const gs = daCategoria(c.id);
+        return gs.length ? `<h2 class="categoria-venda">${esc(c.nome)}</h2>${gs.map((g) => desenharGrupo(g, porFileira)).join('')}` : '';
+      }).join('');
+      return;
+    }
+    const grupos = daCategoria(categoriaAtual);
     grade.innerHTML = grupos.length ? grupos.map((g) => desenharGrupo(g, porFileira)).join('') : '<p class="sub vazio-grade">Nenhum produto nesta categoria.</p>';
   }
 
+  // Janela Exibição: Ver por (linha/subcategoria) e botões com foto ou só texto.
+  // Cada toque já muda a tela por trás; a escolha fica lembrada no aparelho.
+  function abrirExibicao() {
+    const d = abrirJanela(`
+      <h2>Exibição</h2>
+      ${comLinhas ? `<div class="campo" style="margin-top:12px">
+        <span class="rotulo" id="r-ver">Ver por</span>
+        <div class="segmentos" role="radiogroup" aria-labelledby="r-ver">
+          <label><input type="radio" name="ver" value="linha" ${verPor === 'linha' ? 'checked' : ''}><span>Linha</span></label>
+          <label><input type="radio" name="ver" value="subcategoria" ${verPor === 'subcategoria' ? 'checked' : ''}><span>Subcategoria</span></label>
+        </div>
+        <span class="dica">Por linha: um grupo por linha (o kit Umeboshi junto). Por subcategoria: um grupo por subcategoria (todos os shampoos juntos).</span>
+      </div>` : ''}
+      <div class="campo" style="margin-top:16px">
+        <span class="rotulo" id="r-botoes">Botões</span>
+        <div class="segmentos" role="radiogroup" aria-labelledby="r-botoes">
+          <label><input type="radio" name="botoes" value="foto" ${soTexto ? '' : 'checked'}><span>Com foto</span></label>
+          <label><input type="radio" name="botoes" value="texto" ${soTexto ? 'checked' : ''}><span>Só texto</span></label>
+        </div>
+        <span class="dica">Só texto: botões menores, para caber mais produtos na tela.</span>
+      </div>
+      <div class="acoes"><button type="button" class="btn primario" id="pronto">Pronto</button></div>`);
+    d.addEventListener('change', (e) => {
+      if (e.target.name === 'ver') { verPor = e.target.value; gravarLocal(CHAVE_VER, verPor); }
+      if (e.target.name === 'botoes') { soTexto = e.target.value === 'texto'; gravarLocal(CHAVE_TEXTO, soTexto ? '1' : '0'); }
+      desenharProdutos();
+    });
+    d.querySelector('#pronto').addEventListener('click', () => d.close());
+  }
+
   $('#navegacao').addEventListener('click', (e) => {
+    if (e.target.closest('#exibicao')) { abrirExibicao(); return; }
     const b = e.target.closest('[data-categoria]');
     if (!b) return;
-    categoriaAtual = b.dataset.categoria; gravarCategoria(categoriaAtual);
+    categoriaAtual = b.dataset.categoria; gravarLocal(CHAVE_CATEGORIA, categoriaAtual);
     desenharProdutos(); $('#grade').scrollTop = 0;
   });
   $('#grade').addEventListener('click', (e) => {

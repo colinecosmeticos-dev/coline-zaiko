@@ -13,7 +13,9 @@ import { db, lerAparelho, lerConfig, gravarConfig } from './db.js';
 const TIPO = 'coline-zaiko-pacote';
 // Versão 2 (v0.20.0): leva também tipos, linhas e as fotos das variações.
 // Um app antigo recusa o pacote 2 (pede para atualizar), em vez de importar pela metade.
-const VERSAO_PACOTE = 2;
+// Versão 3 (v0.23.0): subcategorias com categoria e variações com linha (linhaId).
+// Um aparelho com app antigo recusa e pede para atualizar (mostraria os produtos errado).
+const VERSAO_PACOTE = 3;
 
 // ---------- Gerar ----------
 // base: { versao, publicadoEm, eventoId } quando a Gestão publica a base para os caixas (v0.22.0)
