@@ -182,7 +182,6 @@ export async function render(el, { id, consulta }) {
           <div class="variacoes" id="linhas-linha"></div>
           <div class="acoes" style="justify-content:flex-start;margin-top:8px;flex-wrap:wrap">
             <button type="button" class="btn texto" id="adicionar-var-linha">${icones.mais} Adicionar linha</button>
-            <button type="button" class="btn texto" id="todas-linhas">${icones.mais} Todas as linhas que faltam</button>
           </div>
         </div>
       </section>
@@ -490,22 +489,14 @@ export async function render(el, { id, consulta }) {
     const proxima = linhasProduto.find((l) => !linhasUsadas().includes(l.id));
     adicionarVarLinha({ linhaId: proxima ? proxima.id : '' }).querySelector('.v-codigo').focus();
   });
-  $('#todas-linhas').addEventListener('click', () => {
-    // Fileira vazia (sem linha escolhida) é aproveitada antes de criar outra
-    const faltam = linhasProduto.filter((l) => !linhasUsadas().includes(l.id));
-    if (!faltam.length) { aviso(linhasProduto.length ? 'Todas as linhas já estão no produto.' : 'Nenhuma linha cadastrada ainda: use "+ Nova linha…" na lista.'); return; }
-    for (const l of faltam) {
-      const vazia = [...linhasLinha.querySelectorAll('.v-linha')].find((s) => !s.value);
-      if (vazia) { vazia.value = l.id; vazia.dispatchEvent(new Event('change')); }
-      else adicionarVarLinha({ linhaId: l.id });
-    }
-  });
 
   $('#adicionar-linha').addEventListener('click', () => adicionarLinha().querySelector('.v-nome').focus());
   $('#f-atributo').addEventListener('input', (e) => { $('#titulo-valor').textContent = e.target.value.trim() || 'Variação'; });
   $('#titulo-valor').textContent = (modelo && modelo.atributo) || 'Variação';
 
-  // Troca entre "Sem variações", "Com variações" e "Por linha", levando o código junto
+  // Troca entre "Sem variações", "Com variações" e "Por linha". Cada forma guarda o que
+  // tinha (voltar mostra de novo). O código só é levado ao sair de "Sem variações":
+  // o produto simples vira a 1ª variação (mesmo código e mesmo item).
   const listaDoModo = (m) => (m === 'linha' ? linhasLinha : linhas);
   let modoAnterior = modoInicial;
   form.querySelectorAll('input[name="modo"]').forEach((r) => r.addEventListener('change', () => {
@@ -513,8 +504,8 @@ export async function render(el, { id, consulta }) {
     $('#area-unica').hidden = modo !== 'unica';
     $('#area-variacoes').hidden = modo !== 'variacoes';
     $('#area-linha').hidden = modo !== 'linha';
-    const codigoAntes = modoAnterior === 'unica' ? $('#f-codigo').value : (listaDoModo(modoAnterior).querySelector('.v-codigo') || {}).value;
-    const destino = modo === 'unica' ? $('#f-codigo') : listaDoModo(modo).querySelector('.v-codigo');
+    const codigoAntes = modoAnterior === 'unica' ? $('#f-codigo').value : '';
+    const destino = modo === 'unica' ? null : listaDoModo(modo).querySelector('.v-codigo');
     if (codigoAntes && destino && !destino.value) destino.value = codigoAntes;
     // Produto simples que passa a ter variações: a 1ª variação continua sendo o
     // mesmo item (mesmo id), para vendas, estoque e preços do evento seguirem ligados
