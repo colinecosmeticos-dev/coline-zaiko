@@ -58,7 +58,7 @@ export function montarGrupos(produtos, tipos, linhas) {
     const fileiras = [];
     for (let k = 0; k < qtdFileiras; k++) fileiras.push(porColuna.map((c) => c[k] || null));
     const primeiro = Math.min(...colunas.filter((_, i) => porColuna[i].length).map(posTipo));
-    grupos.push({ titulo: linha.nome, colunas: colunas.length, fileiras, chave: [primeiro, 0, ordemLinha.get(linha.id)] });
+    grupos.push({ titulo: linha.nome, descricao: linha.descricao || '', colunas: colunas.length, fileiras, chave: [primeiro, 0, ordemLinha.get(linha.id)] });
   }
 
   // ----- Grupos por tipo (produtos sem linha) -----

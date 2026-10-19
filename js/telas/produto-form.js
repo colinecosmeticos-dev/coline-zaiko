@@ -8,6 +8,10 @@
 //    valor (ex.: Lavanda, Rosa), cada uma com seu código e,
 //    se quiser, um preço próprio.
 // Código em branco = o app gera um código interno ao salvar.
+//
+// Duplicar (#/produtos/novo?copiar=<id>): abre um cadastro novo já com
+// categoria, tipo, linha, preço, custo e variações do produto copiado.
+// Não copia foto nem códigos de barras (cada produto tem os seus).
 // =========================================================
 import { db, novoId, listarCategorias, listarTipos, listarLinhas, buscarPorCodigo } from '../db.js';
 import { esc, dinheiro, campoDinheiro, lerCentavos, escreverCentavos, aviso, confirmar, abrirJanela, icones } from '../ui.js';
@@ -21,11 +25,18 @@ import { escolherCor, corValida } from '../cores.js';
 export async function render(el, { id, consulta }) {
   const editando = !!id;
   const produto = editando ? await db.produtos.get(id) : null;
+  // Cópia: o produto de origem serve de modelo para um cadastro novo
+  const copiarId = !editando && consulta ? consulta.get('copiar') : null;
+  const origem = copiarId ? await db.produtos.get(copiarId) : null;
+  const modelo = produto || origem;   // de onde vêm os valores iniciais
   if (editando && !produto) {
     el.innerHTML = `<div class="cartao vazio"><h2>Produto não encontrado</h2><p>Ele pode ter sido excluído.</p><a class="btn" href="#/produtos">Voltar para Produtos</a></div>`;
     return;
   }
   const variacoesSalvas = editando ? (await db.variacoes.where('produtoId').equals(id).toArray()).sort((a, b) => a.ordem - b.ordem) : [];
+  // Na cópia: só nome, preço, custo e cor das variações (sem id, código e foto)
+  const variacoesOrigem = origem ? (await db.variacoes.where('produtoId').equals(origem.id).toArray()).sort((a, b) => a.ordem - b.ordem)
+    .map((v) => ({ nome: v.nome, preco: v.preco, custo: v.custo, cor: v.cor })) : [];
   const categorias = await listarCategorias();
   const tipos = await listarTipos();
   const linhasProduto = await listarLinhas();
@@ -35,11 +46,12 @@ export async function render(el, { id, consulta }) {
   const custoLiberado = !pinDefinido;
   // Categoria já marcada ao abrir: a do produto; num cadastro novo, a do último produto salvo
   const idsCategorias = new Set(categorias.map((c) => c.id));
-  const sugerida = produto ? produto.categoriaId : (consulta && consulta.get('categoria'));
+  const sugerida = modelo ? modelo.categoriaId : (consulta && consulta.get('categoria'));
   const categoriaInicial = sugerida && idsCategorias.has(sugerida) ? sugerida : (categorias.length ? '' : '__nova');
-  const tipoInicial = produto && tipos.some((t) => t.id === produto.tipoId) ? produto.tipoId : (tipos.length ? '' : '__nova');
-  const linhaInicial = produto && linhasProduto.some((l) => l.id === produto.linhaId) ? produto.linhaId : '';
-  const comVariacoes = editando ? (variacoesSalvas.length > 1 || !!(variacoesSalvas[0] && variacoesSalvas[0].nome)) : false;
+  const tipoInicial = modelo && tipos.some((t) => t.id === modelo.tipoId) ? modelo.tipoId : (tipos.length ? '' : '__nova');
+  const linhaInicial = modelo && linhasProduto.some((l) => l.id === modelo.linhaId) ? modelo.linhaId : '';
+  const temVariacoes = (lista) => lista.length > 1 || !!(lista[0] && lista[0].nome);
+  const comVariacoes = editando ? temVariacoes(variacoesSalvas) : temVariacoes(variacoesOrigem);
   const unica = !comVariacoes ? variacoesSalvas[0] : null;
   const codigoInicial = consulta && consulta.get('codigo') ? consulta.get('codigo') : '';
 
@@ -49,6 +61,10 @@ export async function render(el, { id, consulta }) {
   el.innerHTML = `
     <a class="voltar" href="#/produtos">${icones.voltar} Produtos</a>
     <header class="cab"><h1>${editando ? esc(produto.nome) : 'Novo produto'}</h1></header>
+    ${origem ? `<div class="cartao aviso-copia">
+      <strong>Cópia de ${esc(origem.nome)}</strong>
+      <p class="sub">Troque o que muda (por exemplo, a linha: o nome acompanha), coloque a foto e o código de barras, e salve.</p>
+    </div>` : ''}
 
     <form class="form-produto ${custoLiberado ? '' : 'custo-bloqueado'}" novalidate>
       <section class="cartao">
@@ -74,7 +90,7 @@ export async function render(el, { id, consulta }) {
 
           <div class="campo">
             <label for="f-nome">Nome do produto</label>
-            <input class="entrada" id="f-nome" maxlength="80" autocomplete="off" value="${esc(produto ? produto.nome : '')}">
+            <input class="entrada" id="f-nome" maxlength="80" autocomplete="off" value="${esc(modelo ? modelo.nome : '')}">
             <span class="dica">Ao escolher o tipo e a linha abaixo, o app sugere o nome (ex.: Shampoo Umeboshi).</span>
           </div>
 
@@ -105,7 +121,10 @@ export async function render(el, { id, consulta }) {
               ${linhasProduto.map((l) => `<label><input type="radio" name="linha" value="${esc(l.id)}" ${linhaInicial === l.id ? 'checked' : ''}><span>${esc(l.nome)}</span></label>`).join('')}
               <label><input type="radio" name="linha" value="__nova"><span>+ Nova linha</span></label>
             </div>
-            <input class="entrada" id="f-linha-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova linha" placeholder="Nome da nova linha (ex.: Umeboshi)" hidden>
+            <div class="linha-nova" id="f-linha-nova-campos" hidden>
+              <input class="entrada" id="f-linha-nova" maxlength="40" autocomplete="off" aria-label="Nome da nova linha" placeholder="Nome da nova linha (ex.: Umeboshi)">
+              <input class="entrada" id="f-linha-descricao" maxlength="40" autocomplete="off" aria-label="Descrição da nova linha (opcional)" placeholder="Descrição, opcional (ex.: Oriental Blend)">
+            </div>
             <span class="dica">Família do produto (ex.: Umeboshi). Na venda, os produtos da mesma linha ficam lado a lado.</span>
           </div>
 
@@ -132,7 +151,7 @@ export async function render(el, { id, consulta }) {
 
           <label class="interruptor">
             <span><strong>Disponível para venda</strong><br><span class="dica" style="font-size:.8125rem;color:var(--texto-2)">Desligado, o produto some da tela de venda mas continua cadastrado.</span></span>
-            <input type="checkbox" id="f-ativo" ${!produto || produto.ativo ? 'checked' : ''}>
+            <input type="checkbox" id="f-ativo" ${!modelo || modelo.ativo ? 'checked' : ''}>
           </label>
         </div>
       </section>
@@ -157,7 +176,7 @@ export async function render(el, { id, consulta }) {
         <div id="area-variacoes" style="margin-top:16px" ${comVariacoes ? '' : 'hidden'}>
           <div class="campo" style="max-width:360px;margin-bottom:16px">
             <label for="f-atributo">Tipo de variação</label>
-            <input class="entrada" id="f-atributo" list="lista-atributos" maxlength="30" autocomplete="off" placeholder="Ex.: Fragrância, Cor" value="${esc(produto ? produto.atributo || '' : '')}">
+            <input class="entrada" id="f-atributo" list="lista-atributos" maxlength="30" autocomplete="off" placeholder="Ex.: Fragrância, Cor" value="${esc(modelo ? modelo.atributo || '' : '')}">
             <datalist id="lista-atributos"><option value="Fragrância"><option value="Cor"><option value="Tamanho"><option value="Sabor"><option value="Modelo"></datalist>
           </div>
           <div class="cab-variacoes" aria-hidden="true"><span id="titulo-valor">Variação</span><span>Código de barras</span><span>Preço próprio</span><span class="so-dono">Custo próprio</span><span></span></div>
@@ -168,6 +187,7 @@ export async function render(el, { id, consulta }) {
 
       <div class="rodape-form">
         ${editando ? '<button type="button" class="btn texto perigo btn-excluir" id="excluir">Excluir</button>' : ''}
+        ${editando ? `<button type="button" class="btn" id="duplicar">Duplicar</button>` : ''}
         <a class="btn" href="#/produtos">Cancelar</a>
         ${editando ? '' : '<button type="submit" class="btn" data-depois="novo">Salvar e cadastrar outro</button>'}
         <button type="submit" class="btn primario" data-depois="lista">Salvar produto</button>
@@ -181,7 +201,7 @@ export async function render(el, { id, consulta }) {
   // ---------- Preço ----------
   campoDinheiro($('#f-preco'));
   campoDinheiro($('#f-custo'));
-  if (produto) { escreverCentavos($('#f-preco'), produto.preco); escreverCentavos($('#f-custo'), produto.custo ?? null); }
+  if (modelo) { escreverCentavos($('#f-preco'), modelo.preco); escreverCentavos($('#f-custo'), modelo.custo ?? null); }
 
   // Mostra o lucro por unidade enquanto preço e custo são digitados
   const textoMargemPadrao = $('#margem').textContent;
@@ -261,7 +281,7 @@ export async function render(el, { id, consulta }) {
   for (const campo of ['categoria', 'tipo', 'linha']) {
     form.querySelectorAll(`input[name="${campo}"]`).forEach((r) => r.addEventListener('change', () => {
       const nova = form[campo].value === '__nova';
-      $(`#f-${campo}-nova`).hidden = !nova;
+      $(campo === 'linha' ? '#f-linha-nova-campos' : `#f-${campo}-nova`).hidden = !nova;
       if (nova) $(`#f-${campo}-nova`).focus();
       sugerirNome();
     }));
@@ -380,12 +400,12 @@ export async function render(el, { id, consulta }) {
     linhas.append(div);
     return div;
   }
-  if (comVariacoes) variacoesSalvas.forEach(adicionarLinha);
+  if (comVariacoes) (editando ? variacoesSalvas : variacoesOrigem).forEach(adicionarLinha);
   else adicionarLinha();
 
   $('#adicionar-linha').addEventListener('click', () => adicionarLinha().querySelector('.v-nome').focus());
   $('#f-atributo').addEventListener('input', (e) => { $('#titulo-valor').textContent = e.target.value.trim() || 'Variação'; });
-  $('#titulo-valor').textContent = (produto && produto.atributo) || 'Variação';
+  $('#titulo-valor').textContent = (modelo && modelo.atributo) || 'Variação';
 
   // Troca entre "Sem variações" e "Com variações", levando o código junto
   form.querySelectorAll('input[name="modo"]').forEach((r) => r.addEventListener('change', () => {
@@ -535,16 +555,17 @@ export async function render(el, { id, consulta }) {
         if (!existente) await db.categorias.add({ id: categoriaId, nome: nomeCategoria.charAt(0).toUpperCase() + nomeCategoria.slice(1), ordem: categorias.length });
       }
       // Tipo e linha: mesma regra (usa o existente com o mesmo nome, ou cria)
-      const escolherOuCriar = async (escolha, nomeNovo, lista, tabela) => {
+      const escolherOuCriar = async (escolha, nomeNovo, lista, tabela, extra = {}) => {
         if (escolha !== '__nova') return escolha || null;
         const existente = lista.find((x) => x.nome.toLowerCase() === nomeNovo.toLowerCase());
         if (existente) return existente.id;
-        const novo = { id: novoId(), nome: nomeNovo.charAt(0).toUpperCase() + nomeNovo.slice(1), ordem: lista.length };
+        const novo = { id: novoId(), nome: nomeNovo.charAt(0).toUpperCase() + nomeNovo.slice(1), ordem: lista.length, ...extra };
         await db[tabela].add(novo);
         return novo.id;
       };
       const tipoId = await escolherOuCriar(escolhaTipo, nomeTipo, tipos, 'tipos');
-      const linhaId = await escolherOuCriar(escolhaLinha, nomeLinha, linhasProduto, 'linhas');
+      const descricaoLinha = $('#f-linha-descricao').value.trim();
+      const linhaId = await escolherOuCriar(escolhaLinha, nomeLinha, linhasProduto, 'linhas', descricaoLinha ? { descricao: descricaoLinha } : {});
 
       const agora = new Date().toISOString();
       const registro = {
@@ -595,6 +616,22 @@ export async function render(el, { id, consulta }) {
       salvando = false;
     }
   });
+
+  // ---------- Duplicar ----------
+  // Copia o produto como está salvo. Se houver mudanças na tela, pergunta antes.
+  let mexeu = false;
+  form.addEventListener('input', () => { mexeu = true; });
+  form.addEventListener('change', () => { mexeu = true; });
+  if (editando) {
+    $('#duplicar').addEventListener('click', async () => {
+      if (mexeu && !(await confirmar({
+        titulo: 'Duplicar sem salvar?',
+        texto: 'A cópia usa o produto como está salvo. As mudanças feitas nesta tela ficam de fora. Para levar as mudanças, toque em Salvar produto e depois duplique.',
+        botao: 'Duplicar assim mesmo'
+      }))) return;
+      location.hash = '#/produtos/novo?copiar=' + encodeURIComponent(id);
+    });
+  }
 
   // ---------- Excluir ----------
   if (editando) {

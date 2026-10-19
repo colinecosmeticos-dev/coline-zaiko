@@ -90,6 +90,8 @@ export async function render(el) {
       const doEvento = precosEvento[v.id];
       return doEvento != null && doEvento !== normal ? { ...v, preco: doEvento, precoBase: normal } : v;
     }) }));
+  // Descrição da linha (ex.: Mochigome → "Hidratação"): a busca também encontra por ela
+  const descricaoLinha = new Map(linhas.map((l) => [l.id, l.descricao || '']));
   const urls = [];
   const urlFoto = (blob) => { const u = URL.createObjectURL(blob); urls.push(u); return u; };
   const fotoProduto = new Map(produtos.filter((p) => p.foto).map((p) => [p.id, urlFoto(p.foto)]));
@@ -168,7 +170,9 @@ export async function render(el) {
   const encher = '<span class="vaga-venda invisivel" aria-hidden="true"></span>';
 
   function desenharGrupo(g, porFileira) {
-    const colunas = Math.min(g.colunas || porFileira, porFileira);
+    // A grade tem sempre o mesmo número de colunas da tela (4, ou 2 no celular),
+    // para o botão ter o mesmo tamanho em todos os grupos, mesmo num grupo com 1 item.
+    const colunas = porFileira;
     let celulas = [];
     if (g.fileiras) {
       // Linha: cada fileira tem um lugar fixo por tipo; lugar sem produto fica vazio.
@@ -184,7 +188,7 @@ export async function render(el) {
     }
     return `
       <section class="grupo-venda">
-        <h3 class="grupo-titulo">${esc(g.titulo)}</h3>
+        <h3 class="grupo-titulo">${esc(g.titulo)}${g.descricao ? ` <span class="grupo-descricao">· ${esc(g.descricao)}</span>` : ''}</h3>
         <div class="grupo-itens" style="grid-template-columns:repeat(${colunas}, minmax(0, 1fr))">${celulas.join('')}</div>
       </section>`;
   }
@@ -197,7 +201,7 @@ export async function render(el) {
       nav.innerHTML = `<span class="sub">Resultado da busca</span>`;
       const achados = [];
       for (const p of produtos) for (const v of p.variacoes) {
-        if (p.nome.toLowerCase().includes(t) || (v.nome || '').toLowerCase().includes(t) || v.codigo.includes(t)) achados.push({ p, v, nome: p.nome, sub: v.nome || '' });
+        if (p.nome.toLowerCase().includes(t) || (v.nome || '').toLowerCase().includes(t) || v.codigo.includes(t) || (descricaoLinha.get(p.linhaId) || '').toLowerCase().includes(t)) achados.push({ p, v, nome: p.nome, sub: v.nome || '' });
       }
       grade.innerHTML = achados.length ? desenharGrupo({ titulo: `${achados.length} ${achados.length === 1 ? 'item' : 'itens'}`, itens: achados }, porFileira)
         : '<p class="sub vazio-grade">Nenhum produto encontrado.</p>';

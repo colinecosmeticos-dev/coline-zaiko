@@ -328,6 +328,10 @@ img { display: block; max-width: 100%; }
   margin-top: 8px; padding: 12px 0;
 }
 .rodape-form .btn-excluir { margin-right: auto; }
+.aviso-copia { margin-bottom: 16px; border-left: 4px solid var(--marca); }
+.aviso-copia p { margin-top: 4px; }
+.linha-nova { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 599px) { .linha-nova { grid-template-columns: 1fr; } }
 /* Celular: botões dividem a linha e "Salvar produto" ocupa a largura toda, embaixo */
 @media (max-width: 639px) {
   .rodape-form .btn { flex: 1 1 auto; }
@@ -996,6 +1000,7 @@ dialog.janela-cor .acoes { align-items: center; flex-wrap: wrap; }
 .grupo-venda + .grupo-venda { margin-top: 14px; }
 .grupo-titulo { font-size: .875rem; font-weight: 700; color: var(--texto-2); margin: 0 0 6px 2px; text-transform: none; letter-spacing: .01em; }
 .grupo-itens { display: grid; gap: 8px; }
+.grupo-descricao { font-weight: 500; }
 .item-venda {
   display: flex; flex-direction: column; gap: 4px; padding: 6px; min-width: 0; text-align: left;
   background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio);

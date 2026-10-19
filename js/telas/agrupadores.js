@@ -2,6 +2,8 @@
 // Telas Tipos e Linhas (Produtos → Organizar → Tipos / Linhas).
 // As duas funcionam igual: lista com nome, quantos produtos usam
 // e setas para mudar a ordem; tocar no nome renomeia ou exclui.
+// A linha tem também uma descrição opcional (ex.: Umeboshi → "Oriental Blend"),
+// que aparece no título do grupo na venda e entra na busca.
 //   Tipo  (Shampoo, Higienizador...): a ordem é a ordem das colunas na venda.
 //   Linha (Umeboshi, Ice Melon...): a ordem é a ordem dos grupos na venda.
 // =========================================================
@@ -17,8 +19,8 @@ const CONFIG = {
   },
   linha: {
     tabela: 'linhas', campo: 'linhaId', listar: listarLinhas,
-    titulo: 'Linhas', um: 'linha', novo: 'Nova linha', exemplo: 'Ex.: Umeboshi',
-    explica: 'A linha junta produtos da mesma família (Umeboshi, Ice Melon...). Na venda, cada linha vira um grupo, nesta ordem. Produto sem linha fica agrupado pelo tipo.',
+    titulo: 'Linhas', um: 'linha', novo: 'Nova linha', exemplo: 'Ex.: Umeboshi', descricao: true,
+    explica: 'A linha junta produtos da mesma família (Umeboshi, Ice Melon...). Na venda, cada linha vira um grupo, nesta ordem, com a descrição ao lado do nome. Produto sem linha fica agrupado pelo tipo.',
     vazio: 'Crie aqui ou direto no cadastro do produto. Linha é opcional.'
   }
 };
@@ -43,7 +45,7 @@ async function desenhar(el, qual) {
       ${itens.map((t, i) => `
         <li class="linha-forma">
           <button type="button" class="info" data-editar="${esc(t.id)}" style="text-align:left">
-            <span><strong>${esc(t.nome)}</strong><br><span class="sub">${qtd(t.id)} ${qtd(t.id) === 1 ? 'produto' : 'produtos'}</span></span>
+            <span><strong>${esc(t.nome)}</strong>${t.descricao ? ` <span class="sub">· ${esc(t.descricao)}</span>` : ''}<br><span class="sub">${qtd(t.id)} ${qtd(t.id) === 1 ? 'produto' : 'produtos'}</span></span>
           </button>
           <div class="setas">
             <button type="button" class="btn-icone" data-mover="-1" data-i="${i}" aria-label="Subir ${esc(t.nome)}" ${i === 0 ? 'disabled' : ''}>${icones.cima}</button>
@@ -64,31 +66,32 @@ async function desenhar(el, qual) {
     await desenhar(el, qual);
   }));
   el.querySelector('#novo').addEventListener('click', async () => {
-    const nome = await pedirNome({ titulo: c.novo, exemplo: c.exemplo, itens });
-    if (!nome) return;
-    await db[c.tabela].add({ id: novoId(), nome, ordem: itens.length });
+    const r = await pedirNome({ titulo: c.novo, exemplo: c.exemplo, itens, comDescricao: c.descricao });
+    if (!r) return;
+    await db[c.tabela].add({ id: novoId(), ...r, ordem: itens.length });
     aviso(`${c.um === 'tipo' ? 'Tipo criado' : 'Linha criada'}.`);
     await desenhar(el, qual);
   });
   el.querySelectorAll('[data-editar]').forEach((b) => b.addEventListener('click', async () => {
     const item = itens.find((t) => t.id === b.dataset.editar);
     const n = qtd(item.id);
-    const r = await pedirNome({ titulo: `Renomear ${c.um}`, exemplo: c.exemplo, itens, atual: item, podeExcluir: true });
+    const r = await pedirNome({ titulo: c.descricao ? `Editar ${c.um}` : `Renomear ${c.um}`, exemplo: c.exemplo, itens, atual: item, podeExcluir: true, comDescricao: c.descricao });
     if (r === 'excluir') {
       if (n) { aviso(`${n} ${n === 1 ? 'produto usa' : 'produtos usam'} ${qual === 'tipo' ? 'este tipo' : 'esta linha'}. Troque nos produtos antes de excluir.`, { tipo: 'erro' }); return; }
       if (!(await confirmar({ titulo: `Excluir ${item.nome}?`, botao: 'Excluir', perigo: true }))) return;
       await db[c.tabela].delete(item.id);
       aviso('Excluído.');
     } else if (r) {
-      await db[c.tabela].update(item.id, { nome: r });
-      aviso('Nome alterado.');
+      await db[c.tabela].update(item.id, r);
+      aviso(c.descricao ? 'Linha alterada.' : 'Nome alterado.');
     } else return;
     await desenhar(el, qual);
   }));
 }
 
-// Janela com um campo de nome. Devolve o nome, 'excluir', ou null (cancelou).
-export function pedirNome({ titulo, exemplo, itens, atual = null, podeExcluir = false }) {
+// Janela com o nome (e, nas linhas, a descrição).
+// Devolve { nome } ou { nome, descricao }, 'excluir', ou null (cancelou).
+export function pedirNome({ titulo, exemplo, itens, atual = null, podeExcluir = false, comDescricao = false }) {
   return new Promise((resolver) => {
     let resultado = null;
     const d = abrirJanela(`
@@ -98,6 +101,12 @@ export function pedirNome({ titulo, exemplo, itens, atual = null, podeExcluir = 
           <label for="nome-agrupador">Nome</label>
           <input class="entrada" id="nome-agrupador" maxlength="40" autocomplete="off" placeholder="${esc(exemplo)}" value="${esc(atual ? atual.nome : '')}">
         </div>
+        ${comDescricao ? `
+        <div class="campo" style="margin-top:12px">
+          <label for="descricao-agrupador">Descrição <span class="sub" style="font-weight:400">(opcional)</span></label>
+          <input class="entrada" id="descricao-agrupador" maxlength="40" autocomplete="off" placeholder="Ex.: Oriental Blend, Hidratação" value="${esc(atual ? atual.descricao || '' : '')}">
+          <span class="dica">Aparece ao lado do nome na tela de venda, e a busca encontra por ela.</span>
+        </div>` : ''}
         <div class="acoes">
           ${podeExcluir ? '<button type="button" class="btn texto perigo" id="excluir" style="margin-right:auto">Excluir</button>' : ''}
           <button type="button" class="btn" id="cancelar">Cancelar</button>
@@ -115,7 +124,8 @@ export function pedirNome({ titulo, exemplo, itens, atual = null, podeExcluir = 
       if (itens.some((t) => t.id !== (atual && atual.id) && t.nome.toLowerCase() === nome.toLowerCase())) {
         aviso('Já existe um com esse nome.', { tipo: 'erro' }); campo.focus(); return;
       }
-      resultado = nome.charAt(0).toUpperCase() + nome.slice(1);
+      resultado = { nome: nome.charAt(0).toUpperCase() + nome.slice(1) };
+      if (comDescricao) resultado.descricao = d.querySelector('#descricao-agrupador').value.trim();
       d.close();
     });
   });
