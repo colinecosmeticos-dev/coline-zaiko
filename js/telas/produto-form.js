@@ -516,6 +516,14 @@ export async function render(el, { id, consulta }) {
     const codigoAntes = modoAnterior === 'unica' ? $('#f-codigo').value : (listaDoModo(modoAnterior).querySelector('.v-codigo') || {}).value;
     const destino = modo === 'unica' ? $('#f-codigo') : listaDoModo(modo).querySelector('.v-codigo');
     if (codigoAntes && destino && !destino.value) destino.value = codigoAntes;
+    // Produto simples que passa a ter variações: a 1ª variação continua sendo o
+    // mesmo item (mesmo id), para vendas, estoque e preços do evento seguirem ligados
+    if (unica && modo !== 'unica') {
+      const lista = listaDoModo(modo);
+      const usado = [...lista.children].some((d) => d.dataset.id === unica.id);
+      const primeira = lista.firstElementChild;
+      if (!usado && primeira && !primeira.dataset.id) primeira.dataset.id = unica.id;
+    }
     modoAnterior = modo;
   }));
 

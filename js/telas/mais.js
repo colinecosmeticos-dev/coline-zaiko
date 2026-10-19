@@ -5,6 +5,8 @@ import { esc, aviso, confirmar } from '../ui.js';
 import { ehCaixa, definirModo } from '../modo.js';
 import { temPin, pedirPin } from '../pin.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
+import { procurar } from '../atualizacao.js';
+import { VERSAO } from '../versao.js';
 
 const itensGestao = [
   ['#/sincronizar', 'Sincronizar com os caixas', 'Publicar a base e buscar as vendas dos caixas pelo Drive'],
@@ -58,7 +60,26 @@ export async function render(el) {
       <h2>Modo Gestão</h2>
       <p class="sub">Cadastros, estoque, fechamento e relatórios. ${comPin ? 'Pede o PIN.' : 'Defina um PIN na Gestão para proteger esta passagem.'}</p>
       <div class="acoes" style="justify-content:flex-start"><button type="button" class="btn" id="gestao">Entrar no modo Gestão</button></div>
+    </section>
+    <section class="cartao" style="margin-top:16px">
+      <h2>Versão do app</h2>
+      <p class="sub">Este aparelho está na versão <strong class="num">${VERSAO}</strong>.</p>
+      <div class="acoes" style="justify-content:flex-start"><button type="button" class="btn" id="procurar-atualizacao">Procurar atualização</button></div>
+      <p class="sub" id="status-atualizacao" style="margin-top:8px" hidden></p>
     </section>`;
+  // Procurar atualização também no modo Caixa (antes só nas Configurações da Gestão)
+  el.querySelector('#procurar-atualizacao').addEventListener('click', async (e) => {
+    const botao = e.currentTarget, status = el.querySelector('#status-atualizacao');
+    botao.disabled = true; status.hidden = false; status.textContent = 'Procurando...';
+    try {
+      const r = await procurar();
+      status.textContent = r === 'nova' ? 'Versão nova encontrada. Em instantes aparece no topo o botão Atualizar agora.'
+        : r === 'sem-internet' ? 'Sem internet. Conecte e tente de novo.'
+        : 'O app já está na versão mais recente publicada.';
+    } catch (erro) {
+      status.textContent = 'Não foi possível procurar agora. Tente de novo em instantes.';
+    } finally { botao.disabled = false; }
+  });
   el.querySelector('#evento').addEventListener('click', async () => {
     const e = await escolherEvento();
     if (e) { aviso(`Evento em uso: ${e.nome}.`); render(el); }
