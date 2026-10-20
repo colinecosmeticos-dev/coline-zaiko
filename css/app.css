@@ -1203,7 +1203,6 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .grade-levado { margin-top: 12px; }
 .grade-levado .grupo-venda + .grupo-venda { margin-top: 14px; }
 .item-estoque .iv-foto { position: relative; }
-.item-estoque.zerado .iv-foto { opacity: .55; }
 .selo-qtd {
   position: absolute; top: 6px; right: 6px; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 17px;
   display: grid; place-items: center; background: var(--marca); color: #fff; font-size: 1rem; font-weight: 700;
@@ -1240,3 +1239,6 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .iv-levado .sobra { color: var(--marca-texto); font-weight: 600; }
 .item-estoque.contado-ok .selo-qtd { background: var(--ok); }
 .item-estoque.contado-falta .selo-qtd { background: var(--erro); }
+.iv-levado .antes { color: #9a6a00; font-weight: 600; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .iv-levado .antes { color: #F2B630; } }
+:root[data-tema="escuro"] .iv-levado .antes { color: #F2B630; }

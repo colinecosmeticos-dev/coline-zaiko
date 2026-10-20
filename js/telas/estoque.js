@@ -178,13 +178,19 @@ async function abaGrade(el, evento, todos, modo) {
     const n = valorDe(v.id), antes = salvoDe(v.id);
     const alterado = rascunho.has(v.id) && n !== antes;
     const d = contagem ? difDe(v.id) : null;
+    // (v0.29.1) A quantidade aparece só no selo. A linha de baixo nunca repete o número:
+    //   Levado:   mudou → "antes: 10"; senão, em caixas ("2 cx + 3") ou "não levado".
+    //   Contagem: a diferença (Confere / Falta 2 / Sobra 1) ou "não contado · calc. 49".
+    const cx = caixaDe(v.id);
     let info;
-    if (alterado) info = `<s>${mostra(antes)}</s> → <strong>${mostra(n)}</strong>`;
-    else if (contagem) info = n == null ? `calc. ${sobraDe(v.id)} · não contado` : `<span class="${difClasse(d)}">${difTexto(d)}</span>`;
-    else info = n ? `<strong>${n}</strong> ${n === 1 ? 'peça' : 'peças'}` : 'nenhuma';
+    if (contagem) info = n == null ? `não contado · calc. ${sobraDe(v.id)}` : `<span class="${difClasse(d)}">${difTexto(d)}</span>`;
+    else if (alterado) info = `<span class="antes">antes: ${mostra(antes)}</span>`;
+    else if (!n) info = 'não levado';
+    else if (n >= cx) info = `${Math.floor(n / cx)} cx${n % cx ? ` + ${n % cx}` : ''}`;
+    else info = '';
     const classe = contagem && n != null ? (d < 0 ? ' contado-falta' : d === 0 ? ' contado-ok' : '') : '';
     return `
-      <button type="button" class="item-venda item-estoque${alterado ? ' alterado' : ''}${n ? '' : ' zerado'}${classe}" data-v="${esc(v.id)}">
+      <button type="button" class="item-venda item-estoque${alterado ? ' alterado' : ''}${classe}" data-v="${esc(v.id)}">
         <span class="iv-foto ${f ? 'tem-foto' : ''}" ${!f && cor ? `style="background:${cor}"` : ''}>${f ? `<img src="${f}" alt="">` : cor ? '' : `<span>${iniciais(it.nome)}</span>`}
           ${n != null && (n || contagem) ? `<span class="selo-qtd num">${n}</span>` : ''}</span>
         <span class="iv-nome">${esc(it.nome)}</span>
