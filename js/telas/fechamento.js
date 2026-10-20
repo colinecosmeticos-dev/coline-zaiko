@@ -65,8 +65,8 @@ export async function render(el, { mostrar = false } = {}) {
         <li class="${aparelhos.length ? 'ok' : 'atencao'}">${aparelhos.length ? `Vendas de ${aparelhos.map((a) => `<strong>${esc(a.nome)}</strong> (${a.vendas})`).join(', ')}.` : 'Nenhuma venda neste evento.'} Algum outro aparelho vendeu? <a href="#/sincronizar">Buscar vendas dos caixas</a> · <a href="#/juntar">por arquivo</a></li>
         <li class="${f.caixasAbertos.length ? 'atencao' : 'ok'}">${f.caixasAbertos.length ? `${qtd(f.caixasAbertos.length, 'caixa ainda aberto', 'caixas ainda abertos')}: ${f.caixasAbertos.map((c) => `${esc(c.aparelho?.sigla || '')} ${dia(c.data)}`).join(', ')}. Feche no aparelho e junte de novo.` : 'Todos os caixas estão fechados.'}</li>
         ${f.caixasForaDasDatas.length ? `<li class="atencao">${qtd(f.caixasForaDasDatas.length, 'caixa aberto', 'caixas abertos')} fora das datas do evento: ${f.caixasForaDasDatas.map((c) => `${esc(c.aparelho?.sigla || '')} ${dia(c.data)}`).join(', ')}. Confira se essas vendas são mesmo deste evento.</li>` : ''}
-        <li class="${f.estoque.totais.levado ? 'ok' : 'atencao'}">${f.estoque.totais.levado ? `Estoque levado registrado (${qtd(f.estoque.totais.levado, 'peça', 'peças')}).` : 'Estoque levado não registrado: a sobra não pode ser calculada.'} <a href="#/estoque">Estoque</a></li>
-        <li class="${ct.itensContados ? 'ok' : 'atencao'}">${ct.itensContados ? `Contagem final: ${ct.itensContados} de ${ct.itensTotal} itens contados.` : 'Contagem final do estoque não feita.'} <a href="#/estoque">Contar</a></li>
+        <li class="${f.estoque.totais.levado ? 'ok' : 'atencao'}">${f.estoque.totais.levado ? `Estoque levado registrado (${qtd(f.estoque.totais.levado, 'peça', 'peças')}).` : 'Estoque levado não registrado: a sobra não pode ser calculada.'} <a href="#/eventos/${encodeURIComponent(evento.id)}/estoque">Estoque</a></li>
+        <li class="${ct.itensContados ? 'ok' : 'atencao'}">${ct.itensContados ? `Contagem final: ${ct.itensContados} de ${ct.itensTotal} itens contados.` : 'Contagem final do estoque não feita.'} <a href="#/eventos/${encodeURIComponent(evento.id)}/estoque">Contar</a></li>
         ${g.itensSemCusto ? `<li class="atencao">${qtd(g.itensSemCusto, 'item vendido sem custo', 'itens vendidos sem custo')} cadastrado: o lucro aparece maior do que é.</li>` : ''}
         ${g.pagamentosSemTaxa ? `<li class="atencao">${qtd(g.pagamentosSemTaxa, 'pagamento sem', 'pagamentos sem')} taxa informada: as taxas aparecem menores do que são.</li>` : ''}
       </ul>
@@ -161,7 +161,7 @@ export async function render(el, { mostrar = false } = {}) {
           ${ct.pecasSobrando ? `<div><span>Sobrando</span><span class="num">${ct.pecasSobrando}</span></div>` : ''}
         </div>` : ''}
         ${f.estoque.negativas ? `<p class="aviso-inline">${qtd(f.estoque.negativas, 'item com sobra negativa', 'itens com sobra negativa')}.</p>` : ''}
-        <div class="acoes"><a class="btn" href="#/estoque">Ver item por item</a></div>
+        <div class="acoes"><a class="btn" href="#/eventos/${encodeURIComponent(evento.id)}/estoque">Ver item por item</a></div>
       </section>
     </div>
 

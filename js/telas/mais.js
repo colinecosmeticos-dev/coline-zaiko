@@ -11,8 +11,7 @@ import { VERSAO } from '../versao.js';
 // Sincronizar, pacote, vendas por arquivo e instalar em outro aparelho ficam
 // na tela Sincronizar (menu), desde a v0.26.0.
 const itensGestao = [
-  ['#/eventos', 'Eventos', 'Criar eventos, preços do evento e o evento deste aparelho'],
-  ['#/estoque', 'Estoque do evento', 'Quantidades levadas, brindes, avarias e contagem final'],
+  ['#/eventos', 'Eventos', 'Criar eventos; preços e estoque de cada evento; o evento deste aparelho'],
   ['#/fechamento', 'Fechamento do evento', 'Totais, resultado, resumo por dia e planilha'],
   ['#/painel', 'Painel de vendas', 'Vendas do aparelho, protegido por PIN'],
   ['#/backup', 'Backup', 'Cópia completa do aparelho no Drive ou em arquivo, e restauração'],

@@ -4,7 +4,7 @@
 // tiver o evento e abrir o caixa participa. No fechamento, as vendas dos
 // outros aparelhos são importadas e somadas.
 // =========================================================
-import { db, novoId, lerEventoAtivo, definirEventoAtivo, novoCodigoEvento, lerAparelho } from '../db.js';
+import { db, novoId, lerEventoAtivo, definirEventoAtivo, novoCodigoEvento, lerAparelho, lerLevado, lerContado } from '../db.js';
 import { esc, aviso, confirmar, icones, hojeISO, diasEntre } from '../ui.js';
 
 export async function render(el, { id }) {
@@ -16,6 +16,9 @@ export async function render(el, { id }) {
   }
   const ativo = await lerEventoAtivo();
   const emUso = editando && ativo && ativo.id === id;
+  // Estoque deste evento (v0.29.0: o estoque fica junto do evento)
+  const [levado, contado] = editando ? await Promise.all([lerLevado(id), lerContado(id)]) : [new Map(), new Map()];
+  const pecasLevadas = [...levado.values()].reduce((s, n) => s + n, 0);
 
   el.innerHTML = `
     <a class="voltar" href="#/eventos">${icones.voltar} Eventos</a>
@@ -38,6 +41,13 @@ export async function render(el, { id }) {
         <p class="sub">${Object.keys(ev.precos || {}).length ? `${Object.keys(ev.precos).length} ${Object.keys(ev.precos).length === 1 ? 'item com preço especial' : 'itens com preço especial'}.` : 'Todos os itens com o preço normal.'}</p>
       </div>
       <a class="btn" href="#/eventos/${encodeURIComponent(ev.id)}/precos">Preços do evento</a>
+    </section>
+    <section class="cartao faixa-uso">
+      <div>
+        <h2>Estoque deste evento</h2>
+        <p class="sub">${pecasLevadas ? `Levado: ${pecasLevadas.toLocaleString('pt-BR')} ${pecasLevadas === 1 ? 'peça' : 'peças'} em ${levado.size} ${levado.size === 1 ? 'item' : 'itens'}` : 'Estoque levado ainda não registrado'}${contado.size ? ` · contagem final: ${contado.size} ${contado.size === 1 ? 'item contado' : 'itens contados'}` : ''}.</p>
+      </div>
+      <a class="btn ${pecasLevadas ? '' : 'primario'}" href="#/eventos/${encodeURIComponent(ev.id)}/estoque">Estoque do evento</a>
     </section>` : ''}
 
     <form class="form-produto" novalidate>

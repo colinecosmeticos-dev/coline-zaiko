@@ -77,6 +77,7 @@ const rotas = [
   ['eventos/novo', eventoForm.render],
   ['eventos/:id', eventoForm.render],
   ['eventos/:id/precos', precosEvento.render],
+  ['eventos/:id/estoque', estoque.render],
   ['estoque', estoque.render],
   ['fechamento', fechamento.render],
   ['painel', painel.render],

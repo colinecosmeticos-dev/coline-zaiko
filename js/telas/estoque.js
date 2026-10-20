@@ -1,13 +1,14 @@
 // =========================================================
-// Tela Estoque do evento (Mais → Estoque do evento). Três abas:
-//   Levado  — quanto de cada item vai para o evento (no aparelho principal).
-//             Botões com foto (como na venda); tocar define a quantidade, o
-//             leitor soma 1. Fica em rascunho até Revisar e salvar (v0.28.0).
+// Tela Estoque do evento (v0.29.0: dentro do evento → #/eventos/<id>/estoque;
+// o antigo #/estoque leva ao estoque do evento em uso). Quatro abas:
+//   Levado  — quanto de cada item vai para o evento.
 //   Brindes e avarias — saídas sem venda (brinde/doação e produto com defeito),
-//             em qualquer aparelho; vão para o principal ao juntar as vendas.
+//             em qualquer aparelho; vão para a Gestão junto com as vendas.
 //   Sobra   — levado − vendido − brindes − avarias + itens que voltaram.
 //   Contagem final — o que sobrou de verdade, contado no fim; mostra a
 //             diferença em relação à sobra calculada.
+// Levado e Contagem: botões com foto (como na venda), ±1 caixa fechada e
+// rascunho até Revisar e salvar (abaGrade, mais abaixo).
 // =========================================================
 import { db, lerEventoAtivo, lerAparelho, listarProdutosCompletos, listarCategorias, listarTipos, listarLinhas, buscarPorCodigo, lerLevado, gravarLevado, adicionarSaida, cancelarSaida, lerContado, gravarContado } from '../db.js';
 import { esc, icones, aviso, abrirJanela, confirmar, dinheiro, iniciais, saida } from '../ui.js';
@@ -21,18 +22,23 @@ let aba = 'levado';   // lembrada enquanto o app está aberto
 const hora = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const pecas = (n) => `${n.toLocaleString('pt-BR')} ${n === 1 ? 'peça' : 'peças'}`;
 
-export async function render(el) {
-  const evento = await lerEventoAtivo();
-  const voltar = `<a class="voltar" href="#/mais">${icones.voltar} Mais</a>`;
-  if (!evento) {
-    el.innerHTML = `${voltar}<header class="cab"><h1>Estoque do evento</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Escolha o evento</h2><p>O estoque é registrado por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
+export async function render(el, params = {}) {
+  // Sem id (#/estoque, links antigos): vai para o estoque do evento em uso
+  if (!params.id) {
+    const ativo = await lerEventoAtivo();
+    location.replace(ativo ? `#/eventos/${encodeURIComponent(ativo.id)}/estoque` : '#/eventos');
     return;
   }
+  const evento = await db.eventos.get(params.id);
+  if (!evento) {
+    el.innerHTML = `<a class="voltar" href="#/eventos">${icones.voltar} Eventos</a><div class="cartao vazio"><h2>Evento não encontrado</h2><a class="btn" href="#/eventos">Voltar para Eventos</a></div>`;
+    return;
+  }
+  const ativo = await lerEventoAtivo();
   const produtos = await listarProdutosCompletos();
   el.innerHTML = `
-    ${voltar}
-    <header class="cab"><div><h1>Estoque do evento</h1><p class="sub">${esc(evento.nome)}</p></div></header>
+    <a class="voltar" href="#/eventos/${encodeURIComponent(evento.id)}">${icones.voltar} ${esc(evento.nome)}</a>
+    <header class="cab"><div><h1>Estoque do evento</h1><p class="sub"><strong>${esc(evento.nome)}</strong>${ativo && ativo.id === evento.id ? ' · em uso neste aparelho' : ''}</p></div></header>
     <div class="segmentos abas-estoque" role="tablist" aria-label="Estoque">
       <label><input type="radio" name="aba" value="levado" ${aba === 'levado' ? 'checked' : ''}><span>Levado</span></label>
       <label><input type="radio" name="aba" value="saidas" ${aba === 'saidas' ? 'checked' : ''}><span>Brindes e avarias</span></label>
@@ -44,41 +50,59 @@ export async function render(el) {
   const conteudo = el.querySelector('#conteudo');
   const desenhar = async () => {
     if (pararLeitor) { pararLeitor(); pararLeitor = null; }
-    if (aba === 'levado') pararLeitor = await abaLevado(conteudo, evento, produtos);
+    if (aba === 'levado' || aba === 'contagem') pararLeitor = await abaGrade(conteudo, evento, produtos, aba);
     else if (aba === 'saidas') await abaSaidas(conteudo, evento, produtos);
-    else if (aba === 'contagem') pararLeitor = await abaContagem(conteudo, evento, produtos);
     else await abaSobra(conteudo, evento, produtos);
   };
   el.querySelectorAll('input[name="aba"]').forEach((r) => r.addEventListener('change', () => { aba = r.value; desenhar(); }));
-  // Estoque levado com mudanças ainda não salvas: confirma antes de sair da tela
-  saida.pendente = () => {
-    const r = rascunhos.get(evento.id);
-    return !!r && r.size > 0;
-  };
+  // Levado ou contagem com mudanças ainda não salvas: confirma antes de sair da tela
+  saida.pendente = () => temRascunho(evento.id);
   await desenhar();
-  // Saiu da tela (salvou ou confirmou "Sair sem salvar"): o rascunho é descartado
-  return () => { if (pararLeitor) pararLeitor(); rascunhos.delete(evento.id); };
+  // Saiu da tela (salvou ou confirmou "Sair sem salvar"): os rascunhos são descartados
+  return () => { if (pararLeitor) pararLeitor(); rascunhos.delete(`levado:${evento.id}`); rascunhos.delete(`contagem:${evento.id}`); };
 }
 
-// ---------- Levado ----------
-// (v0.28.0) Mesma cara da tela de venda: um botão com foto por item, com a
-// quantidade num selo. Tocar abre uma janela para definir a quantidade; o leitor
-// soma 1. Nada é gravado direto: as mudanças ficam num rascunho, com uma barra
-// "N itens alterados" → Revisar e salvar (antes → depois) → Salvar.
-const rascunhos = new Map();   // eventoId → Map(variacaoId → quantidade nova); sobrevive à troca de aba
-const CHAVE_CAT_LEVADO = 'zaiko-categoria-levado';
+// ---------- Levado e Contagem final: grade de botões com rascunho ----------
+// (v0.28.0 Levado; v0.29.0 Contagem final e caixa fechada) Mesma cara da tela de
+// venda: um botão com foto por item, com a quantidade num selo. Tocar abre uma
+// janela (− / número / +, e ±1 caixa fechada); o leitor soma 1. Nada é gravado
+// direto: as mudanças ficam num rascunho, com a barra "N itens alterados" →
+// Revisar e salvar (antes → depois) → Salvar.
+//   Levado:   quantidade levada (0 = nada).
+//   Contagem: quantidade contada no fim; sem número = ainda não contado. Mostra a
+//             diferença para a sobra calculada (Confere / Falta / Sobra).
+const rascunhos = new Map();   // `${modo}:${eventoId}` → Map(variacaoId → valor novo); sobrevive à troca de aba
+const CHAVE_CAT_ESTOQUE = 'zaiko-categoria-estoque';
 const TODAS = '__todas';
+const CAIXA_PADRAO = 12;
+const temRascunho = (eventoId) => [...rascunhos.entries()].some(([k, r]) => k.endsWith(`:${eventoId}`) && r.size > 0);
 
-async function abaLevado(el, evento, todos) {
-  const [levado, categorias, tipos, linhas] = await Promise.all([lerLevado(evento.id), listarCategorias(), listarTipos(), listarLinhas()]);
-  if (!rascunhos.has(evento.id)) rascunhos.set(evento.id, new Map());
-  const rascunho = rascunhos.get(evento.id);
-  // Itens à venda + os fora da venda que já têm quantidade levada
-  const produtos = todos.filter((p) => p.variacoes.length && (p.ativo || p.variacoes.some((v) => levado.has(v.id) || rascunho.has(v.id))));
+async function abaGrade(el, evento, todos, modo) {
+  const contagem = modo === 'contagem';
+  const [salvo, categorias, tipos, linhas] = await Promise.all([contagem ? lerContado(evento.id) : lerLevado(evento.id), listarCategorias(), listarTipos(), listarLinhas()]);
+  // Contagem: sobra calculada (levado − vendido − brindes − avarias + voltaram)
+  let calc = new Map();
+  if (contagem) {
+    const [levado, registros, saidas] = await Promise.all([lerLevado(evento.id), db.vendas.where('eventoId').equals(evento.id).toArray(), db.saidas.where('eventoId').equals(evento.id).toArray()]);
+    calc = new Map(calcularEstoque({ produtos: todos, levado, registros, saidas }).linhas.map((l) => [l.variacaoId, l]));
+  }
+  const chaveR = `${modo}:${evento.id}`;
+  if (!rascunhos.has(chaveR)) rascunhos.set(chaveR, new Map());
+  const rascunho = rascunhos.get(chaveR);
+  const doEvento = (id) => salvo.has(id) || rascunho.has(id) || (calc.get(id)?.levado || 0) || (calc.get(id)?.sobra || 0);
+  // Itens à venda + os fora da venda que têm algo neste evento
+  const produtos = todos.filter((p) => p.variacoes.length && (p.ativo || p.variacoes.some((v) => doEvento(v.id))));
   const daVariacao = new Map();
   for (const p of produtos) for (const v of p.variacoes) daVariacao.set(v.id, { p, v });
-  const qtdDe = (id) => (rascunho.has(id) ? rascunho.get(id) : levado.get(id) || 0);
+  const salvoDe = (id) => (salvo.has(id) ? salvo.get(id) : contagem ? null : 0);
+  const valorDe = (id) => (rascunho.has(id) ? rascunho.get(id) : salvoDe(id));
+  const sobraDe = (id) => calc.get(id)?.sobra || 0;
+  const caixaDe = (id) => daVariacao.get(id)?.p.unidadesCaixa || CAIXA_PADRAO;
   const nomeItem = (id) => { const x = daVariacao.get(id); return x ? `${x.p.nome}${x.v.nome ? ` · ${x.v.nome}` : ''}` : 'Item removido'; };
+  const mostra = (n) => (n == null ? '–' : String(n));
+  const difDe = (id) => { const n = valorDe(id); return n == null ? null : n - sobraDe(id); };
+  const difTexto = (d) => (d == null ? '' : d === 0 ? 'Confere' : d < 0 ? `Falta ${-d}` : `Sobra ${d}`);
+  const difClasse = (d) => (d == null ? '' : d === 0 ? 'confere' : d < 0 ? 'falta' : 'sobra');
 
   const urls = [];
   const urlFoto = (blob) => { const u = URL.createObjectURL(blob); urls.push(u); return u; };
@@ -90,39 +114,60 @@ async function abaLevado(el, evento, todos) {
   const chips = categorias.filter((c) => produtos.some((p) => p.categoriaId === c.id)).map((c) => ({ id: c.id, nome: c.nome }));
   if (produtos.some((p) => catDe(p) === SEM_CATEGORIA)) chips.push({ id: SEM_CATEGORIA, nome: chips.length ? 'Outros' : 'Todos os produtos' });
   if (chips.length > 1) chips.unshift({ id: TODAS, nome: 'Todos' });
-  let categoria = (() => { try { return localStorage.getItem(CHAVE_CAT_LEVADO); } catch (e) { return null; } })();
+  let categoria = (() => { try { return localStorage.getItem(CHAVE_CAT_ESTOQUE); } catch (e) { return null; } })();
   if (!chips.some((c) => c.id === categoria)) categoria = chips[0]?.id || SEM_CATEGORIA;
   let busca = '';
 
   el.innerHTML = `
     <section class="cartao">
-      <div class="cab-cartao"><h2>Quanto vai para o evento</h2><strong class="num" id="total-levado"></strong></div>
-      <p class="sub">Toque num produto para informar a quantidade, ou leia o código de cada peça (cada leitura soma 1). As mudanças só valem depois de <strong>Revisar e salvar</strong>.</p>
-      <label class="busca" style="margin-top:12px"><span class="oculto">Buscar produto</span>${icones.busca}
-        <input class="entrada" id="busca-levado" type="search" placeholder="Buscar produto" autocomplete="off"></label>
-      <div class="chips chips-venda" id="chips-levado" role="group" aria-label="Categorias" style="margin-top:10px"></div>
+      <div class="cab-cartao"><h2>${contagem ? 'Contagem final' : 'Quanto vai para o evento'}</h2><strong class="num" id="total-grade"></strong></div>
+      <p class="sub">${contagem
+        ? 'No fim do evento, conte o que sobrou: toque num produto e informe a quantidade (use ±1 caixa para caixas fechadas), ou leia o código de cada peça (cada leitura soma 1). Sem número = ainda não contado.'
+        : 'Toque num produto para informar a quantidade (use ±1 caixa para caixas fechadas), ou leia o código de cada peça (cada leitura soma 1).'} As mudanças só valem depois de <strong>Revisar e salvar</strong>.</p>
+      ${contagem ? '<div class="placar placar-contagem" id="placar"></div>' : ''}
+      <div class="acoes" style="margin-top:12px">
+        <label class="busca" style="flex:1 1 220px"><span class="oculto">Buscar produto</span>${icones.busca}
+          <input class="entrada" id="busca-grade" type="search" placeholder="Buscar produto" autocomplete="off"></label>
+        ${contagem ? '<button type="button" class="btn texto perigo" id="limpar-contagem">Limpar contagem</button>' : ''}
+      </div>
+      <div class="chips chips-venda" id="chips-grade" role="group" aria-label="Categorias" style="margin-top:10px"></div>
     </section>
-    <div class="grade-levado" id="grade-levado"></div>
-    <div class="barra-rascunho" id="barra-levado" hidden>
+    <div class="grade-levado" id="grade-estoque"></div>
+    <div class="barra-rascunho" id="barra-grade" hidden>
       <div class="br-texto"><strong id="br-titulo"></strong><span class="sub num" id="br-detalhe"></span></div>
-      <div class="br-botoes"><button type="button" class="btn" id="desfazer-levado">Desfazer</button><button type="button" class="btn primario" id="revisar-levado">Revisar e salvar</button></div>
+      <div class="br-botoes"><button type="button" class="btn" id="desfazer-grade">Desfazer</button><button type="button" class="btn primario" id="revisar-grade">Revisar e salvar</button></div>
     </div>`;
   const $ = (s) => el.querySelector(s);
-  const grade = $('#grade-levado');
-  const somar = (fn) => { let n = 0; for (const p of produtos) for (const v of p.variacoes) n += fn(v.id); return n; };
+  const grade = $('#grade-estoque');
+  const ids = () => [...daVariacao.keys()];
+  const soma = (fn) => ids().reduce((s, id) => s + (fn(id) || 0), 0);
 
   function alteracoes() {
-    return [...rascunho.entries()].filter(([id, n]) => n !== (levado.get(id) || 0)).map(([id, n]) => ({ id, antes: levado.get(id) || 0, depois: n }));
+    return [...rascunho.entries()].filter(([id, n]) => n !== salvoDe(id)).map(([id, n]) => ({ id, antes: salvoDe(id), depois: n }));
   }
   function atualizarTopo() {
-    const salvo = [...levado.values()].reduce((s, n) => s + n, 0);
-    const agora = somar(qtdDe);
     const lista = alteracoes();
-    $('#total-levado').textContent = lista.length ? `${pecas(agora)} (salvo: ${salvo.toLocaleString('pt-BR')})` : pecas(salvo);
-    $('#barra-levado').hidden = !lista.length;
+    if (contagem) {
+      const doEv = ids().filter((id) => doEvento(id) || valorDe(id) != null);
+      const contados = doEv.filter((id) => valorDe(id) != null);
+      let falta = 0, sobra = 0, valor = 0;
+      for (const id of contados) {
+        const d = difDe(id);
+        if (d < 0) { falta -= d; valor += (calc.get(id)?.custoUnit || 0) * -d; } else sobra += d;
+      }
+      $('#total-grade').textContent = `${contados.length} de ${doEv.length} itens contados`;
+      $('#placar').innerHTML = `
+        <div><span>Peças contadas</span><strong class="num">${soma((id) => valorDe(id))}</strong></div>
+        <div class="${falta ? 'falta' : 'confere'}"><span>Faltando</span><strong class="num">${falta}${valor ? ` · ${dinheiro(valor)}` : ''}</strong></div>
+        <div class="${sobra ? 'sobra' : ''}"><span>Sobrando</span><strong class="num">${sobra}</strong></div>`;
+    } else {
+      const antes = soma(salvoDe), agora = soma(valorDe);
+      $('#total-grade').textContent = lista.length ? `${pecas(agora)} (salvo: ${antes.toLocaleString('pt-BR')})` : pecas(antes);
+    }
+    $('#barra-grade').hidden = !lista.length;
     if (lista.length) {
-      const dif = agora - salvo;
       $('#br-titulo').textContent = `${lista.length} ${lista.length === 1 ? 'item alterado' : 'itens alterados'}`;
+      const dif = soma(valorDe) - soma(salvoDe);
       $('#br-detalhe').textContent = `${dif > 0 ? '+' : dif < 0 ? '−' : ''}${pecas(Math.abs(dif))} · ainda não salvo`;
     }
   }
@@ -130,15 +175,21 @@ async function abaLevado(el, evento, todos) {
   function botao(it) {
     const { p, v } = it;
     const f = foto.get(v.id), cor = corValida(v.cor);
-    const n = qtdDe(v.id), antes = levado.get(v.id) || 0;
+    const n = valorDe(v.id), antes = salvoDe(v.id);
     const alterado = rascunho.has(v.id) && n !== antes;
+    const d = contagem ? difDe(v.id) : null;
+    let info;
+    if (alterado) info = `<s>${mostra(antes)}</s> → <strong>${mostra(n)}</strong>`;
+    else if (contagem) info = n == null ? `calc. ${sobraDe(v.id)} · não contado` : `<span class="${difClasse(d)}">${difTexto(d)}</span>`;
+    else info = n ? `<strong>${n}</strong> ${n === 1 ? 'peça' : 'peças'}` : 'nenhuma';
+    const classe = contagem && n != null ? (d < 0 ? ' contado-falta' : d === 0 ? ' contado-ok' : '') : '';
     return `
-      <button type="button" class="item-venda item-estoque${alterado ? ' alterado' : ''}${n ? '' : ' zerado'}" data-v="${esc(v.id)}">
+      <button type="button" class="item-venda item-estoque${alterado ? ' alterado' : ''}${n ? '' : ' zerado'}${classe}" data-v="${esc(v.id)}">
         <span class="iv-foto ${f ? 'tem-foto' : ''}" ${!f && cor ? `style="background:${cor}"` : ''}>${f ? `<img src="${f}" alt="">` : cor ? '' : `<span>${iniciais(it.nome)}</span>`}
-          ${n ? `<span class="selo-qtd num">${n}</span>` : ''}</span>
+          ${n != null && (n || contagem) ? `<span class="selo-qtd num">${n}</span>` : ''}</span>
         <span class="iv-nome">${esc(it.nome)}</span>
         <span class="iv-info"><span class="iv-sub">${esc(it.sub || '')}${p.ativo ? '' : ' · fora da venda'}</span>
-          <span class="iv-levado num">${alterado ? `<s>${antes}</s> → <strong>${n}</strong>` : n ? `<strong>${n}</strong> ${n === 1 ? 'peça' : 'peças'}` : 'nenhuma'}</span></span>
+          <span class="iv-levado num">${info}</span></span>
       </button>`;
   }
   function grupoHtml(g, porFileira) {
@@ -157,8 +208,8 @@ async function abaLevado(el, evento, todos) {
   function desenhar() {
     const porFileira = grade.clientWidth && grade.clientWidth < 520 ? 2 : 4;
     const t = busca.toLowerCase();
-    $('#chips-levado').hidden = !!t || chips.length < 2;
-    $('#chips-levado').innerHTML = chips.map((c) => `<button type="button" class="chip" aria-pressed="${c.id === categoria}" data-categoria="${esc(c.id)}">${esc(c.nome)}</button>`).join('');
+    $('#chips-grade').hidden = !!t || chips.length < 2;
+    $('#chips-grade').innerHTML = chips.map((c) => `<button type="button" class="chip" aria-pressed="${c.id === categoria}" data-categoria="${esc(c.id)}">${esc(c.nome)}</button>`).join('');
     if (t) {
       const achados = [];
       for (const p of produtos) for (const v of p.variacoes) {
@@ -184,47 +235,64 @@ async function abaLevado(el, evento, todos) {
     return grade.querySelector(`[data-v="${CSS.escape(id)}"]`);
   }
   function definir(id, n) {
-    n = Math.max(0, Math.floor(Number(n) || 0));
-    if (n === (levado.get(id) || 0)) rascunho.delete(id); else rascunho.set(id, n);
+    if (n != null) n = Math.max(0, Math.floor(Number(n) || 0));
+    if (!contagem && n == null) n = 0;
+    if (n === salvoDe(id)) rascunho.delete(id); else rascunho.set(id, n);
     const b = trocarBotao(id);
     atualizarTopo();
     return b;
   }
 
-  // Janela da quantidade: mostra o salvo, − / número / +, e confirma
+  // Janela da quantidade: − / número / +, ±1 caixa fechada, e confirma
   function pedirQuantidade(id) {
     const { p, v } = daVariacao.get(id);
-    const antes = levado.get(id) || 0;
-    let n = qtdDe(id);
+    const antes = salvoDe(id), cx = caixaDe(id);
+    let n = valorDe(id);   // na contagem pode ser null (não contado)
     const d = abrirJanela(`
       <form method="dialog" novalidate>
         <h2>${esc(p.nome)}</h2>
         ${v.nome ? `<p>${esc(v.nome)}</p>` : ''}
-        <p class="sub">Salvo: <strong class="num">${pecas(antes)}</strong></p>
+        <p class="sub">${contagem ? `Calculado: <strong class="num">${pecas(sobraDe(id))}</strong> · contado: <strong class="num">${antes == null ? 'ainda não' : pecas(antes)}</strong>` : `Salvo: <strong class="num">${pecas(antes)}</strong>`}</p>
         <div class="quantidade" style="margin-top:12px;gap:12px">
           <button type="button" class="btn-icone grande" id="menos" aria-label="Diminuir">−</button>
-          <input class="entrada entrada-grande num qtd-levado" id="qtd" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Quantidade levada" value="${n}">
+          <input class="entrada entrada-grande num qtd-levado" id="qtd" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="${contagem ? 'Quantidade contada' : 'Quantidade levada'}" value="${n == null ? '' : n}" placeholder="${contagem ? '–' : '0'}">
           <button type="button" class="btn-icone grande" id="mais" aria-label="Aumentar">+</button>
         </div>
+        <div class="botoes-caixa">
+          <button type="button" class="btn" id="menos-caixa">−1 caixa</button>
+          <button type="button" class="btn" id="mais-caixa">+1 caixa (${cx})</button>
+        </div>
+        <p class="sub calculado num" id="em-caixas" style="text-align:center"></p>
         <div class="acoes">
+          ${contagem && antes != null ? '<button type="button" class="btn texto perigo" id="sem-contar" style="margin-right:auto">Deixar sem contar</button>' : ''}
           <button type="button" class="btn" id="cancelar">Cancelar</button>
           <button type="submit" class="btn primario" id="ok"></button>
         </div>
       </form>`, { classe: 'janela-item' });
     const campo = d.querySelector('#qtd');
-    const ler = () => Math.max(0, Math.min(99999, parseInt(campo.value.replace(/\D/g, ''), 10) || 0));
+    const ler = () => { const t = campo.value.replace(/\D/g, ''); return t === '' ? null : Math.min(99999, parseInt(t, 10)); };
+    const escrever = (x) => { n = x; campo.value = x == null ? '' : x; mostrar(); };
     const mostrar = () => {
-      d.querySelector('#ok').textContent = n === antes ? 'Manter ' + pecas(n) : `Definir ${pecas(n)}`;
+      const ok = d.querySelector('#ok');
+      ok.textContent = n == null ? (contagem ? 'Ainda não contado' : 'Definir 0 peças') : n === antes ? `Manter ${pecas(n)}` : `Definir ${pecas(n)}`;
+      ok.disabled = contagem && n == null && antes == null;
+      const cxs = n ? Math.floor(n / cx) : 0, resto = n ? n % cx : 0;
+      d.querySelector('#em-caixas').textContent = cxs ? `${cxs} ${cxs === 1 ? 'caixa' : 'caixas'} de ${cx}${resto ? ` + ${resto} ${resto === 1 ? 'avulsa' : 'avulsas'}` : ''}` : '';
+      d.querySelector('#menos-caixa').disabled = !n;
     };
     campo.addEventListener('input', () => { campo.value = campo.value.replace(/\D/g, '').slice(0, 5); n = ler(); mostrar(); });
     campo.addEventListener('focus', () => requestAnimationFrame(() => campo.select()));
-    d.querySelector('#menos').addEventListener('click', () => { n = Math.max(0, n - 1); campo.value = n; mostrar(); });
-    d.querySelector('#mais').addEventListener('click', () => { n += 1; campo.value = n; mostrar(); });
+    d.querySelector('#menos').addEventListener('click', () => escrever(Math.max(0, (n || 0) - 1)));
+    d.querySelector('#mais').addEventListener('click', () => escrever((n || 0) + 1));
+    d.querySelector('#menos-caixa').addEventListener('click', () => escrever(Math.max(0, (n || 0) - cx)));
+    d.querySelector('#mais-caixa').addEventListener('click', () => escrever((n || 0) + cx));
     d.querySelector('#cancelar').addEventListener('click', () => d.close());
+    d.querySelector('#sem-contar')?.addEventListener('click', () => { d.close(); definir(id, null); });
     d.querySelector('form').addEventListener('submit', (e) => {
       e.preventDefault();
+      if (d.querySelector('#ok').disabled) return;
       // Um código lido com a janela aberta cai no campo: número longo não é quantidade
-      if (campo.value.length >= 5 && ler() > 9999) { aviso('Esse número parece um código. Digite a quantidade.', { tipo: 'erro' }); campo.value = n = qtdDe(id); mostrar(); return; }
+      if (n != null && n > 9999) { aviso('Esse número parece um código. Digite a quantidade.', { tipo: 'erro' }); escrever(valorDe(id)); return; }
       d.close();
       definir(id, n);
     });
@@ -236,47 +304,54 @@ async function abaLevado(el, evento, todos) {
   function revisar() {
     const lista = alteracoes().sort((a, b) => nomeItem(a.id).localeCompare(nomeItem(b.id), 'pt-BR'));
     if (!lista.length) return;
-    const salvo = [...levado.values()].reduce((s, n) => s + n, 0), agora = somar(qtdDe);
+    const antes = soma(salvoDe), agora = soma(valorDe);
     const d = abrirJanela(`
-      <h2>Salvar o estoque levado?</h2>
+      <h2>${contagem ? 'Salvar a contagem?' : 'Salvar o estoque levado?'}</h2>
       <p>Confira as mudanças de <strong>${esc(evento.nome)}</strong>:</p>
-      <ul class="lista-revisao">${lista.map((a) => `<li><span>${esc(nomeItem(a.id))}</span><span class="num"><s>${a.antes}</s> → <strong>${a.depois}</strong></span></li>`).join('')}</ul>
-      <p class="num"><strong>Total: ${salvo.toLocaleString('pt-BR')} → ${pecas(agora)}</strong></p>
+      <ul class="lista-revisao">${lista.map((a) => `<li><span>${esc(nomeItem(a.id))}</span><span class="num"><s>${mostra(a.antes)}</s> → <strong>${a.depois == null ? 'não contado' : a.depois}</strong></span></li>`).join('')}</ul>
+      <p class="num"><strong>${contagem ? 'Peças contadas' : 'Total'}: ${antes.toLocaleString('pt-BR')} → ${pecas(agora)}</strong></p>
       <div class="acoes"><button type="button" class="btn" id="voltar">Voltar</button><button type="button" class="btn primario" id="salvar">Salvar ${lista.length} ${lista.length === 1 ? 'alteração' : 'alterações'}</button></div>`);
     d.querySelector('#voltar').addEventListener('click', () => d.close());
     d.querySelector('#salvar').addEventListener('click', async () => {
       d.querySelector('#salvar').disabled = true;
       for (const a of lista) {
-        await gravarLevado(evento.id, a.id, a.depois);
-        if (a.depois) levado.set(a.id, a.depois); else levado.delete(a.id);
+        if (contagem) await gravarContado(evento.id, a.id, a.depois); else await gravarLevado(evento.id, a.id, a.depois);
+        if (a.depois == null || (!contagem && !a.depois)) salvo.delete(a.id); else salvo.set(a.id, a.depois);
       }
       rascunho.clear();
       d.close();
       desenhar();
-      aviso(`Estoque levado salvo: ${pecas(agora)}.`);
+      aviso(contagem ? 'Contagem salva.' : `Estoque levado salvo: ${pecas(agora)}.`);
     });
   }
 
-  $('#chips-levado').addEventListener('click', (e) => {
+  $('#chips-grade').addEventListener('click', (e) => {
     const b = e.target.closest('[data-categoria]');
     if (!b) return;
     categoria = b.dataset.categoria;
-    try { localStorage.setItem(CHAVE_CAT_LEVADO, categoria); } catch (erro) { /* ok */ }
+    try { localStorage.setItem(CHAVE_CAT_ESTOQUE, categoria); } catch (erro) { /* ok */ }
     desenhar();
   });
   grade.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) pedirQuantidade(b.dataset.v); });
-  $('#busca-levado').addEventListener('input', (e) => { busca = e.target.value.trim(); desenhar(); });
-  $('#busca-levado').addEventListener('keydown', (e) => {
+  $('#busca-grade').addEventListener('input', (e) => { busca = e.target.value.trim(); desenhar(); });
+  $('#busca-grade').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const valor = e.target.value.trim();
     if (/^\d{6,}$/.test(valor)) lerCodigo(valor);
   });
-  $('#revisar-levado').addEventListener('click', revisar);
-  $('#desfazer-levado').addEventListener('click', async () => {
+  $('#revisar-grade').addEventListener('click', revisar);
+  $('#desfazer-grade').addEventListener('click', async () => {
     const n = alteracoes().length;
-    if (!(await confirmar({ titulo: 'Desfazer as alterações?', texto: `${n} ${n === 1 ? 'item volta' : 'itens voltam'} à quantidade salva.`, botao: 'Desfazer', perigo: true }))) return;
+    if (!(await confirmar({ titulo: 'Desfazer as alterações?', texto: `${n} ${n === 1 ? 'item volta' : 'itens voltam'} ao que estava salvo.`, botao: 'Desfazer', perigo: true }))) return;
     rascunho.clear();
+    desenhar();
+  });
+  $('#limpar-contagem')?.addEventListener('click', async () => {
+    const contados = ids().filter((id) => valorDe(id) != null);
+    if (!contados.length) return;
+    if (!(await confirmar({ titulo: 'Limpar a contagem?', texto: `${contados.length} ${contados.length === 1 ? 'item fica' : 'itens ficam'} sem contar. Confira e toque em Revisar e salvar.`, botao: 'Limpar', perigo: true }))) return;
+    for (const id of contados) { if (salvoDe(id) == null) rascunho.delete(id); else rascunho.set(id, null); }
     desenhar();
   });
   const observador = new ResizeObserver(() => { const agora = grade.clientWidth < 520; if (agora !== observador.estreito) { observador.estreito = agora; desenhar(); } });
@@ -297,11 +372,11 @@ async function abaLevado(el, evento, todos) {
     }
     const p = daVariacao.get(v.id).p;
     if (busca || (categoria !== TODAS && catDe(p) !== categoria) || !grade.querySelector(`[data-v="${CSS.escape(v.id)}"]`)) {
-      busca = ''; $('#busca-levado').value = '';
+      busca = ''; $('#busca-grade').value = '';
       if (categoria !== TODAS) categoria = catDe(p);
       desenhar();
     }
-    const n = qtdDe(v.id) + 1;
+    const n = (valorDe(v.id) || 0) + 1;
     const b = definir(v.id, n);
     som.item();
     aviso(`${nomeItem(v.id)}: ${pecas(n)}`);
@@ -310,7 +385,6 @@ async function abaLevado(el, evento, todos) {
   const pararLeitor = ouvirLeitor(lerCodigo);
   return () => { pararLeitor(); observador.disconnect(); urls.forEach(URL.revokeObjectURL); };
 }
-
 // ---------- Brindes e avarias ----------
 async function abaSaidas(el, evento, produtos) {
   const aqui = await lerAparelho();
@@ -441,153 +515,3 @@ async function abaSobra(el, evento, produtos) {
     </section>`;
 }
 
-// ---------- Contagem final ----------
-async function abaContagem(el, evento, produtos) {
-  const [levado, registros, saidas, contado] = await Promise.all([
-    lerLevado(evento.id),
-    db.vendas.where('eventoId').equals(evento.id).toArray(),
-    db.saidas.where('eventoId').equals(evento.id).toArray(),
-    lerContado(evento.id)
-  ]);
-  const base = calcularEstoque({ produtos, levado, registros, saidas });
-  // Itens do evento (levados ou movimentados) + o resto do catálogo, para achar algo inesperado
-  const linhas = new Map(base.linhas.map((l) => [l.variacaoId, l]));
-  for (const p of produtos) for (const v of p.variacoes) if (!linhas.has(v.id)) linhas.set(v.id, { variacaoId: v.id, produto: p.nome, variacao: v.nome || '', sobra: 0, levado: 0, custoUnit: v.custo ?? p.custo ?? null, foraDoEvento: true });
-  const codigo = new Map();
-  for (const p of produtos) for (const v of p.variacoes) codigo.set(v.id, v.codigo || '');
-  let busca = '';
-
-  el.innerHTML = `
-    <section class="cartao">
-      <div class="cab-cartao"><h2>Contagem final</h2><strong class="num" id="resumo-contagem"></strong></div>
-      <p class="sub">No fim do evento, conte o que sobrou de cada item: use − e +, digite, ou leia o código de cada peça (cada leitura soma 1). Salva sozinho. Item sem número = ainda não contado.</p>
-      <div class="placar placar-contagem" id="placar"></div>
-      <div class="acoes" style="margin-top:8px">
-        <label class="busca" style="flex:1 1 220px"><span class="oculto">Buscar produto</span>${icones.busca}
-          <input class="entrada" id="busca-contagem" type="search" placeholder="Buscar produto" autocomplete="off"></label>
-        <button type="button" class="btn texto perigo" id="limpar-contagem">Limpar contagem</button>
-      </div>
-    </section>
-    <div id="lista-contagem"></div>`;
-
-  const difTexto = (d) => d == null ? '' : d === 0 ? 'Confere' : d < 0 ? `Falta ${-d}` : `Sobra ${d}`;
-  const difClasse = (d) => d == null ? '' : d === 0 ? 'confere' : d < 0 ? 'falta' : 'sobra';
-
-  function resumo() {
-    const lista = [...linhas.values()].filter((l) => !l.foraDoEvento || contado.has(l.variacaoId));
-    const contados = lista.filter((l) => contado.has(l.variacaoId));
-    let falta = 0, sobra = 0, valor = 0;
-    for (const l of contados) {
-      const d = contado.get(l.variacaoId) - l.sobra;
-      if (d < 0) { falta -= d; valor += (l.custoUnit || 0) * -d; } else sobra += d;
-    }
-    el.querySelector('#resumo-contagem').textContent = `${contados.length} de ${lista.length} itens contados`;
-    el.querySelector('#placar').innerHTML = `
-      <div><span>Peças contadas</span><strong class="num">${contados.reduce((s, l) => s + contado.get(l.variacaoId), 0)}</strong></div>
-      <div class="${falta ? 'falta' : 'confere'}"><span>Faltando</span><strong class="num">${falta}${valor ? ` · ${dinheiro(valor)}` : ''}</strong></div>
-      <div class="${sobra ? 'sobra' : ''}"><span>Sobrando</span><strong class="num">${sobra}</strong></div>`;
-  }
-
-  function desenharLista() {
-    const t = busca.toLowerCase();
-    const visiveis = [...linhas.values()].filter((l) => (!l.foraDoEvento || contado.has(l.variacaoId) || t)
-      && (!t || `${l.produto} ${l.variacao} ${codigo.get(l.variacaoId) || ''}`.toLowerCase().includes(t)));
-    const grupos = new Map();
-    for (const l of visiveis) { if (!grupos.has(l.produto)) grupos.set(l.produto, []); grupos.get(l.produto).push(l); }
-    el.querySelector('#lista-contagem').innerHTML = grupos.size ? [...grupos.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).map(([produto, ls]) => `
-      <section class="cartao grupo-estoque">
-        <h3>${esc(produto)}</h3>
-        <ul class="linhas-estoque">${ls.map((l) => {
-          const c = contado.has(l.variacaoId) ? contado.get(l.variacaoId) : null;
-          const d = c == null ? null : c - l.sobra;
-          return `<li data-variacao="${esc(l.variacaoId)}">
-            <span class="le-nome">${esc(l.variacao || 'Único')}<span class="sub">calculado: ${l.sobra}${l.foraDoEvento ? ' · fora do evento' : ''}</span></span>
-            <span class="le-dif ${difClasse(d)}" data-dif>${difTexto(d)}</span>
-            <span class="quantidade pequena">
-              <button type="button" class="btn-icone" data-menos aria-label="Menos">−</button>
-              <input class="entrada num le-qtd" type="number" inputmode="numeric" min="0" step="1" value="${c ?? ''}" placeholder="–" aria-label="Contado de ${esc(produto)} ${esc(l.variacao)}">
-              <button type="button" class="btn-icone" data-mais aria-label="Mais">+</button>
-            </span>
-          </li>`;
-        }).join('')}</ul>
-      </section>`).join('') : '<div class="cartao"><p class="sub">Nenhum item encontrado.</p></div>';
-  }
-
-  async function definir(variacaoId, n) {
-    const valor = n === '' || n == null ? null : Math.max(0, Math.floor(Number(n) || 0));
-    if (valor == null) contado.delete(variacaoId); else contado.set(variacaoId, valor);
-    await gravarContado(evento.id, variacaoId, valor);
-    const li = el.querySelector(`[data-variacao="${CSS.escape(variacaoId)}"]`);
-    if (li) {
-      const campo = li.querySelector('.le-qtd');
-      if (document.activeElement !== campo) campo.value = valor ?? '';
-      const d = valor == null ? null : valor - linhas.get(variacaoId).sobra;
-      const dif = li.querySelector('[data-dif]');
-      dif.textContent = difTexto(d); dif.className = `le-dif ${difClasse(d)}`;
-    }
-    resumo();
-  }
-
-  const lista = el.querySelector('#lista-contagem');
-  lista.addEventListener('click', (e) => {
-    const li = e.target.closest('[data-variacao]');
-    if (!li) return;
-    const atual = contado.get(li.dataset.variacao);
-    if (e.target.closest('[data-mais]')) definir(li.dataset.variacao, (atual ?? 0) + 1);
-    if (e.target.closest('[data-menos]')) definir(li.dataset.variacao, atual == null ? 0 : Math.max(0, atual - 1));
-  });
-  lista.addEventListener('change', (e) => {
-    const li = e.target.closest('[data-variacao]');
-    if (li && e.target.classList.contains('le-qtd')) definir(li.dataset.variacao, e.target.value.trim());
-  });
-  lista.addEventListener('focusin', (e) => { if (e.target.classList.contains('le-qtd')) requestAnimationFrame(() => e.target.select()); });
-  // Leitura com o campo selecionado (o código "cai" no campo)
-  lista.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || !e.target.classList.contains('le-qtd')) return;
-    e.preventDefault();
-    const li = e.target.closest('[data-variacao]');
-    const valor = e.target.value.trim();
-    if (valor.length >= 6) {
-      const anterior = String(contado.get(li.dataset.variacao) ?? '');
-      e.target.value = anterior;
-      e.target.blur();
-      (async () => {
-        const candidatos = [valor];
-        if (anterior && valor.startsWith(anterior)) candidatos.push(valor.slice(anterior.length));
-        if (anterior && valor.endsWith(anterior)) candidatos.push(valor.slice(0, -anterior.length));
-        let cod = valor;
-        for (const c of candidatos) if (await buscarPorCodigo(c)) { cod = c; break; }
-        lerCodigo(cod);
-      })();
-    } else e.target.blur();
-  });
-  el.querySelector('#busca-contagem').addEventListener('input', (e) => { busca = e.target.value.trim(); desenharLista(); });
-  el.querySelector('#busca-contagem').addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    if (/^\d{6,}$/.test(e.target.value.trim())) lerCodigo(e.target.value.trim());
-  });
-  el.querySelector('#limpar-contagem').addEventListener('click', async () => {
-    if (!contado.size) return;
-    if (!(await confirmar({ titulo: 'Limpar a contagem?', texto: 'Todas as quantidades contadas deste evento serão apagadas.', botao: 'Limpar', perigo: true }))) return;
-    for (const id of [...contado.keys()]) await gravarContado(evento.id, id, null);
-    contado.clear();
-    desenharLista(); resumo();
-  });
-
-  async function lerCodigo(cod) {
-    if (document.querySelector('dialog[open]')) return;
-    const v = await buscarPorCodigo(cod);
-    if (!v) { som.erro(); aviso(`Código ${cod} não cadastrado.`, { tipo: 'erro' }); return; }
-    if (busca) { busca = ''; el.querySelector('#busca-contagem').value = ''; }
-    if (!el.querySelector(`[data-variacao="${CSS.escape(v.id)}"]`)) { contado.set(v.id, contado.get(v.id) ?? 0); desenharLista(); }
-    await definir(v.id, (contado.get(v.id) ?? 0) + 1);
-    som.item();
-    const li = el.querySelector(`[data-variacao="${CSS.escape(v.id)}"]`);
-    if (li) { li.classList.remove('lido'); void li.offsetWidth; li.classList.add('lido'); li.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-  }
-
-  desenharLista();
-  resumo();
-  return ouvirLeitor(lerCodigo);
-}

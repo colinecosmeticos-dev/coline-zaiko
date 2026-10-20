@@ -117,7 +117,7 @@ export async function render(el) {
         <h2>Evento</h2>
         ${evento ? `<p class="titulo-evento">${esc(evento.nome)}</p>
           <p class="sub">${esc(periodo(evento.dataInicio, evento.dataFim))}${evento.local ? ` em ${esc(evento.local)}` : ''}</p>
-          <div class="acoes" style="justify-content:flex-start"><a class="btn" href="#/eventos/${encodeURIComponent(evento.id)}">Ver evento</a><a class="btn texto" href="#/eventos">Trocar</a></div>`
+          <div class="acoes" style="justify-content:flex-start"><a class="btn" href="#/eventos/${encodeURIComponent(evento.id)}">Ver evento</a><a class="btn" href="#/eventos/${encodeURIComponent(evento.id)}/estoque">Estoque</a><a class="btn texto" href="#/eventos">Trocar</a></div>`
           : `<p class="sub">Nenhum evento em uso.</p><div class="acoes" style="justify-content:flex-start"><a class="btn primario" href="${totalEventos ? '#/eventos' : '#/eventos/novo'}">${totalEventos ? 'Escolher evento' : 'Criar evento'}</a></div>`}
       </section>
       ${base ? `<section class="cartao">

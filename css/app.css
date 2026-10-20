@@ -1229,3 +1229,14 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 /* Opções da janela "valor maior que o que falta" */
 .opcoes-maior { margin: 8px 0 0; padding-left: 18px; }
 .opcoes-maior li + li { margin-top: 4px; }
+
+/* ---------- Caixa fechada (v0.29.0) ---------- */
+.campo-caixa-fechada .entrada { max-width: 140px; }
+.botoes-caixa { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.botoes-caixa .btn { min-width: 130px; }
+.janela-item .calculado { margin-top: 4px; }
+.iv-levado .confere { color: var(--ok); font-weight: 600; }
+.iv-levado .falta { color: var(--erro); font-weight: 600; }
+.iv-levado .sobra { color: var(--marca-texto); font-weight: 600; }
+.item-estoque.contado-ok .selo-qtd { background: var(--ok); }
+.item-estoque.contado-falta .selo-qtd { background: var(--erro); }

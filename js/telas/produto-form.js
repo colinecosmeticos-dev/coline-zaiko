@@ -140,6 +140,12 @@ export async function render(el, { id, consulta }) {
             </div>
           </div>
 
+          <div class="campo campo-caixa-fechada">
+            <label for="f-caixa">Unidades na caixa fechada</label>
+            <input class="entrada num" id="f-caixa" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="12" value="${modelo && modelo.unidadesCaixa ? modelo.unidadesCaixa : ''}">
+            <span class="dica">Usado no estoque do evento (botão "+1 caixa"). Em branco = 12.</span>
+          </div>
+
           <label class="interruptor">
             <span><strong>Disponível para venda</strong><br><span class="dica" style="font-size:.8125rem;color:var(--texto-2)">Desligado, o produto some da tela de venda mas continua cadastrado.</span></span>
             <input type="checkbox" id="f-ativo" ${!modelo || modelo.ativo ? 'checked' : ''}>
@@ -707,6 +713,8 @@ export async function render(el, { id, consulta }) {
         atributo: modo === 'variacoes' ? atributo : modo === 'linha' ? 'Linha' : '',
         preco,
         custo: custo || null,
+        // Caixa fechada (v0.29.0): só grava quando é diferente do padrão (12)
+        unidadesCaixa: (() => { const n = parseInt(($('#f-caixa').value || '').replace(/\D/g, ''), 10); return n > 0 && n !== 12 ? n : null; })(),
         foto: fotoBlob,
         ativo: $('#f-ativo').checked,
         criadoEm: produto ? produto.criadoEm : agora,
