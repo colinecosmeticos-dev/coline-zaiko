@@ -1,5 +1,5 @@
 // =========================================================
-// Tela Preparar outros aparelhos (Mais → Preparar outros aparelhos).
+// Tela Pacote por arquivo (Sincronizar → Por arquivo). Antes: "Preparar outros aparelhos" no Mais.
 // No aparelho principal: gerar o pacote e compartilhar.
 // Nos outros: importar o pacote recebido.
 // =========================================================
@@ -13,28 +13,19 @@ import { publicarBase } from '../sincronizar.js';
 const qtd = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 const dataHora = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+const PELO_DRIVE = false;
+
 export async function render(el) {
   const ultimo = await lerConfig('ultimoPacoteImportado');
 
   const caixa = ehCaixa();
   el.innerHTML = `
-    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
+    <a class="voltar" href="#/sincronizar">${icones.voltar} Sincronizar</a>
     <header class="cab"><div>
-      <h1>${caixa ? 'Receber catálogo e evento' : 'Preparar outros aparelhos'}</h1>
-      <p class="sub">${caixa ? 'Recebe o pacote preparado na Gestão: produtos com fotos, formas de pagamento, eventos e PIN.' : 'Leva catálogo, fotos, formas de pagamento e taxas, categorias de retirada, PIN e eventos de um aparelho para outro.'}</p>
+      <h1>${caixa ? 'Receber catálogo e evento por arquivo' : 'Pacote para os caixas, por arquivo'}</h1>
+      <p class="sub">Sem internet: ${caixa ? 'recebe o pacote preparado na Gestão (produtos com fotos, formas de pagamento, eventos e PIN).' : 'leva catálogo, fotos, formas de pagamento e taxas, categorias de retirada, PIN e eventos para os caixas por Quick Share, Bluetooth ou cabo.'} Com internet, use Sincronizar.</p>
     </div></header>
 
-    <section class="cartao">
-      <h2>Pelo Google Drive <span class="etiqueta">com internet</span></h2>
-      ${driveConfigurado() ? `
-        <p class="sub">${caixa ? 'Um toque recebe o pacote mais recente enviado pela Gestão.' : 'Um toque para enviar, um toque para receber.'} O app só enxerga a pasta "Coline Zaiko" que ele mesmo cria no Drive; o pacote antigo é apagado a cada envio.</p>
-        <div class="acoes">
-          <button type="button" class="btn primario so-gestao" id="drive-enviar">${icones.compartilhar} Enviar para o Drive</button>
-          <button type="button" class="btn ${caixa ? 'primario' : ''}" id="drive-receber">${icones.baixar} Receber do Drive</button>
-        </div>
-        <p class="sub" id="drive-status" style="margin-top:12px" hidden></p>`
-      : '<p class="sub">O Drive ainda não foi ligado ao app. Enquanto isso, use o arquivo (abaixo).</p>'}
-    </section>
 
     <section class="cartao">
       <h2>Por arquivo <span class="etiqueta">sem internet</span></h2>
@@ -72,7 +63,8 @@ export async function render(el) {
   }
 
   // ---------- Drive ----------
-  if (driveConfigurado()) {
+  // Desde a v0.26.0 o Drive fica na tela Sincronizar; esta tela é só por arquivo.
+  if (PELO_DRIVE) {
     const status = el.querySelector('#drive-status');
     const mostrar = (texto) => { status.hidden = false; status.textContent = texto; };
     const botoes = [el.querySelector('#drive-enviar'), el.querySelector('#drive-receber')];

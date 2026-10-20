@@ -266,7 +266,7 @@ async function abaSobra(el, evento, produtos) {
   const siglas = [...new Set(registros.map((r) => r.aparelho?.sigla).filter(Boolean))];
   const kpi = (rotulo, n, classe = '') => `<div class="kpi ${classe}"><span>${rotulo}</span><strong class="num">${n.toLocaleString('pt-BR')}</strong></div>`;
   el.innerHTML = `
-    <p class="sub nota-sobra">Conta as vendas ${siglas.length ? `de ${siglas.join(', ')}` : 'deste aparelho'} que estão aqui. Para incluir as dos outros aparelhos, junte as vendas antes (Mais → Juntar vendas).</p>
+    <p class="sub nota-sobra">Conta as vendas ${siglas.length ? `de ${siglas.join(', ')}` : 'deste aparelho'} que estão aqui. Para incluir as dos outros aparelhos, busque as vendas dos caixas antes (Sincronizar → Buscar vendas dos caixas).</p>
     <div class="kpis kpis-6">
       ${kpi('Levado', totais.levado)}${kpi('Vendido', totais.vendido)}${kpi('Brindes', totais.brindes)}${kpi('Avarias', totais.avarias)}${kpi('Voltaram', totais.voltaram)}${kpi('Sobra', totais.sobra, 'destaque')}
     </div>

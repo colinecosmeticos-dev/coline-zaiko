@@ -25,9 +25,9 @@ export async function escolherEvento() {
           <span><strong>${esc(e.nome)}</strong>${ehHoje(e) ? ' <span class="etiqueta ok">hoje</span>' : ''}${atual && atual.id === e.id ? ' <span class="etiqueta marca">em uso</span>' : ''}<br>
           <span class="sub">${esc(e.local || '')}${e.local ? ' · ' : ''}${data(e.dataInicio)}${e.dataFim && e.dataFim !== e.dataInicio ? ' a ' + data(e.dataFim) : ''} · ${esc(e.codigo || '')}</span></span>
           <span class="seta" aria-hidden="true">›</span></button></li>`).join('')}
-      </ul>` : `<p>Nenhum evento aberto neste aparelho. Peça o pacote para quem cuida da Gestão e receba em Mais → Receber catálogo e evento.</p>`}
+      </ul>` : `<p>Nenhum evento aberto neste aparelho. Toque em Sincronizar para receber os eventos da Gestão.</p>`}
       <div class="acoes">
-        ${eventos.length ? '' : '<a class="btn primario" href="#/pacote" id="ir-pacote">Receber catálogo e evento</a>'}
+        ${eventos.length ? '' : '<a class="btn primario" href="#/sincronizar" id="ir-pacote">Ir para Sincronizar</a>'}
         <button type="button" class="btn" id="cancelar">Cancelar</button>
       </div>`, { aoFechar: () => resolver(escolhido) });
     d.querySelector('#cancelar').addEventListener('click', () => d.close());

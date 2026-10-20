@@ -1096,7 +1096,7 @@ dialog.janela-cor .acoes { align-items: center; flex-wrap: wrap; }
 .sem-modo .nav a { display: none; }
 
 /* ---------- Sincronizar (v0.22.0) ---------- */
-body:not(.modo-caixa) .nav a[data-rota="sincronizar"] { display: none; }
+/* (Sincronizar aparece nos dois modos desde a v0.26.0) */
 .nav a[data-rota="sincronizar"] svg { overflow: visible; }
 .nav a[data-rota="sincronizar"] { position: relative; }
 .nav a[data-rota="sincronizar"].pendente::after {
@@ -1168,7 +1168,7 @@ dialog.janela-sinc { width: min(92vw, 460px); }
 .lista-avisos li.info { border-left-color: var(--linha); }
 .lista-avisos li > span { flex: 1 1 260px; }
 .tudo-certo-texto { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 1.0625rem; font-weight: 600; color: var(--ok); }
-.cartao-caixa .estado-caixa { font-size: 1.5rem; font-weight: 700; margin: 4px 0 2px; }
+.estado-caixa { font-size: 1.5rem; font-weight: 700; margin: 4px 0 2px; }
 .cartao-caixa.aberto .estado-caixa { color: var(--ok); }
 .btn.btn-grande { min-height: 52px; padding: 0 28px; font-size: 1.0625rem; }
 .rotina-caixa { margin-top: 16px; text-align: center; }
@@ -1177,3 +1177,14 @@ dialog.janela-sinc { width: min(92vw, 460px); }
 .acoes.acoes-empilhadas { flex-direction: column; align-items: stretch; }
 .acoes.acoes-empilhadas .primario { order: -1; }
 dialog.dialogo .acoes { flex-wrap: wrap; }
+
+.estado-caixa.pendente { color: var(--marca-texto); }
+.estado-caixa.ok { color: var(--ok); }
+
+/* Menu do celular com 7 itens (Gestão, v0.26.0): letras menores para caber */
+@media (max-width: 479px) {
+  body:not(.modo-caixa) .nav a { font-size: .625rem; letter-spacing: -.01em; min-width: 0; }
+  body:not(.modo-caixa) .nav a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+/* Aviso no campo do Pix/cartão com valor maior que o que falta */
+.aviso-maior { margin: 4px 0 0; font-size: .875rem; font-weight: 600; color: var(--marca-texto); text-align: right; }

@@ -15,12 +15,15 @@ export async function resumoCaixa(caixa) {
   const movimentos = (await db.movimentos.where('caixaId').equals(caixa.id).toArray()).filter((m) => m.status !== 'cancelado');
 
   // Recebimentos por forma de pagamento (na ordem em que aparecem)
+  // Pix/cartão com troco em dinheiro (v0.26.0): a forma conta o valor passado na
+  // maquininha (para conferir com o relatório dela) e o troco sai do dinheiro esperado.
   const formas = new Map();
+  let trocoDeOutrasFormas = 0;
   for (const r of registros) {
     for (const p of r.pagamentos || []) {
       const chave = p.formaId || p.formaNome;
       const f = formas.get(chave) || { nome: p.formaNome, tipo: p.tipo, valor: 0, quantidade: 0 };
-      f.valor += p.valor;
+      if (p.trocoEmDinheiro) { f.valor += p.recebido; trocoDeOutrasFormas += p.troco || 0; } else f.valor += p.valor;
       f.quantidade += 1;
       formas.set(chave, f);
     }
@@ -45,10 +48,10 @@ export async function resumoCaixa(caixa) {
   const conta = (tipo) => registros.filter((r) => (r.tipo || 'venda') === tipo).length;
   return {
     trocoInicial: caixa.trocoInicial || 0,
-    dinheiroVendas, reforcos, retiradas,
+    dinheiroVendas, reforcos, retiradas, trocoDeOutrasFormas,
     retiradasPorCategoria: [...porCategoria.values()],
     devolvido,
-    esperado: (caixa.trocoInicial || 0) + dinheiroVendas + reforcos - retiradas - devolvido.dinheiro,
+    esperado: (caixa.trocoInicial || 0) + dinheiroVendas + reforcos - retiradas - devolvido.dinheiro - trocoDeOutrasFormas,
     porForma,
     totalRecebido: porForma.reduce((s, f) => s + f.valor, 0),
     totalDevolvido: devolvido.dinheiro + devolvido.pix + devolvido.estorno,

@@ -1,5 +1,5 @@
 // =========================================================
-// Tela Juntar vendas (Mais → Juntar vendas dos aparelhos).
+// Tela Vendas por arquivo (Sincronizar → Por arquivo). Antes: "Juntar vendas" no Mais.
 // Nos outros aparelhos: enviar as vendas do evento em uso.
 // No principal: receber as vendas de todos e conferir quem já mandou.
 // =========================================================
@@ -19,12 +19,14 @@ const textoJuntado = (r) => {
   return [n && qtd(n, 'lançamento novo', 'lançamentos novos'), a && qtd(a, 'atualizado (cancelamento ou fechamento)', 'atualizados (cancelamentos ou fechamentos)')].filter(Boolean).join(', ');
 };
 
+const PELO_DRIVE = false;
+
 export async function render(el) {
   const aparelho = await lerAparelho();
   const evento = await lerEventoAtivo();
-  const voltar = `<a class="voltar" href="#/mais">${icones.voltar} Mais</a>`;
+  const voltar = `<a class="voltar" href="#/sincronizar">${icones.voltar} Sincronizar</a>`;
   if (!aparelho || !evento) {
-    el.innerHTML = `${voltar}<header class="cab"><h1>Juntar vendas</h1></header>
+    el.innerHTML = `${voltar}<header class="cab"><h1>Vendas por arquivo</h1></header>
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div>
       <h2>${!aparelho ? 'Identifique este aparelho' : 'Escolha o evento'}</h2>
       <p>${!aparelho ? 'Dê nome e sigla ao aparelho em Configurações.' : 'As vendas são juntadas por evento.'}</p>
@@ -37,15 +39,15 @@ export async function render(el) {
   el.innerHTML = `
     ${voltar}
     <header class="cab"><div>
-      <h1>${ehCaixa() ? 'Enviar vendas' : 'Juntar vendas'}</h1>
-      <p class="sub">${esc(evento.nome)} · leva vendas, trocas, devoluções e caixas de cada aparelho para o principal, sem duplicar.</p>
+      <h1>${ehCaixa() ? 'Enviar vendas por arquivo' : 'Vendas dos caixas por arquivo'}</h1>
+      <p class="sub">${esc(evento.nome)} · sem internet: leva vendas, trocas, devoluções e caixas de cada aparelho para a Gestão, sem duplicar. Com internet, use Sincronizar.</p>
     </div></header>
 
     <section class="cartao">
       <h2>Enviar as vendas deste aparelho</h2>
       <p class="sub">${esc(aparelho.nome)} (${esc(aparelho.sigla)}): ${proprio ? `${qtd(proprio.vendas, 'venda', 'vendas')} e ${qtd(proprio.caixas, 'caixa', 'caixas')} neste evento` : 'nenhuma venda neste evento ainda'}. Pode enviar quantas vezes quiser: o envio novo substitui o anterior.</p>
       <div class="acoes">
-        ${driveConfigurado() ? `<button type="button" class="btn primario" id="drive-enviar">${icones.compartilhar} Enviar para o Drive</button>` : ''}
+        ${PELO_DRIVE ? `<button type="button" class="btn primario" id="drive-enviar">${icones.compartilhar} Enviar para o Drive</button>` : ''}
         <button type="button" class="btn" id="compartilhar">${icones.compartilhar} Compartilhar arquivo</button>
         <button type="button" class="btn" id="baixar">${icones.baixar} Baixar arquivo</button>
       </div>
@@ -55,7 +57,7 @@ export async function render(el) {
       <h2>Receber no aparelho principal</h2>
       <p class="sub">Junta aqui as vendas enviadas pelos outros aparelhos neste evento.</p>
       <div class="acoes">
-        ${driveConfigurado() ? `<button type="button" class="btn primario" id="drive-receber">${icones.baixar} Receber do Drive</button>` : ''}
+        ${PELO_DRIVE ? `<button type="button" class="btn primario" id="drive-receber">${icones.baixar} Receber do Drive</button>` : ''}
         <button type="button" class="btn" id="importar">${icones.baixar} Importar arquivo</button>
       </div>
       <input type="file" id="arquivo-vendas" hidden>
@@ -111,7 +113,8 @@ export async function render(el) {
   });
 
   // ---------- Drive ----------
-  if (driveConfigurado()) {
+  // Desde a v0.26.0 o Drive fica na tela Sincronizar; esta tela é só por arquivo.
+  if (PELO_DRIVE) {
     prepararDrive().catch((e) => mostrar(e.message));
     const botoes = [$('#drive-enviar'), $('#drive-receber')];
     const ocupado = (sim) => botoes.forEach((b) => { b.disabled = sim; });

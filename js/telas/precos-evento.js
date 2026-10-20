@@ -40,7 +40,7 @@ export async function render(el, { id }) {
         <button type="button" class="btn" id="percentual">% de desconto em tudo</button>
         <button type="button" class="btn texto perigo" id="limpar">Voltar tudo ao preço normal</button>
       </div>
-      <p class="sub nota-mov">Depois de salvar, envie o pacote de novo aos outros aparelhos (Mais → Preparar outros aparelhos).</p>
+      <p class="sub nota-mov">Depois de salvar, publique a base de novo para os caixas (Sincronizar → Publicar base).</p>
       <label class="busca" style="margin-top:12px"><span class="oculto">Buscar produto</span>${icones.busca}
         <input class="entrada" id="busca" type="search" placeholder="Buscar produto" autocomplete="off"></label>
     </section>

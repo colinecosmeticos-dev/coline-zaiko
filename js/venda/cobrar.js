@@ -52,7 +52,7 @@ export function ligarBotaoNova(d) {
 export function telaConcluida(registro, { valorDevolver = 0 } = {}) {
   const titulo = registro.tipo === 'troca' ? `Troca ${esc(registro.numero)} concluída`
     : registro.tipo === 'devolucao' ? `Devolução ${esc(registro.numero)} concluída` : `Venda ${esc(registro.numero)} concluída`;
-  const destaque = registro.troco ? ['Troco', registro.troco]
+  const destaque = registro.troco ? [(registro.pagamentos || []).some((p) => p.trocoEmDinheiro) ? 'Troco em dinheiro' : 'Troco', registro.troco]
     : valorDevolver ? [`Devolver ao cliente${registro.reembolsos[0] ? ` (${esc(registro.reembolsos[0].nome)})` : ''}`, valorDevolver] : null;
   return `
     <div class="venda-concluida">
@@ -240,8 +240,15 @@ export function abrirCobranca({ evento, caixa }) {
             : troco > 0 ? `Troco ${dinheiro(troco)}`
             : troco < 0 ? `Faltam ${dinheiro(-troco)}` : 'Sem troco';
         }
-        const cobre = (ehDinheiro ? v >= restante : Math.min(v, restante) >= restante);
-        $('#confirmar').textContent = cobre && v > 0 ? (carrinho.troca ? 'Finalizar troca' : 'Finalizar venda') : `Adicionar ${dinheiro(Math.min(v, restante))}`;
+        const cobre = v >= restante;
+        $('#confirmar').textContent = cobre && v > 0 ? (carrinho.troca ? 'Finalizar troca' : 'Finalizar venda') : `Adicionar ${dinheiro(v)}`;
+        // Fora do dinheiro, valor maior que o que falta: avisa já no campo
+        if (!ehDinheiro) {
+          let a = $('#aviso-maior');
+          if (!a) { a = document.createElement('p'); a.id = 'aviso-maior'; a.className = 'aviso-maior'; campo.closest('.campo').after(a); }
+          a.textContent = v > restante ? `Passa ${dinheiro(v - restante)} do que falta: o app vai perguntar se é troco em dinheiro.` : '';
+          a.hidden = !(v > restante);
+        }
         $('#confirmar').disabled = !v;
       }
       campo.addEventListener('input', () => { sugerido = false; atualizar(); });
@@ -264,7 +271,13 @@ export function abrirCobranca({ evento, caixa }) {
       if (!ehDinheiro || !matchMedia('(pointer: fine)').matches) $('#confirmar').focus(); else campo.focus();
     }
 
-    function confirmar() {
+    // Confirma o pagamento da forma escolhida. Pix, cartão etc. com valor MAIOR que o
+    // que falta (v0.26.0): pergunta se é para corrigir ou dar a diferença de troco em
+    // dinheiro. Com troco: valor = o que falta (conta na venda), recebido = o valor
+    // passado na maquininha, troco = a diferença, que sai do dinheiro do caixa.
+    let confirmando = false;
+    async function confirmar() {
+      if (confirmando) return;
       const restante = falta();
       const v = lerCentavos($('#valor-pag')) || 0;
       if (!v) return;
@@ -274,8 +287,21 @@ export function abrirCobranca({ evento, caixa }) {
         p.recebido = v;
         p.troco = Math.max(v - restante, 0);
         p.taxa = 0;
+      } else if (v > restante) {
+        confirmando = true;
+        const darTroco = await perguntar({
+          titulo: `${forma.nome} de ${dinheiro(v)} é maior que o que falta (${dinheiro(restante)})`,
+          texto: `Se o cliente já pagou ${dinheiro(v)}, dê ${dinheiro(v - restante)} de troco em dinheiro: o caixa desconta esse valor do dinheiro esperado. Se o valor foi digitado errado, corrija.`,
+          botao: `Dar ${dinheiro(v - restante)} de troco em dinheiro`, cancelar: 'Corrigir o valor'
+        });
+        confirmando = false;
+        if (!darTroco) { const c = $('#valor-pag'); if (c) { escreverCentavos(c, restante); c.focus(); c.dispatchEvent(new Event('input')); } return; }
+        p.valor = restante;
+        p.recebido = v;
+        p.troco = v - restante;
+        p.trocoEmDinheiro = true;
       } else {
-        p.valor = Math.min(v, restante);
+        p.valor = v;
       }
       if (forma.tipo === 'credito') {
         p.parcelas = Number(d.querySelector('input[name="parcelas"]:checked').value);

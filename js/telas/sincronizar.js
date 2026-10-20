@@ -1,10 +1,14 @@
 // =========================================================
-// Tela Sincronizar (#/sincronizar).
+// Tela Sincronizar (#/sincronizar): o lugar de tudo o que vai e vem
+// entre os aparelhos (v0.26.0; antes parte ficava no Mais).
 //   Caixa:  situação (base recebida, último envio, o que falta enviar)
 //           e o botão "Sincronizar agora".
 //   Gestão: "Publicar base" para os caixas e "Buscar vendas dos caixas".
-// O ícone Sincronizar do menu (modo Caixa) fica amarelo quando há
-// vendas sem enviar ou a sincronização nunca foi feita.
+//   Os dois: "Sem internet: por arquivo" (pacote e vendas) e, na Gestão,
+//   "Instalar em outro aparelho" (QR Code).
+// O ícone Sincronizar do menu fica com um ponto amarelo:
+//   Caixa:  vendas sem enviar ou nunca sincronizado;
+//   Gestão: alterações na base ainda não publicadas (evento novo, preços...).
 // =========================================================
 import { lerConfig, lerEventoAtivo } from '../db.js';
 import { esc, aviso, abrirJanela, icones } from '../ui.js';
@@ -29,10 +33,20 @@ const mensagemErro = (erro, caixa = true) => (semInternet(erro)
   ? (caixa ? 'Sem internet agora. As vendas continuam guardadas neste aparelho: sincronize quando tiver sinal.' : 'Sem internet agora. Tente de novo quando tiver conexão.')
   : erro.message || String(erro));
 
-// ---------- Indicador no menu (modo Caixa) ----------
+// ---------- Indicador no menu ----------
 export async function atualizarIndicador() {
   const link = document.querySelector('.nav a[data-rota="sincronizar"]');
-  if (!link || !ehCaixa()) return;
+  if (!link) return;
+  if (!ehCaixa()) {
+    // Gestão: ponto amarelo quando há alterações não publicadas para os caixas
+    if (!driveConfigurado()) { link.classList.remove('pendente'); return; }
+    try {
+      const { publicada, alterada } = await situacaoBase();
+      link.classList.toggle('pendente', alterada);
+      link.title = alterada ? (publicada ? 'Há alterações não publicadas para os caixas' : 'Base ainda não publicada') : 'Base dos caixas em dia';
+    } catch (e) { /* ok */ }
+    return;
+  }
   try {
     const p = await pendencias();
     const pendente = !p.ultimo || p.vendas + p.outros > 0;
@@ -110,10 +124,30 @@ export function lembrarDeSincronizar() {
 export async function render(el) {
   if (driveConfigurado()) prepararDrive().catch(() => {});
   if (!driveConfigurado()) {
-    el.innerHTML = `<header class="cab"><h1>Sincronizar</h1></header><div class="cartao vazio"><h2>Drive não ligado</h2><p>Use o pacote e o envio de vendas por arquivo, em Mais.</p></div>`;
+    el.innerHTML = `<header class="cab"><h1>Sincronizar</h1><p class="sub">O Google Drive não está ligado ao app: use os arquivos.</p></header>${secaoArquivo()}${ehCaixa() ? '' : secaoInstalar()}`;
     return;
   }
   return ehCaixa() ? telaCaixa(el) : telaGestao(el);
+}
+
+// Sem internet: os mesmos dados por arquivo (Quick Share, Bluetooth, cabo)
+function secaoArquivo() {
+  const caixa = ehCaixa();
+  const itens = caixa
+    ? [['#/pacote', 'Receber catálogo e evento', 'Pacote preparado na Gestão'], ['#/juntar', 'Enviar vendas', 'Vendas e caixas deste aparelho, para a Gestão']]
+    : [['#/pacote', 'Pacote para os caixas', 'Catálogo, preços, formas de pagamento, PIN e eventos'], ['#/juntar', 'Receber vendas dos caixas', 'Arquivos de vendas enviados pelos caixas']];
+  return `
+    <h2 class="titulo-secao">Sem internet: por arquivo</h2>
+    <ul class="lista lista-links">${itens.map(([href, t, sub]) => `
+      <li><a href="${href}"><span><strong>${t}</strong><br><span class="sub">${sub}</span></span><span class="seta" aria-hidden="true">›</span></a></li>`).join('')}
+    </ul>`;
+}
+function secaoInstalar() {
+  return `
+    <h2 class="titulo-secao">Aparelho novo</h2>
+    <ul class="lista lista-links">
+      <li><a href="#/instalar"><span><strong>Instalar em outro aparelho</strong><br><span class="sub">QR Code que abre o app no tablet novo, já como Caixa</span></span><span class="seta" aria-hidden="true">›</span></a></li>
+    </ul>`;
 }
 
 async function telaCaixa(el) {
@@ -131,7 +165,8 @@ async function telaCaixa(el) {
       </ul>
       <button type="button" class="btn primario btn-sinc" id="sincronizar">${icones.compartilhar} Sincronizar agora</button>
     </section>
-    <p class="sub" style="margin-top:12px">Sem internet no evento? Venda normalmente: tudo fica guardado neste aparelho e vai na próxima sincronização.</p>`;
+    <p class="sub" style="margin-top:12px">Sem internet no evento? Venda normalmente: tudo fica guardado neste aparelho e vai na próxima sincronização.</p>
+    ${secaoArquivo()}`;
   el.querySelector('#sincronizar').addEventListener('click', async () => {
     await iniciarSincronizacao();
     if (el.isConnected) telaCaixa(el);
@@ -142,7 +177,6 @@ async function telaCaixa(el) {
 async function telaGestao(el) {
   const [{ publicada, alterada }, evento, busca] = await Promise.all([situacaoBase(), lerEventoAtivo(), lerConfig('ultimaBuscaVendas', null)]);
   el.innerHTML = `
-    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
     <header class="cab"><div><h1>Sincronizar</h1>
       <p class="sub">A base leva aos caixas o catálogo, as fotos, os preços, as formas de pagamento, o PIN e o evento em uso deste aparelho. Os caixas recebem ao tocar em Sincronizar.</p></div></header>
 
@@ -165,7 +199,9 @@ async function telaGestao(el) {
         <a class="btn texto" href="#/fechamento">Ir para o Fechamento</a>
       </div>
       <div id="status-vendas" class="sub" hidden></div>
-    </section>`;
+    </section>
+    ${secaoArquivo()}
+    ${secaoInstalar()}`;
   const $ = (s) => el.querySelector(s);
   $('#publicar').addEventListener('click', async (e) => {
     const botao = e.currentTarget;
@@ -177,6 +213,7 @@ async function telaGestao(el) {
       const r = await publicarBase();
       aviso(`Base nº ${r.versao} publicada.`);
       telaGestao(el);
+      atualizarIndicador();
     } catch (erro) {
       console.error(erro);
       status.textContent = mensagemErro(erro, false);

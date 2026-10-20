@@ -70,6 +70,7 @@ export function htmlResumo(r, { categorias = true } = {}) {
           ${r.reforcos ? linha('Reforços', r.reforcos, '+ ') : ''}
           ${r.retiradas ? linha('Retiradas', r.retiradas, '− ') : ''}
           ${r.devolvido.dinheiro ? linha('Devolvido em dinheiro', r.devolvido.dinheiro, '− ') : ''}
+          ${r.trocoDeOutrasFormas ? linha('Troco em dinheiro de Pix/cartão', r.trocoDeOutrasFormas, '− ') : ''}
           <div class="total"><span>Esperado</span><strong class="num">${dinheiro(r.esperado)}</strong></div>
         </div>
       </section>

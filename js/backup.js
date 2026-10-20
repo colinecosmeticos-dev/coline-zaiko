@@ -50,8 +50,8 @@ export async function lerBackup(arquivo) {
   let dados;
   try { dados = JSON.parse(await arquivo.text()); } catch (e) { throw new Error('Este arquivo não é um backup do Coline Zaiko.'); }
   if (!dados || dados.tipo !== TIPO) {
-    if (dados && dados.tipo === 'coline-zaiko-pacote') throw new Error('Este arquivo é um pacote de catálogo, não um backup. Use Mais → Preparar outros aparelhos.');
-    if (dados && dados.tipo === 'coline-zaiko-vendas') throw new Error('Este arquivo é de vendas, não um backup. Use Mais → Juntar vendas.');
+    if (dados && dados.tipo === 'coline-zaiko-pacote') throw new Error('Este arquivo é um pacote de catálogo, não um backup. Use Sincronizar → Por arquivo.');
+    if (dados && dados.tipo === 'coline-zaiko-vendas') throw new Error('Este arquivo é de vendas, não um backup. Use Sincronizar → Por arquivo.');
     throw new Error('Este arquivo não é um backup do Coline Zaiko.');
   }
   if (dados.versao > VERSAO || dados.versaoBanco > db.verno) throw new Error('Backup feito numa versão mais nova do app. Atualize este aparelho primeiro.');

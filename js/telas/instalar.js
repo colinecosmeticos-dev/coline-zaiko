@@ -32,7 +32,7 @@ export async function render(el) {
   const base = drive ? await situacaoBase() : null;
 
   el.innerHTML = `
-    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
+    <a class="voltar" href="#/sincronizar">${icones.voltar} Sincronizar</a>
     <header class="cab"><div><h1>Instalar em outro aparelho</h1>
       <p class="sub">Aponte a câmera do tablet novo para o QR Code. O app abre já pronto para ser configurado.</p></div></header>
 
@@ -64,7 +64,7 @@ export async function render(el) {
           <li><strong>Instale o app:</strong> no Chrome, toque em <strong>Instalar</strong> no aviso que aparece embaixo, ou no menu <strong>⋮</strong> → <strong>Instalar app</strong> (em alguns aparelhos, <strong>Adicionar à tela inicial</strong>).</li>
           <li><strong>Abra o Zaiko</strong> pelo ícone novo na tela inicial.</li>
           <li id="passo-modo"><strong>Dê nome e sigla</strong> ao aparelho (ex.: Vaio TL10 e VAIO). O modo Caixa já vem escolhido.</li>
-          <li>${drive ? '<strong>Toque em Sincronizar agora</strong> e entre com a conta Google da empresa: o aparelho recebe o catálogo, as formas de pagamento e o evento.' : '<strong>Receba o catálogo e o evento</strong> pelo pacote (Mais → Preparar outros aparelhos, aqui na Gestão).'}</li>
+          <li>${drive ? '<strong>Toque em Sincronizar agora</strong> e entre com a conta Google da empresa: o aparelho recebe o catálogo, as formas de pagamento e o evento.' : '<strong>Receba o catálogo e o evento</strong> pelo pacote (Sincronizar → Por arquivo, aqui na Gestão).'}</li>
         </ol>
         <p class="sub">Sem câmera que leia QR Code? Digite o endereço que aparece embaixo do código no Chrome do aparelho novo.</p>
       </section>

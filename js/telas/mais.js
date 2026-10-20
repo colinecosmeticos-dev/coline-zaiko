@@ -8,26 +8,19 @@ import { escolherEvento } from '../venda/escolher-evento.js';
 import { procurar } from '../atualizacao.js';
 import { VERSAO } from '../versao.js';
 
+// Sincronizar, pacote, vendas por arquivo e instalar em outro aparelho ficam
+// na tela Sincronizar (menu), desde a v0.26.0.
 const itensGestao = [
-  ['#/sincronizar', 'Sincronizar com os caixas', 'Publicar a base e buscar as vendas dos caixas pelo Drive'],
-  ['#/instalar', 'Instalar em outro aparelho', 'QR Code para abrir o app no tablet novo, já como Caixa'],
-  ['#/eventos', 'Eventos', 'Criar eventos e escolher o evento deste aparelho'],
-  ['#/pacote', 'Preparar outros aparelhos', 'Enviar ou receber catálogo, taxas e eventos'],
-  ['#/juntar', 'Juntar vendas dos aparelhos', 'Enviar as vendas ao principal e conferir quem já mandou'],
-  ['#/estoque', 'Estoque do evento', 'Quantidades levadas, brindes e avarias'],
-  ['#/fechamento', 'Fechamento do evento', 'Totais, resumo por dia e exportação'],
+  ['#/eventos', 'Eventos', 'Criar eventos, preços do evento e o evento deste aparelho'],
+  ['#/estoque', 'Estoque do evento', 'Quantidades levadas, brindes, avarias e contagem final'],
+  ['#/fechamento', 'Fechamento do evento', 'Totais, resultado, resumo por dia e planilha'],
   ['#/painel', 'Painel de vendas', 'Vendas do aparelho, protegido por PIN'],
   ['#/backup', 'Backup', 'Cópia completa do aparelho no Drive ou em arquivo, e restauração'],
   ['#/configuracoes', 'Configurações', 'Aparelho, modo, formas de pagamento, retiradas, PIN e tema']
 ];
 
 const itensCaixa = [
-  ['#/painel', 'Painel de vendas', 'Vendas e totais deste aparelho, protegido pelo PIN']
-];
-// Sem internet: os mesmos dados por arquivo (Quick Share, Bluetooth)
-const itensArquivo = [
-  ['#/pacote', 'Receber catálogo e evento', 'Pacote preparado na Gestão, por arquivo'],
-  ['#/juntar', 'Enviar vendas', 'Vendas e caixas deste aparelho, por arquivo'],
+  ['#/painel', 'Painel de vendas', 'Vendas e totais deste aparelho, protegido pelo PIN'],
   ['#/backup', 'Backup', 'Cópia completa deste aparelho no Drive ou em arquivo']
 ];
 
@@ -55,8 +48,7 @@ export async function render(el) {
         <span class="seta" aria-hidden="true">›</span></button></li>
     </ul>
     <div style="margin-top:16px">${lista(itensCaixa)}</div>
-    <h2 class="titulo-secao">Sem internet: por arquivo</h2>
-    ${lista(itensArquivo)}
+    <p class="sub" style="margin-top:12px">Receber o catálogo e enviar as vendas (com ou sem internet) ficam em <a href="#/sincronizar">Sincronizar</a>.</p>
     <section class="cartao" style="margin-top:16px">
       <h2>Modo Gestão</h2>
       <p class="sub">Cadastros, estoque, fechamento e relatórios. ${comPin ? 'Pede o PIN.' : 'Defina um PIN na Gestão para proteger esta passagem.'}</p>

@@ -40,7 +40,7 @@ export async function render(el) {
   const totalProdutos = await db.produtos.count();
   const caixaModo = ehCaixa();
   const falta = !aparelho ? ['Identifique este aparelho', 'Dê nome e sigla ao aparelho; a sigla vai no número de cada venda.', caixaModo ? '#/configurar' : '#/configuracoes', 'Configurar aparelho']
-    : !totalProdutos && caixaModo ? ['Receba o catálogo', 'O catálogo e o evento vêm no pacote preparado na Gestão.', '#/pacote', 'Receber catálogo e evento']
+    : !totalProdutos && caixaModo ? ['Receba o catálogo', 'O catálogo e o evento vêm da Gestão: toque em Sincronizar.', '#/sincronizar', 'Ir para Sincronizar']
     : !evento ? ['Escolha o evento', 'As vendas ficam guardadas dentro de um evento.', caixaModo ? '#escolher-evento' : '#/eventos', caixaModo ? 'Escolher o evento' : 'Ir para Eventos']
     : !totalProdutos ? ['Cadastre os produtos', 'A tela de venda mostra os produtos do catálogo.', '#/produtos/novo', 'Cadastrar produto']
     : null;
@@ -545,7 +545,7 @@ export async function render(el) {
       else partes.push(dinheiro(Math.abs(r.total)));
       const formas = textoPagamento(r);
       if (formas) partes.push(esc(formas));
-      if (r.troco) partes.push(`<strong>Troco ${dinheiro(r.troco)}</strong>`);
+      if (r.troco) partes.push(`<strong>Troco ${(r.pagamentos || []).some((x) => x.trocoEmDinheiro) ? 'em dinheiro ' : ''}${dinheiro(r.troco)}</strong>`);
       linha = partes.join(' · ');
     }
     const p = $('#caixa-livre');
