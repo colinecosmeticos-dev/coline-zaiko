@@ -1122,3 +1122,16 @@ body:not(.modo-caixa) .nav a[data-rota="sincronizar"] { display: none; }
 .sinc-resumo { text-align: left; margin: 12px 0 0; padding-left: 18px; display: grid; gap: 6px; color: var(--texto-2); }
 dialog.janela-sinc { width: min(92vw, 460px); }
 .titulo-secao { font-size: .9375rem; color: var(--texto-2); margin: 20px 0 8px 4px; }
+
+/* ---------- Instalar em outro aparelho (v0.24.0) ---------- */
+.instalar { display: grid; gap: 16px; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 759px) { .instalar { grid-template-columns: 1fr; } }
+.instalar > .cartao { margin: 0; }
+.instalar-qr { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+/* Fundo branco sempre (também no tema escuro): a câmera lê melhor */
+.instalar-qr .qr { width: min(100%, 280px); aspect-ratio: 1; background: #fff; border-radius: var(--raio); padding: 4px; }
+.instalar-qr .qr svg { width: 100%; height: 100%; display: block; }
+.instalar-qr .endereco { word-break: break-all; font-size: .8125rem; }
+.passos-instalar { margin: 8px 0 12px; padding-left: 1.25em; display: grid; gap: 10px; line-height: 1.45; }
+.aviso-instalar { margin-bottom: 16px; border-left: 4px solid var(--marca); }
+.cartao-modo.indicado { border-color: var(--marca); }

@@ -37,6 +37,7 @@ import * as fechamento from './telas/fechamento.js';
 import * as backup from './telas/backup.js';
 import * as codigos from './telas/codigos.js';
 import * as precosEvento from './telas/precos-evento.js';
+import * as instalar from './telas/instalar.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -61,6 +62,7 @@ const rotas = [
   ['produtos/novo', produtoForm.render],
   ['produtos/:id', produtoForm.render],
   ['mais', mais.render],
+  ['instalar', instalar.render],
   ['configuracoes', configuracoes.render],
   ['configuracoes/taxas', () => location.replace('#/configuracoes/formas')],
   ['configuracoes/formas', formas.render],
@@ -151,6 +153,15 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ---------- Inicialização ----------
+// Aberto pelo QR Code da Gestão (?config=caixa): guarda o modo indicado para o
+// assistente usar (também no app instalado, que abre sem o ?config) e limpa o endereço.
+{
+  const indicado = new URLSearchParams(location.search).get('config');
+  if (indicado === 'caixa' || indicado === 'gestao') {
+    try { localStorage.setItem('zaiko-modo-indicado', indicado); } catch (e) { /* ok */ }
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
+}
 aplicarTemaSalvo();
 Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao(), iniciarModo()]).catch((e) => console.error(e)).finally(() => {
   navegar();

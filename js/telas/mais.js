@@ -10,6 +10,7 @@ import { VERSAO } from '../versao.js';
 
 const itensGestao = [
   ['#/sincronizar', 'Sincronizar com os caixas', 'Publicar a base e buscar as vendas dos caixas pelo Drive'],
+  ['#/instalar', 'Instalar em outro aparelho', 'QR Code para abrir o app no tablet novo, já como Caixa'],
   ['#/eventos', 'Eventos', 'Criar eventos e escolher o evento deste aparelho'],
   ['#/pacote', 'Preparar outros aparelhos', 'Enviar ou receber catálogo, taxas e eventos'],
   ['#/juntar', 'Juntar vendas dos aparelhos', 'Enviar as vendas ao principal e conferir quem já mandou'],
