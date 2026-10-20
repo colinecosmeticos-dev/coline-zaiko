@@ -1,20 +1,55 @@
 // =========================================================
 // Carrinho da venda: itens, descontos e contas.
-// Fica guardado na memória enquanto o app está aberto, então
-// sair da tela de venda e voltar não perde o carrinho.
+// Fica na memória (sair da tela de venda e voltar não perde nada) e,
+// desde a v0.25.0, também gravado no aparelho a cada mudança (config
+// 'vendaEmAndamento'): se o app fechar no meio, a venda é recuperada,
+// com os pagamentos já lançados na cobrança.
 // Todos os valores em centavos; percentuais em centésimos (10% = 1000).
 // =========================================================
+import { lerConfig, gravarConfig } from '../db.js';
+
+const CHAVE = 'vendaEmAndamento';
 
 export const carrinho = {
   itens: [],              // { chave, variacaoId, produtoId, nome, variacaoNome, categoriaNome, tipoNome, linhaNome, codigo, quantidade, precoUnit, custoUnit, desconto, brinde }
   descontoVenda: null,    // { tipo: 'R$' | '%', valor } ou null
-  troca: null             // troca em andamento: { origemId, origemNumero, devolvidos, credito, modoValor, motivo }
+  troca: null,            // troca em andamento: { origemId, origemNumero, devolvidos, credito, modoValor, motivo }
+  pagamentos: [],         // pagamentos já lançados na cobrança, antes de finalizar
+  recuperada: null        // { em } quando a venda veio gravada de antes do app fechar
 };
 
 export function limparCarrinho() {
   carrinho.itens = [];
   carrinho.descontoVenda = null;
   carrinho.troca = null;
+  carrinho.pagamentos = [];
+  carrinho.recuperada = null;
+  guardarCarrinho();
+}
+
+// Há uma venda (ou troca) em andamento?
+export const temVendaEmAndamento = () => !!(carrinho.itens.length || carrinho.troca || carrinho.pagamentos.length);
+export const totalPago = () => carrinho.pagamentos.reduce((s, p) => s + p.valor, 0);
+
+// Grava o carrinho no aparelho (vazio = apaga). Chamar depois de cada mudança.
+export function guardarCarrinho() {
+  const dados = temVendaEmAndamento()
+    ? { itens: carrinho.itens, descontoVenda: carrinho.descontoVenda, troca: carrinho.troca, pagamentos: carrinho.pagamentos, em: new Date().toISOString() }
+    : null;
+  return gravarConfig(CHAVE, dados).catch((e) => console.error(e));
+}
+
+// Ao abrir o app: traz de volta a venda gravada (se a memória estiver vazia)
+export async function recuperarCarrinho() {
+  if (temVendaEmAndamento()) return false;
+  const salvo = await lerConfig(CHAVE, null);
+  if (!salvo || (!salvo.itens?.length && !salvo.troca && !salvo.pagamentos?.length)) return false;
+  carrinho.itens = salvo.itens || [];
+  carrinho.descontoVenda = salvo.descontoVenda || null;
+  carrinho.troca = salvo.troca || null;
+  carrinho.pagamentos = salvo.pagamentos || [];
+  carrinho.recuperada = { em: salvo.em };
+  return true;
 }
 
 // Adiciona 1 unidade (ou soma na linha que já existe, se não tiver ajuste próprio)

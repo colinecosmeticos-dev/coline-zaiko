@@ -1,10 +1,14 @@
-// Tela Início: situação geral do aparelho
+// Tela Início: situação geral do aparelho (Gestão).
+// No modo Caixa, o Início é outro (js/telas/inicio-caixa.js).
 import { db, lerEventoAtivo, lerAparelho } from '../db.js';
+import { ehCaixa } from '../modo.js';
+import { render as renderCaixa } from './inicio-caixa.js';
 import { esc, periodo, hojeISO, diasEntre } from '../ui.js';
 import { situacaoBase } from '../sincronizar.js';
 import { driveConfigurado } from '../drive.js';
 
 export async function render(el) {
+  if (ehCaixa()) return renderCaixa(el);
   const totalProdutos = await db.produtos.count();
   const totalItens = await db.variacoes.count();
   const evento = await lerEventoAtivo();
@@ -17,8 +21,8 @@ export async function render(el) {
   if (evento) {
     const hoje = hojeISO();
     const total = diasEntre(evento.dataInicio, evento.dataFim);
-    if (hoje < evento.dataInicio) diaDoEvento = `Começa em ${diasEntre(hoje, evento.dataInicio) - 1} ${diasEntre(hoje, evento.dataInicio) - 1 === 1 ? 'dia' : 'dias'}`;
-    else if (hoje > evento.dataFim) diaDoEvento = 'As datas do evento já passaram';
+    if (hoje < evento.dataInicio) diaDoEvento = `Hoje está fora das datas do evento: começa em ${diasEntre(hoje, evento.dataInicio) - 1} ${diasEntre(hoje, evento.dataInicio) - 1 === 1 ? 'dia' : 'dias'}`;
+    else if (hoje > evento.dataFim) diaDoEvento = 'Hoje está fora das datas do evento: elas já passaram';
     else diaDoEvento = total > 1 ? `Hoje é o dia ${diasEntre(evento.dataInicio, hoje)} de ${total}` : 'Hoje';
   }
 

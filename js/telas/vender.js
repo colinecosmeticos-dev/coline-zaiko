@@ -13,9 +13,9 @@ import { esc, dinheiro, iniciais, icones, aviso, abrirJanela, campoDinheiro, cam
 import { ouvirLeitor } from '../leitor.js';
 import { som } from '../sons.js';
 import { corValida } from '../cores.js';
-import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho } from '../venda/carrinho.js';
+import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho, guardarCarrinho, totalPago } from '../venda/carrinho.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
-import { abrirCobranca, finalizarTrocaSemCobranca } from '../venda/cobrar.js';
+import { abrirCobranca, finalizarTrocaSemCobranca, textoPagamento } from '../venda/cobrar.js';
 import { montarGrupos, temLinhas, SEM_CATEGORIA } from '../venda/grupos.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
 import { ehCaixa } from '../modo.js';
@@ -27,6 +27,11 @@ const CHAVE_CATEGORIA = 'zaiko-categoria-venda';
 const CHAVE_VER = 'zaiko-venda-ver';       // 'linha' (padrão) ou 'subcategoria'
 const CHAVE_TEXTO = 'zaiko-venda-texto';   // '1' = botões só com texto, sem foto
 const TODOS = '__todos';
+
+// Painel "Caixa livre" (v0.25.0): fica na tela depois de cada venda, até o próximo
+// cliente (ler um código ou tocar). Guardado aqui para continuar se a pessoa sair
+// da tela Vender e voltar.
+let ultimaConcluida = null;
 
 export async function render(el) {
   // ---------- Pré-requisitos ----------
@@ -75,6 +80,7 @@ export async function render(el) {
       return;
     }
     const novo = await pedirAberturaCaixa(evento);
+    if (novo === 'outro-evento') { render(el); return; }   // escolheu outro evento: começa de novo
     if (!novo) {
       bloquear('Caixa fechado', 'Abra o caixa do dia para começar a vender.', '<button class="btn primario" id="abrir">Abrir caixa</button>');
       el.querySelector('#abrir').addEventListener('click', () => render(el));
@@ -131,6 +137,7 @@ export async function render(el) {
         </div>
         <div class="venda-navegacao" id="navegacao"></div>
         <div class="venda-itens" id="grade"></div>
+        <div class="caixa-livre" id="caixa-livre" hidden></div>
       </section>
 
       <aside class="venda-carrinho" id="carrinho" aria-label="Carrinho">
@@ -144,6 +151,7 @@ export async function render(el) {
         <div class="carrinho-rodape">
           <button type="button" class="linha-desconto" id="desconto-venda"></button>
           <div class="linha-credito" id="linha-credito" hidden></div>
+          <div class="linha-credito linha-pago" id="linha-pago" hidden></div>
           <div class="linha-total"><span id="rotulo-total">Total</span><strong class="num" id="total"></strong></div>
           <button type="button" class="btn primario btn-cobrar" id="cobrar"></button>
         </div>
@@ -297,6 +305,7 @@ export async function render(el) {
 
   // ---------- Adicionar produtos ----------
   function adicionar(p, v) {
+    esconderLivre();
     const item = adicionarItem(p, v);
     som.item();
     desenharCarrinho(item.chave);
@@ -344,10 +353,14 @@ export async function render(el) {
       $('#linha-credito').innerHTML = `<span>Crédito da troca</span><span class="num">− ${dinheiro(troca.credito)}</span>`;
     }
     // Na troca, o total pode ficar negativo: é a diferença a devolver ao cliente
+    // Pagamentos já lançados na cobrança (venda não finalizada)
+    const pago = totalPago();
+    $('#linha-pago').hidden = !pago;
+    if (pago) $('#linha-pago').innerHTML = `<span>Já pago (${esc([...new Set(carrinho.pagamentos.map((x) => x.formaNome))].join(' e '))})</span><span class="num">${dinheiro(pago)}</span>`;
     $('#rotulo-total').textContent = troca ? (total < 0 ? 'A devolver' : 'Diferença') : 'Total';
     $('#total').textContent = dinheiro(Math.abs(total));
     $('#cobrar').textContent = troca ? (total > 0 ? `Cobrar ${dinheiro(total)}` : total < 0 ? `Devolver ${dinheiro(-total)}` : 'Finalizar troca')
-      : carrinho.itens.length ? `Cobrar ${dinheiro(total)}` : 'Cobrar';
+      : carrinho.itens.length ? (pago ? `Cobrar o restante ${dinheiro(Math.max(total - pago, 0))}` : `Cobrar ${dinheiro(total)}`) : 'Cobrar';
     $('#cobrar').disabled = !troca && !carrinho.itens.length;
     $('#limpar').hidden = !troca && !carrinho.itens.length;
     $('#limpar').textContent = troca ? 'Desistir' : 'Limpar';
@@ -357,6 +370,7 @@ export async function render(el) {
       const novo = el.querySelector('.item-carrinho.novo');
       if (novo) novo.scrollIntoView({ block: 'nearest' });
     }
+    guardarCarrinho();   // grava no aparelho: se o app fechar, a venda é recuperada
   }
 
   $('#itens').addEventListener('click', (e) => {
@@ -486,6 +500,7 @@ export async function render(el) {
       ? abrirJanela(`<h2>Desistir da troca?</h2><p>A troca da ${esc(carrinho.troca.origemNumero)} não será registrada e o carrinho fica vazio.</p>
         <div class="acoes"><button class="btn" value="nao">Continuar a troca</button><button class="btn primario perigo" value="sim">Desistir</button></div>`)
       : abrirJanela(`<h2>Limpar o carrinho?</h2><p>Todos os itens desta venda serão removidos.</p>
+        ${totalPago() ? `<p><strong>Os ${dinheiro(totalPago())} já lançados (${esc(textoPagamento(carrinho))}) também serão descartados.</strong> Devolva ao cliente ou estorne na maquininha.</p>` : ''}
         <div class="acoes"><button class="btn" value="nao">Cancelar</button><button class="btn primario perigo" value="sim">Limpar</button></div>`);
     d.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       if (b.value === 'sim') { limparCarrinho(); desenharCarrinho(); }
@@ -504,15 +519,88 @@ export async function render(el) {
       ? await finalizarTrocaSemCobranca({ evento, caixa, pagoCom: carrinho.troca.pagoCom })
       : await abrirCobranca({ evento, caixa });
     // (se a pessoa já saiu da tela Vender, não há o que redesenhar)
-    if (concluida && el.isConnected && $('#carrinho')) {
+    if (!el.isConnected || !$('#carrinho')) return;
+    if (concluida) {
       $('#carrinho').classList.remove('aberto');
-      desenharCarrinho();
+      ultimaConcluida = concluida;
+      mostrarLivre();
     }
+    desenharCarrinho();   // (pagamentos lançados e mantidos ao sair da cobrança aparecem no carrinho)
+  });
+
+  // ---------- Caixa livre ----------
+  function mostrarLivre() {
+    const c = ultimaConcluida;
+    if (!c) return;
+    const r = c.registro;
+    let titulo, linha;
+    if (c.saida) {
+      titulo = c.saida.tipo === 'avaria' ? 'Avaria registrada' : 'Brinde registrado';
+      linha = `${c.saida.pecas} ${c.saida.pecas === 1 ? 'peça' : 'peças'} · ${esc(c.saida.motivo)}`;
+    } else {
+      const nome = r.tipo === 'troca' ? 'Troca' : r.tipo === 'devolucao' ? 'Devolução' : 'Venda';
+      titulo = `${nome} ${esc(r.numero)} concluída`;
+      const partes = [];
+      if (c.devolver) partes.push(`Devolvido ${dinheiro(c.devolver)}`);
+      else partes.push(dinheiro(Math.abs(r.total)));
+      const formas = textoPagamento(r);
+      if (formas) partes.push(esc(formas));
+      if (r.troco) partes.push(`<strong>Troco ${dinheiro(r.troco)}</strong>`);
+      linha = partes.join(' · ');
+    }
+    const p = $('#caixa-livre');
+    p.innerHTML = `
+      <div class="cl-conteudo">
+        <div class="cl-ultima">
+          <div class="marca-ok pequena" aria-hidden="true">✓</div>
+          <div><strong>${titulo}</strong><br><span class="num">${linha}</span></div>
+        </div>
+        <p class="cl-livre">Caixa livre</p>
+        <p class="sub">Leia um código ou toque para o próximo cliente</p>
+        <div class="acoes" style="justify-content:center;flex-wrap:wrap">
+          ${r && r.id ? `<a class="btn" href="#/vendas/${encodeURIComponent(r.id)}" id="ver-venda">Ver venda</a>` : ''}
+          <button type="button" class="btn primario" id="proximo">Próximo cliente</button>
+        </div>
+      </div>`;
+    p.hidden = false;
+    el.querySelector('.venda').classList.add('com-livre');
+  }
+  function esconderLivre() {
+    ultimaConcluida = null;
+    const p = $('#caixa-livre');
+    if (!p || p.hidden) return;
+    p.hidden = true;
+    el.querySelector('.venda').classList.remove('com-livre');
+  }
+  // Tocar em qualquer lugar do painel (menos "Ver venda") volta para os produtos
+  $('#caixa-livre').addEventListener('click', (e) => {
+    if (e.target.closest('#ver-venda')) { ultimaConcluida = null; return; }
+    esconderLivre();
   });
 
   desenharProdutos();
   desenharCarrinho();
+  if (ultimaConcluida && !carrinho.itens.length && !carrinho.troca) mostrarLivre(); else ultimaConcluida = null;
   const pararLeitor = ouvirLeitor(lerCodigo);
+
+  // Venda que estava em andamento quando o app fechou: continuar ou descartar
+  if (carrinho.recuperada) {
+    const { total, quantidade } = calcularTotais();
+    const pago = totalPago();
+    const quando = new Date(carrinho.recuperada.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    carrinho.recuperada = null;
+    const d = abrirJanela(`
+      <h2>${carrinho.troca ? 'Troca' : 'Venda'} em andamento recuperada</h2>
+      <p>O app fechou no meio de ${carrinho.troca ? `uma troca da ${esc(carrinho.troca.origemNumero)}` : 'uma venda'} (${quando}):
+        <strong class="num">${quantidade} ${quantidade === 1 ? 'item' : 'itens'} · ${dinheiro(Math.abs(total))}</strong>${pago ? `, com <strong class="num">${dinheiro(pago)}</strong> já pagos (${esc(textoPagamento(carrinho))})` : ''}.</p>
+      ${pago ? '<p class="sub">Se descartar, devolva ao cliente o que ele já pagou.</p>' : ''}
+      <div class="acoes">
+        <button type="button" class="btn texto perigo" id="descartar" style="margin-right:auto">Descartar</button>
+        <button type="button" class="btn primario" id="continuar">Continuar</button>
+      </div>`);
+    d.querySelector('#continuar').addEventListener('click', () => d.close());
+    d.querySelector('#descartar').addEventListener('click', () => { limparCarrinho(); d.close(); desenharCarrinho(); });
+  }
 
   return () => {
     pararLeitor();

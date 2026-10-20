@@ -16,6 +16,7 @@ import { ehCaixa } from '../modo.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
 import { lembrarDeSincronizar } from './sincronizar.js';
 import { driveConfigurado } from '../drive.js';
+import { temVendaEmAndamento, calcularTotais, totalPago } from '../venda/carrinho.js';
 
 const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
 const diaCurto = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
@@ -57,7 +58,9 @@ export async function render(el, { id, mostrarTotais = false } = {}) {
   // Nenhum caixa hoje
   el.innerHTML = vazio('Caixa fechado', `${esc(evento.nome)}. Abra o caixa do dia com o troco inicial.`, '<button type="button" class="btn primario" id="abrir">Abrir caixa</button>') + await htmlAnteriores(evento, null);
   el.querySelector('#abrir').addEventListener('click', async () => {
-    if (await pedirAberturaCaixa(evento)) { aviso('Caixa aberto.'); render(el); }
+    const r = await pedirAberturaCaixa(evento);
+    if (r === 'outro-evento') render(el);
+    else if (r) { aviso('Caixa aberto.'); render(el); }
   });
 }
 
@@ -158,6 +161,17 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   $('#ver-totais')?.addEventListener('click', async () => { if (await pin('Totais do caixa')) recarregar(true); });
   $('#ocultar-totais')?.addEventListener('click', () => recarregar(false));
   $('#fechar')?.addEventListener('click', async () => {
+    // Venda em andamento (itens no carrinho ou pagamento lançado): avisa antes de fechar
+    if (temVendaEmAndamento()) {
+      const { quantidade, total } = calcularTotais();
+      const pago = totalPago();
+      const ir = await confirmar({
+        titulo: 'Há uma venda em andamento',
+        texto: `${quantidade} ${quantidade === 1 ? 'item' : 'itens'} · ${dinheiro(Math.abs(total))}${pago ? `, com ${dinheiro(pago)} já pagos` : ''}. Finalize ou limpe a venda antes de fechar o caixa, para ela não ficar para outro dia.`,
+        botao: 'Ir para a venda', cancelar: 'Fechar mesmo assim'
+      });
+      if (ir) { location.hash = '#/vender'; return; }
+    }
     // Sem o PIN: fechamento às cegas (só o dinheiro contado). Com o PIN: vendo o esperado e a diferença.
     if (!verTotais) {
       const atual = await db.caixas.get(caixa.id);

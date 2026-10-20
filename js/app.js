@@ -7,6 +7,7 @@ import { pedirArmazenamentoPersistente, garantirCategoriasPadrao, garantirFormas
 import { aplicarTemaSalvo } from './tema.js';
 import { saida, confirmar } from './ui.js';
 import { iniciarAtualizacoes } from './atualizacao.js';
+import { recuperarCarrinho } from './venda/carrinho.js';
 import { iniciarModo, modoAtual, podeAbrir, telaInicial } from './modo.js';
 import * as configurar from './telas/configurar.js';
 import * as sincronizar from './telas/sincronizar.js';
@@ -163,7 +164,7 @@ window.addEventListener('beforeunload', (e) => {
   }
 }
 aplicarTemaSalvo();
-Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao(), iniciarModo()]).catch((e) => console.error(e)).finally(() => {
+Promise.all([garantirCategoriasPadrao(), garantirFormasPadrao(), garantirTiposPadrao(), iniciarModo(), recuperarCarrinho()]).catch((e) => console.error(e)).finally(() => {
   navegar();
   // Modo Caixa: já carrega o login do Google, para o Sincronizar responder no primeiro toque
   if (modoAtual() === 'caixa' && driveConfigurado()) prepararDrive().catch(() => {});

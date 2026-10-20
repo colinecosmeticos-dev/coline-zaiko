@@ -4,14 +4,17 @@
 // no pacote da Gestão; um toque escolhe.
 // =========================================================
 import { db, lerEventoAtivo, definirEventoAtivo } from '../db.js';
-import { esc, abrirJanela } from '../ui.js';
+import { esc, abrirJanela, hojeISO } from '../ui.js';
 
 const data = (iso) => (iso ? new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '');
 
 export async function escolherEvento() {
   const atual = await lerEventoAtivo();
+  // Os de hoje primeiro (destacados); depois, os mais recentes
+  const hoje = hojeISO();
+  const ehHoje = (e) => !!e.dataInicio && hoje >= e.dataInicio && hoje <= (e.dataFim || e.dataInicio);
   const eventos = (await db.eventos.toArray()).filter((e) => e.status !== 'encerrado')
-    .sort((a, b) => (b.dataInicio || '').localeCompare(a.dataInicio || ''));
+    .sort((a, b) => ehHoje(b) - ehHoje(a) || (b.dataInicio || '').localeCompare(a.dataInicio || ''));
   return new Promise((resolver) => {
     let escolhido = null;
     const d = abrirJanela(`
@@ -19,7 +22,7 @@ export async function escolherEvento() {
       ${eventos.length ? `<p>As vendas deste aparelho entram no evento escolhido.</p>
       <ul class="lista lista-links" style="margin-top:12px">
         ${eventos.map((e) => `<li><button type="button" class="link-evento" data-evento="${esc(e.id)}">
-          <span><strong>${esc(e.nome)}</strong>${atual && atual.id === e.id ? ' <span class="etiqueta marca">em uso</span>' : ''}<br>
+          <span><strong>${esc(e.nome)}</strong>${ehHoje(e) ? ' <span class="etiqueta ok">hoje</span>' : ''}${atual && atual.id === e.id ? ' <span class="etiqueta marca">em uso</span>' : ''}<br>
           <span class="sub">${esc(e.local || '')}${e.local ? ' · ' : ''}${data(e.dataInicio)}${e.dataFim && e.dataFim !== e.dataInicio ? ' a ' + data(e.dataFim) : ''} · ${esc(e.codigo || '')}</span></span>
           <span class="seta" aria-hidden="true">›</span></button></li>`).join('')}
       </ul>` : `<p>Nenhum evento aberto neste aparelho. Peça o pacote para quem cuida da Gestão e receba em Mais → Receber catálogo e evento.</p>`}

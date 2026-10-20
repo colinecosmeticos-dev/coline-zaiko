@@ -68,7 +68,7 @@ export function calcularFechamento({ registros, caixas, movimentos, saidas, prod
   // Caixas: diferença do último fechamento de cada um
   const listaCaixas = caixas.map((c) => {
     const f = (c.fechamentos || []).at(-1);
-    return { id: c.id, data: c.data, aparelho: c.aparelho, aberto: c.status === 'aberto', esperado: f?.esperado ?? null, contado: f?.contado ?? null, diferenca: c.status === 'aberto' ? null : (f?.diferenca ?? null) };
+    return { id: c.id, data: c.data, aparelho: c.aparelho, aberto: c.status === 'aberto', foraDasDatas: !!c.foraDasDatas, esperado: f?.esperado ?? null, contado: f?.contado ?? null, diferenca: c.status === 'aberto' ? null : (f?.diferenca ?? null) };
   }).sort((a, b) => a.data.localeCompare(b.data) || (a.aparelho?.sigla || '').localeCompare(b.aparelho?.sigla || ''));
   const diferencaCaixas = listaCaixas.reduce((s, c) => s + (c.diferenca || 0), 0);
 
@@ -80,6 +80,7 @@ export function calcularFechamento({ registros, caixas, movimentos, saidas, prod
     faturamentoLiquido: geral.faturamento - geral.taxas,
     porDia, porAparelho, caixas: listaCaixas, diferencaCaixas,
     caixasAbertos: listaCaixas.filter((c) => c.aberto),
+    caixasForaDasDatas: listaCaixas.filter((c) => c.foraDasDatas),
     posEvento
   };
 }

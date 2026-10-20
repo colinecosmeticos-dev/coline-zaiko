@@ -655,6 +655,7 @@ dialog.janela-cobrar { max-height: 96dvh; padding: 18px 20px; width: min(96vw, 8
 
 /* ---------- Vendas do evento ---------- */
 .etiqueta.erro { background: var(--erro-suave); color: var(--erro); }
+.etiqueta.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
 .etiqueta.grande { min-height: 30px; padding: 0 12px; border-radius: 15px; font-size: .875rem; }
 .contagem { margin: 0 0 8px; font-size: .875rem; }
 .item-venda {
@@ -1065,7 +1066,7 @@ dialog.janela-cor .acoes { align-items: center; flex-wrap: wrap; }
 @media (max-width: 520px) { .iv-foto { aspect-ratio: 16 / 10; } }
 
 /* ---------- Modo Caixa e assistente (v0.21.0) ---------- */
-.modo-caixa .nav a[data-rota="inicio"], .modo-caixa .nav a[data-rota="produtos"] { display: none; }
+.modo-caixa .nav a[data-rota="produtos"] { display: none; }
 .modo-caixa .so-gestao { display: none !important; }
 .lista-links .link-evento {
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -1135,3 +1136,42 @@ dialog.janela-sinc { width: min(92vw, 460px); }
 .passos-instalar { margin: 8px 0 12px; padding-left: 1.25em; display: grid; gap: 10px; line-height: 1.45; }
 .aviso-instalar { margin-bottom: 16px; border-left: 4px solid var(--marca); }
 .cartao-modo.indicado { border-color: var(--marca); }
+
+/* ---------- Caixa livre: depois de cada venda, até o próximo cliente (v0.25.0) ---------- */
+.venda-produtos { position: relative; }
+.caixa-livre {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 24px;
+  background: var(--fundo, var(--superficie)); border-radius: var(--raio); cursor: pointer;
+  animation: aparecer-livre .2s ease-out;
+}
+.caixa-livre[hidden] { display: none; }
+@keyframes aparecer-livre { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: none; } }
+.cl-conteudo { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; max-width: 520px; }
+.cl-ultima { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 18px; border-radius: var(--raio); background: var(--superficie); border: 1px solid var(--linha); }
+.cl-ultima .num { font-size: 1.0625rem; }
+.marca-ok.pequena { width: 44px; height: 44px; font-size: 1.5rem; flex: 0 0 auto; }
+.cl-livre { margin: 18px 0 0; font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ok); }
+.caixa-livre .acoes { margin-top: 8px; }
+.caixa-livre .btn { min-height: 52px; padding: 0 24px; }
+/* Celular: o painel ocupa a tela toda (por cima da barra do carrinho) */
+@media (max-width: 839px) {
+  .caixa-livre { position: fixed; inset: 0; border-radius: 0; z-index: 30; }
+}
+.linha-pago { color: var(--ok); }
+
+/* ---------- Início do modo Caixa (v0.25.0) ---------- */
+.avisos-caixa { margin-bottom: 16px; }
+.avisos-caixa h2 { margin-bottom: 8px; }
+.lista-avisos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lista-avisos li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px 10px 14px; border-radius: var(--raio-p); background: var(--superficie-2); border-left: 4px solid var(--marca); }
+.lista-avisos li.erro { border-left-color: var(--erro); background: var(--erro-suave); }
+.lista-avisos li.info { border-left-color: var(--linha); }
+.lista-avisos li > span { flex: 1 1 260px; }
+.tudo-certo-texto { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 1.0625rem; font-weight: 600; color: var(--ok); }
+.cartao-caixa .estado-caixa { font-size: 1.5rem; font-weight: 700; margin: 4px 0 2px; }
+.cartao-caixa.aberto .estado-caixa { color: var(--ok); }
+.btn.btn-grande { min-height: 52px; padding: 0 28px; font-size: 1.0625rem; }
+.rotina-caixa { margin-top: 16px; text-align: center; }
+.texto-atencao { color: var(--marca-texto); font-weight: 600; }
+
+.acoes.acoes-empilhadas { flex-direction: column; align-items: stretch; }

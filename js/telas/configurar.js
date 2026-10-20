@@ -102,14 +102,14 @@ export async function render(el) {
       <div class="acoes" style="justify-content:flex-start;flex-wrap:wrap;align-items:center">
         ${peloDrive ? `<button type="button" class="btn primario" id="sincronizar">${icones.compartilhar} Sincronizar agora</button>
         <a class="btn" href="#/pacote">Sem internet: por arquivo</a>` : '<a class="btn primario" href="#/pacote">Receber catálogo e evento</a>'}
-        <a class="btn texto" href="${caixa ? '#/vender' : '#/produtos'}">${caixa ? 'Fazer depois' : 'Começar do zero'}</a>
+        <a class="btn texto" href="${caixa ? '#/inicio' : '#/produtos'}">${caixa ? 'Fazer depois' : 'Começar do zero'}</a>
       </div>
     </div>`;
     if (peloDrive) {
       prepararDrive().catch(() => {});
       el.querySelector('#sincronizar').addEventListener('click', async () => {
         const r = await iniciarSincronizacao();   // chamado direto no toque (o Google exige)
-        if (r && el.isConnected) location.hash = '#/vender';
+        if (r && el.isConnected) location.hash = '#/inicio';
       });
     }
     aviso(caixa ? 'Aparelho configurado como Caixa.' : 'Aparelho configurado como Gestão.');

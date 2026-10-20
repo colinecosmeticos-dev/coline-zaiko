@@ -34,6 +34,9 @@ export function iniciarAtualizacoes() {
   });
 }
 
+// Há uma versão nova esperando o "Atualizar agora"? (usado nos avisos do Início do Caixa)
+export const temVersaoNova = () => !!(registro && registro.waiting && navigator.serviceWorker.controller);
+
 // Botão "Procurar atualização". Devolve 'nova', 'atual' ou 'sem-internet'.
 export async function procurar() {
   if (!registro) registro = await navigator.serviceWorker.getRegistration();

@@ -329,10 +329,12 @@ export async function caixaDoDia(eventoId, data) {
 export async function listarCaixasDoEvento(eventoId) {
   return (await caixasDesteAparelho(eventoId)).sort((a, b) => b.data.localeCompare(a.data));
 }
-export async function abrirCaixa({ eventoId, data, trocoInicial }) {
+export async function abrirCaixa({ eventoId, data, trocoInicial, foraDasDatas = false }) {
   const aparelho = await lerAparelho();
   const caixa = {
     id: novoId(), eventoId, data, trocoInicial,
+    // Aberto num dia fora das datas do evento, confirmado por quem abriu (v0.25.0)
+    ...(foraDasDatas ? { foraDasDatas: true } : {}),
     aparelho: aparelho ? { id: aparelho.id, sigla: aparelho.sigla, nome: aparelho.nome } : null,
     status: 'aberto', abertoEm: new Date().toISOString(),
     fechamentos: [], reaberturas: []

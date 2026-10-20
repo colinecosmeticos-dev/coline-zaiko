@@ -64,6 +64,7 @@ export async function render(el, { mostrar = false } = {}) {
       <ul class="lista-checagem">
         <li class="${aparelhos.length ? 'ok' : 'atencao'}">${aparelhos.length ? `Vendas de ${aparelhos.map((a) => `<strong>${esc(a.nome)}</strong> (${a.vendas})`).join(', ')}.` : 'Nenhuma venda neste evento.'} Algum outro aparelho vendeu? <a href="#/sincronizar">Buscar vendas dos caixas</a> · <a href="#/juntar">por arquivo</a></li>
         <li class="${f.caixasAbertos.length ? 'atencao' : 'ok'}">${f.caixasAbertos.length ? `${qtd(f.caixasAbertos.length, 'caixa ainda aberto', 'caixas ainda abertos')}: ${f.caixasAbertos.map((c) => `${esc(c.aparelho?.sigla || '')} ${dia(c.data)}`).join(', ')}. Feche no aparelho e junte de novo.` : 'Todos os caixas estão fechados.'}</li>
+        ${f.caixasForaDasDatas.length ? `<li class="atencao">${qtd(f.caixasForaDasDatas.length, 'caixa aberto', 'caixas abertos')} fora das datas do evento: ${f.caixasForaDasDatas.map((c) => `${esc(c.aparelho?.sigla || '')} ${dia(c.data)}`).join(', ')}. Confira se essas vendas são mesmo deste evento.</li>` : ''}
         <li class="${f.estoque.totais.levado ? 'ok' : 'atencao'}">${f.estoque.totais.levado ? `Estoque levado registrado (${qtd(f.estoque.totais.levado, 'peça', 'peças')}).` : 'Estoque levado não registrado: a sobra não pode ser calculada.'} <a href="#/estoque">Estoque</a></li>
         <li class="${ct.itensContados ? 'ok' : 'atencao'}">${ct.itensContados ? `Contagem final: ${ct.itensContados} de ${ct.itensTotal} itens contados.` : 'Contagem final do estoque não feita.'} <a href="#/estoque">Contar</a></li>
         ${g.itensSemCusto ? `<li class="atencao">${qtd(g.itensSemCusto, 'item vendido sem custo', 'itens vendidos sem custo')} cadastrado: o lucro aparece maior do que é.</li>` : ''}
@@ -117,7 +118,7 @@ export async function render(el, { mostrar = false } = {}) {
         <h2>Caixas</h2>
         ${f.caixas.length ? `<table class="tabela-painel">
           <thead><tr><th>Dia</th><th>Aparelho</th><th class="num">Diferença</th></tr></thead>
-          <tbody>${f.caixas.map((c) => `<tr><td>${esc(dia(c.data))}</td><td>${esc(c.aparelho?.sigla || '')}</td><td class="num ${c.diferenca < 0 ? 'negativo' : ''}">${c.aberto ? '<span class="etiqueta">aberto</span>' : dif(c.diferenca)}</td></tr>`).join('')}</tbody>
+          <tbody>${f.caixas.map((c) => `<tr><td>${esc(dia(c.data))}${c.foraDasDatas ? ' <span class="etiqueta">fora das datas</span>' : ''}</td><td>${esc(c.aparelho?.sigla || '')}</td><td class="num ${c.diferenca < 0 ? 'negativo' : ''}">${c.aberto ? '<span class="etiqueta">aberto</span>' : dif(c.diferenca)}</td></tr>`).join('')}</tbody>
         </table><p class="sub nota-mov">${f.caixas.some((c) => !c.aberto) ? `Diferença total dos caixas fechados: ${dif(f.diferencaCaixas)}.` : 'Nenhum caixa fechado ainda.'}</p>` : '<p class="sub">Nenhum caixa.</p>'}
       </section>
 

@@ -7,9 +7,9 @@
 // para o restante.
 // =========================================================
 import { listarFormasPagamento, PARCELAS_MAX, adicionarSaida } from '../db.js';
-import { esc, dinheiro, abrirJanela, campoDinheiro, lerCentavos, escreverCentavos, icones } from '../ui.js';
+import { esc, dinheiro, abrirJanela, campoDinheiro, lerCentavos, escreverCentavos, icones, confirmar as perguntar } from '../ui.js';
 import { som } from '../sons.js';
-import { carrinho, calcularItem, calcularTotais, limparCarrinho } from './carrinho.js';
+import { carrinho, calcularItem, calcularTotais, limparCarrinho, guardarCarrinho } from './carrinho.js';
 import { gravarRegistro, registroDoCarrinho, FORMAS_REEMBOLSO } from './registro.js';
 
 // Cédulas brasileiras: cada toque soma o valor da nota ao recebido
@@ -36,6 +36,16 @@ function resumoVenda() {
   const descontoVenda = t.descontoVenda ? `<li class="linha-desconto"><span class="nome">Desconto na venda</span><span class="num">− ${dinheiro(t.descontoVenda)}</span></li>` : '';
   const credito = t.credito ? `<li class="linha-desconto"><span class="nome">Crédito da troca (${esc(carrinho.troca.origemNumero)})</span><span class="num">− ${dinheiro(t.credito)}</span></li>` : '';
   return { texto: partes.join(' · '), lista: linhas + descontoVenda + credito };
+}
+
+// Botão "Nova venda" da tela final: só funciona depois de um instante. O leitor de
+// código manda um Enter no fim de cada leitura; sem isso, ler o próximo produto logo
+// depois de finalizar fechava a tela antes de alguém ver o troco (v0.25.0).
+export function ligarBotaoNova(d) {
+  const b = d.querySelector('#nova');
+  b.disabled = true;
+  b.addEventListener('click', () => d.close());
+  setTimeout(() => { if (b.isConnected) { b.disabled = false; b.focus(); } }, 1200);
 }
 
 // Tela final (venda, troca ou devolução concluída)
@@ -97,11 +107,10 @@ export function finalizarTrocaSemCobranca({ evento, caixa, pagoCom = '' }) {
       const forma = devolver ? FORMAS_REEMBOLSO.find((f) => f.tipo === escolhida.value) : null;
       const registro = await gravarRegistro(registroDoCarrinho({ evento, caixa, reembolsos: forma ? [{ ...forma, valor: devolver }] : [] }));
       limparCarrinho();
-      concluida = true;
+      concluida = { registro, devolver };
       som.venda();
       d.querySelector('.cobrar').innerHTML = telaConcluida(registro, { valorDevolver: devolver });
-      d.querySelector('#nova').addEventListener('click', () => d.close());
-      d.querySelector('#nova').focus();
+      ligarBotaoNova(d);
     });
   });
 }
@@ -110,7 +119,9 @@ export function abrirCobranca({ evento, caixa }) {
   return new Promise(async (resolver) => {
     const formas = (await listarFormasPagamento()).filter((f) => f.ativo);
     const { total } = calcularTotais();
-    const pagamentos = [];
+    // Pagamentos já lançados ficam no carrinho (gravados no aparelho): sair da
+    // cobrança ou o app fechar não os perde
+    const pagamentos = carrinho.pagamentos;
     let forma = null;      // forma escolhida no momento
     let concluida = false;
     const resumo = resumoVenda();
@@ -143,20 +154,23 @@ export function abrirCobranca({ evento, caixa }) {
     const $ = (s) => d.querySelector(s);
     const pago = () => pagamentos.reduce((s, p) => s + p.valor, 0);
     const falta = () => Math.max(total - pago(), 0);
+    // Pagamentos lançados que passam do total (a venda mudou depois de lançar)
+    const excesso = () => Math.max(pago() - total, 0);
     const trocoTotal = () => pagamentos.reduce((s, p) => s + (p.troco || 0), 0);
 
     function desenharSituacao() {
       $('#situacao').innerHTML = pagamentos.length
-        ? `<span>Pago ${dinheiro(pago())}</span><strong>${falta() ? `Falta ${dinheiro(falta())}` : trocoTotal() ? `Troco ${dinheiro(trocoTotal())}` : 'Pago'}</strong>`
+        ? `<span>Pago ${dinheiro(pago())}</span><strong>${excesso() ? `Passou ${dinheiro(excesso())}` : falta() ? `Falta ${dinheiro(falta())}` : trocoTotal() ? `Troco ${dinheiro(trocoTotal())}` : 'Pago'}</strong>`
         : '';
       $('#pagamentos').innerHTML = pagamentos.map((p, i) => `
         <li><span>${esc(p.formaNome)}${p.parcelas > 1 ? ` em ${p.parcelas}x` : ''}${p.troco ? ` <span class="sub">(recebido ${dinheiro(p.recebido)}, troco ${dinheiro(p.troco)})</span>` : ''}</span>
           <span class="num">${dinheiro(p.valor)}</span>
           <button type="button" class="btn-icone" data-remover="${i}" aria-label="Remover pagamento">${icones.fechar}</button></li>`).join('');
       d.querySelectorAll('.botao-forma').forEach((b) => { b.disabled = !falta(); });
-      $('#finalizar').hidden = !!falta() || !pagamentos.length;
-      $('#dica-forma').hidden = !falta() || !!forma;
-      $('#dica-forma').textContent = pagamentos.length ? `Escolha a forma para os ${dinheiro(falta())} que faltam.` : 'Escolha a forma de pagamento.';
+      $('#finalizar').hidden = !!falta() || !pagamentos.length || !!excesso();
+      $('#dica-forma').hidden = (!falta() && !excesso()) || !!forma;
+      $('#dica-forma').textContent = excesso() ? `Os pagamentos lançados passam do total em ${dinheiro(excesso())} (a venda mudou). Remova um pagamento (X) e lance de novo.`
+        : pagamentos.length ? `Escolha a forma para os ${dinheiro(falta())} que faltam.` : 'Escolha a forma de pagamento.';
       if (!falta()) $('#painel').hidden = true;
       if ($('#sem-cobrar')) $('#sem-cobrar').hidden = !!pagamentos.length;
     }
@@ -165,6 +179,7 @@ export function abrirCobranca({ evento, caixa }) {
       const b = e.target.closest('[data-remover]');
       if (!b) return;
       pagamentos.splice(Number(b.dataset.remover), 1);
+      guardarCarrinho();
       desenharSituacao();
     });
 
@@ -270,6 +285,7 @@ export function abrirCobranca({ evento, caixa }) {
         p.taxa = (p.jurosPor === 'cliente' ? taxas[1] : taxas[p.parcelas]) ?? null;
       }
       pagamentos.push(p);
+      guardarCarrinho();
       forma = null;
       d.querySelectorAll('.botao-forma').forEach((b) => b.classList.remove('ativo'));
       $('#painel').hidden = true;
@@ -284,7 +300,19 @@ export function abrirCobranca({ evento, caixa }) {
       $('#ver-itens-rotulo').textContent = lista.hidden ? '· Ver itens' : '· Esconder itens';
     });
     d.querySelectorAll('[data-forma]').forEach((b) => b.addEventListener('click', () => escolher(formas.find((f) => f.id === b.dataset.forma))));
-    $('#fechar').addEventListener('click', () => d.close());
+    // Sair da cobrança com pagamento lançado: pergunta antes (os pagamentos ficam guardados)
+    async function sair() {
+      if (!pagamentos.length || concluida) { d.close(); return; }
+      const formasPagas = [...new Set(pagamentos.map((p) => p.formaNome))].join(' e ');
+      const ok = await perguntar({
+        titulo: 'Sair da cobrança?',
+        texto: `Já foram lançados ${dinheiro(pago())} (${formasPagas}). Eles ficam guardados nesta venda: ao tocar em Cobrar de novo, continuam lá.`,
+        botao: 'Sair e manter os pagamentos', cancelar: 'Continuar cobrando'
+      });
+      if (ok) d.close();
+    }
+    $('#fechar').addEventListener('click', sair);
+    d.addEventListener('cancel', (e) => { if (pagamentos.length && !concluida) { e.preventDefault(); sair(); } });
     $('#finalizar').addEventListener('click', finalizar);
 
     // ---------- Sem cobrar: brinde/doação ou avaria (saída sem venda) ----------
@@ -330,7 +358,7 @@ export function abrirCobranca({ evento, caixa }) {
           });
         }
         limparCarrinho();
-        concluida = true;
+        concluida = { saida: { tipo, pecas, motivo } };
         som.venda();
         d.querySelector('.cobrar').innerHTML = `
           <div class="venda-concluida">
@@ -339,23 +367,21 @@ export function abrirCobranca({ evento, caixa }) {
             <p>${pecas} ${pecas === 1 ? 'peça' : 'peças'} · ${esc(motivo)}</p>
             <button type="button" class="btn primario btn-confirmar" id="nova">Nova venda</button>
           </div>`;
-        d.querySelector('#nova').addEventListener('click', () => d.close());
-        d.querySelector('#nova').focus();
+        ligarBotaoNova(d);
       });
     });
 
     // ---------- Gravar a venda ----------
     let gravando = false;
     async function finalizar() {
-      if (gravando || falta()) return;
+      if (gravando || falta() || excesso()) return;
       gravando = true;
-      const venda = await gravarRegistro(registroDoCarrinho({ evento, caixa, pagamentos, troco: trocoTotal() }));
+      const venda = await gravarRegistro(registroDoCarrinho({ evento, caixa, pagamentos: [...pagamentos], troco: trocoTotal() }));
       limparCarrinho();
-      concluida = true;
+      concluida = { registro: venda };
       som.venda();
       d.querySelector('.cobrar').innerHTML = telaConcluida(venda);
-      d.querySelector('#nova').addEventListener('click', () => d.close());
-      d.querySelector('#nova').focus();
+      ligarBotaoNova(d);
     }
 
     desenharSituacao();
