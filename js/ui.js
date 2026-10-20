@@ -131,10 +131,10 @@ export function confirmar({ titulo, texto = '', botao = 'Confirmar', cancelar = 
     d.innerHTML = `
       <h2>${esc(titulo)}</h2>
       ${texto ? `<p>${esc(texto)}</p>` : ''}
-      <div class="acoes">
+      <div class="acoes ${botao.length + cancelar.length > 26 ? 'acoes-empilhadas' : ''}">
         <button class="btn" value="nao">${esc(cancelar)}</button>
         <button class="btn primario ${perigo ? 'perigo' : ''}" value="sim">${esc(botao)}</button>
-      </div>`;
+      </div>`;   // textos longos: um botão embaixo do outro (o principal em cima), para não cortar
     document.body.append(d);
     d.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => d.close(b.value)));
     d.addEventListener('close', () => { resolver(d.returnValue === 'sim'); d.remove(); });

@@ -1175,3 +1175,5 @@ dialog.janela-sinc { width: min(92vw, 460px); }
 .texto-atencao { color: var(--marca-texto); font-weight: 600; }
 
 .acoes.acoes-empilhadas { flex-direction: column; align-items: stretch; }
+.acoes.acoes-empilhadas .primario { order: -1; }
+dialog.dialogo .acoes { flex-wrap: wrap; }
