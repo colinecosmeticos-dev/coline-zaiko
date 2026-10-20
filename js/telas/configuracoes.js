@@ -127,7 +127,7 @@ export async function render(el) {
 
   // ---------- Este aparelho ----------
   el.querySelector('#modo-caixa').addEventListener('click', async () => {
-    const ok = await confirmar({ titulo: 'Mudar para modo Caixa?', texto: `O aparelho passa a mostrar só Início, Vender, Vendas, Caixa e Sincronizar. Os dados não mudam. ${pinDefinido ? 'Para voltar, use Mais → Entrar no modo Gestão, com o PIN.' : 'Sem PIN, qualquer pessoa consegue voltar para a Gestão.'}`, botao: 'Mudar para Caixa' });
+    const ok = await confirmar({ titulo: 'Mudar para modo Caixa?', texto: `O aparelho passa a mostrar só Início, Vender, Histórico, Gaveta e Sincronizar. Os dados não mudam. ${pinDefinido ? 'Para voltar, use Mais → Entrar no modo Gestão, com o PIN.' : 'Sem PIN, qualquer pessoa consegue voltar para a Gestão.'}`, botao: 'Mudar para Caixa' });
     if (!ok) return;
     await definirModo('caixa');
     aviso('Modo Caixa.');

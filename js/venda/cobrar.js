@@ -163,7 +163,7 @@ export function abrirCobranca({ evento, caixa }) {
         ? `<span>Pago ${dinheiro(pago())}</span><strong>${excesso() ? `Passou ${dinheiro(excesso())}` : falta() ? `Falta ${dinheiro(falta())}` : trocoTotal() ? `Troco ${dinheiro(trocoTotal())}` : 'Pago'}</strong>`
         : '';
       $('#pagamentos').innerHTML = pagamentos.map((p, i) => `
-        <li><span>${esc(p.formaNome)}${p.parcelas > 1 ? ` em ${p.parcelas}x` : ''}${p.troco ? ` <span class="sub">(recebido ${dinheiro(p.recebido)}, troco ${dinheiro(p.troco)})</span>` : ''}</span>
+        <li><span>${esc(p.formaNome)}${p.parcelas > 1 ? ` em ${p.parcelas}x` : ''}${p.troco ? ` <span class="sub">(recebido ${dinheiro(p.recebido)}, troco ${dinheiro(p.troco)})</span>` : ''}${p.aMais ? ` <span class="sub">(recebido ${dinheiro(p.recebido)}, ${dinheiro(p.aMais)} a mais, sem troco)</span>` : ''}</span>
           <span class="num">${dinheiro(p.valor)}</span>
           <button type="button" class="btn-icone" data-remover="${i}" aria-label="Remover pagamento">${icones.fechar}</button></li>`).join('');
       d.querySelectorAll('.botao-forma').forEach((b) => { b.disabled = !falta(); });
@@ -246,7 +246,7 @@ export function abrirCobranca({ evento, caixa }) {
         if (!ehDinheiro) {
           let a = $('#aviso-maior');
           if (!a) { a = document.createElement('p'); a.id = 'aviso-maior'; a.className = 'aviso-maior'; campo.closest('.campo').after(a); }
-          a.textContent = v > restante ? `Passa ${dinheiro(v - restante)} do que falta: o app vai perguntar se é troco em dinheiro.` : '';
+          a.textContent = v > restante ? `Passa ${dinheiro(v - restante)} do que falta: o app vai perguntar se dá troco em dinheiro.` : '';
           a.hidden = !(v > restante);
         }
         $('#confirmar').disabled = !v;
@@ -272,9 +272,11 @@ export function abrirCobranca({ evento, caixa }) {
     }
 
     // Confirma o pagamento da forma escolhida. Pix, cartão etc. com valor MAIOR que o
-    // que falta (v0.26.0): pergunta se é para corrigir ou dar a diferença de troco em
-    // dinheiro. Com troco: valor = o que falta (conta na venda), recebido = o valor
-    // passado na maquininha, troco = a diferença, que sai do dinheiro do caixa.
+    // que falta (v0.26.0; v0.28.0): pergunta o que fazer com a diferença:
+    //   troco em dinheiro → valor = o que falta, recebido = o passado na maquininha,
+    //                       troco = a diferença, que sai do dinheiro da gaveta;
+    //   sem dar troco     → valor = o que falta, recebido = o passado, aMais = a diferença;
+    //   corrigir o valor  → volta ao campo.
     let confirmando = false;
     async function confirmar() {
       if (confirmando) return;
@@ -289,17 +291,19 @@ export function abrirCobranca({ evento, caixa }) {
         p.taxa = 0;
       } else if (v > restante) {
         confirmando = true;
-        const darTroco = await perguntar({
-          titulo: `${forma.nome} de ${dinheiro(v)} é maior que o que falta (${dinheiro(restante)})`,
-          texto: `Se o cliente já pagou ${dinheiro(v)}, dê ${dinheiro(v - restante)} de troco em dinheiro: o caixa desconta esse valor do dinheiro esperado. Se o valor foi digitado errado, corrija.`,
-          botao: `Dar ${dinheiro(v - restante)} de troco em dinheiro`, cancelar: 'Corrigir o valor'
-        });
+        const escolha = await perguntarValorMaior(forma, v, restante);
         confirmando = false;
-        if (!darTroco) { const c = $('#valor-pag'); if (c) { escreverCentavos(c, restante); c.focus(); c.dispatchEvent(new Event('input')); } return; }
+        if (!escolha) { const c = $('#valor-pag'); if (c) { escreverCentavos(c, restante); c.focus(); c.dispatchEvent(new Event('input')); } return; }
         p.valor = restante;
         p.recebido = v;
-        p.troco = v - restante;
-        p.trocoEmDinheiro = true;
+        if (escolha === 'troco') {
+          p.troco = v - restante;
+          p.trocoEmDinheiro = true;
+        } else {
+          // (v0.28.0) Sem dar troco: a diferença fica registrada como recebida a mais
+          // (ex.: devolver depois por Pix, ou o cliente dispensou). A gaveta não muda.
+          p.aMais = v - restante;
+        }
       } else {
         p.valor = v;
       }
@@ -359,17 +363,18 @@ export function abrirCobranca({ evento, caixa }) {
             <label><input type="radio" name="tipo-saida" value="brinde"><span>Brinde ou doação</span></label>
             <label><input type="radio" name="tipo-saida" value="avaria"><span>Avaria (defeito)</span></label>
           </div></div>
-        <div class="campo"><label for="motivo-saida">Motivo</label>
+        <div class="campo"><label for="motivo-saida">Motivo <span class="sub">(opcional)</span></label>
           <input class="entrada" id="motivo-saida" maxlength="140" autocomplete="off" placeholder="Ex.: sorteio do evento, frasco vazando"></div>
         <p class="sub">${pecas} ${pecas === 1 ? 'peça sai' : 'peças saem'} do estoque sem cobrar. Não entra no faturamento.</p>
-        <button type="button" class="btn primario btn-finalizar" id="registrar-saida" disabled>Escolha o tipo e o motivo</button>`;
+        <button type="button" class="btn primario btn-finalizar" id="registrar-saida" disabled>Escolha o tipo</button>`;
       const tipoSaida = () => painel.querySelector('input[name="tipo-saida"]:checked');
       const conferir = () => {
-        const ok = tipoSaida() && $('#motivo-saida').value.trim();
+        // (v0.28.0) Basta o tipo; o motivo é opcional
+        const ok = !!tipoSaida();
         $('#registrar-saida').disabled = !ok;
-        $('#registrar-saida').textContent = ok ? `Registrar ${tipoSaida().value === 'avaria' ? 'avaria' : 'brinde'}` : 'Escolha o tipo e o motivo';
+        $('#registrar-saida').textContent = ok ? `Registrar ${tipoSaida().value === 'avaria' ? 'avaria' : 'brinde'}` : 'Escolha o tipo';
       };
-      painel.querySelectorAll('input[name="tipo-saida"]').forEach((x) => x.addEventListener('change', () => { conferir(); $('#motivo-saida').focus(); }));
+      painel.querySelectorAll('input[name="tipo-saida"]').forEach((x) => x.addEventListener('change', conferir));
       $('#motivo-saida').addEventListener('input', conferir);
       $('#registrar-saida').addEventListener('click', async () => {
         if (gravando || $('#registrar-saida').disabled) return;
@@ -390,7 +395,7 @@ export function abrirCobranca({ evento, caixa }) {
           <div class="venda-concluida">
             <div class="marca-ok" aria-hidden="true">✓</div>
             <h2>${tipo === 'avaria' ? 'Avaria registrada' : 'Brinde registrado'}</h2>
-            <p>${pecas} ${pecas === 1 ? 'peça' : 'peças'} · ${esc(motivo)}</p>
+            <p>${pecas} ${pecas === 1 ? 'peça' : 'peças'}${motivo ? ` · ${esc(motivo)}` : ''}</p>
             <button type="button" class="btn primario btn-confirmar" id="nova">Nova venda</button>
           </div>`;
         ligarBotaoNova(d);
@@ -413,5 +418,27 @@ export function abrirCobranca({ evento, caixa }) {
     desenharSituacao();
     // Uma forma só ativa: já abre direto nela
     if (formas.length === 1) escolher(formas[0]);
+  });
+}
+
+// Pix/cartão maior que o que falta: troco em dinheiro, concluir sem troco ou corrigir.
+// Devolve 'troco', 'sem-troco' ou null (corrigir).
+function perguntarValorMaior(forma, v, restante) {
+  const dif = v - restante;
+  return new Promise((resolver) => {
+    let escolha = null;
+    const d = abrirJanela(`
+      <h2>${esc(forma.nome)} de ${dinheiro(v)} é maior que o que falta (${dinheiro(restante)})</h2>
+      <p>O cliente pagou <strong class="num">${dinheiro(dif)}</strong> a mais. O que fazer com a diferença?</p>
+      <ul class="opcoes-maior sub">
+        <li><strong>Troco em dinheiro:</strong> sai da gaveta; o caixa desconta do dinheiro esperado.</li>
+        <li><strong>Sem dar troco:</strong> a gaveta não muda; a diferença fica registrada como recebida a mais (ex.: devolver depois por Pix, ou o cliente dispensou).</li>
+      </ul>
+      <div class="acoes acoes-empilhadas">
+        <button type="button" class="btn primario" data-e="troco">Dar ${dinheiro(dif)} de troco em dinheiro</button>
+        <button type="button" class="btn" data-e="sem-troco">Concluir sem dar troco</button>
+        <button type="button" class="btn texto" data-e="">Corrigir o valor</button>
+      </div>`, { aoFechar: () => resolver(escolha) });
+    d.querySelectorAll('[data-e]').forEach((b) => b.addEventListener('click', () => { escolha = b.dataset.e || null; d.close(); }));
   });
 }

@@ -9,6 +9,7 @@ import { gravarRegistro, registrosLigados, quantidadesDevolvidas } from '../vend
 import { escolherItensDevolvidos } from '../venda/devolucao.js';
 import { textoPagamento } from '../venda/cobrar.js';
 import { carrinho, limparCarrinho } from '../venda/carrinho.js';
+import { ehCaixa } from '../modo.js';
 
 export const NOME_TIPO = { venda: 'Venda', troca: 'Troca', devolucao: 'Devolução' };
 
@@ -109,7 +110,8 @@ export async function render(el, { id }) {
 
   const pagamentos = venda.pagamentos.map((p) => `
     <li><span>${esc(p.formaNome)}${p.parcelas > 1 ? ` em ${p.parcelas}x <span class="sub">(juros: ${p.jurosPor === 'cliente' ? 'cliente' : 'vendedor'})</span>` : ''}
-      ${p.troco ? `<div class="sub num">Recebido ${dinheiro(p.recebido)} · troco ${dinheiro(p.troco)}</div>` : ''}</span>
+      ${p.troco ? `<div class="sub num">Recebido ${dinheiro(p.recebido)} · troco ${dinheiro(p.troco)}</div>` : ''}
+      ${p.aMais ? `<div class="sub num">Recebido ${dinheiro(p.recebido)} · ${dinheiro(p.aMais)} a mais, sem troco</div>` : ''}</span>
       <span class="num">${dinheiro(p.valor)}</span></li>`).join('');
   const reembolsos = (venda.reembolsos || []).map((r) => `
     <li><span>Devolvido ao cliente <span class="sub">(${esc(r.nome)})</span></span><span class="num">${dinheiro(r.valor)}</span></li>`).join('');
@@ -162,7 +164,8 @@ export async function render(el, { id }) {
         </section>` : ''}
       </div>
     </div>
-    ${cancelada ? '' : deOutro ? `<p class="sub nota-acoes">Feita no ${esc(venda.aparelho.nome)}: cancelar, trocar e devolver só no próprio aparelho, que depois envia as vendas de novo.</p>` : `<div class="acoes-venda">
+    ${cancelada ? '' : deOutro ? `<p class="sub nota-acoes">Feita no ${esc(venda.aparelho.nome)}: cancelar, trocar e devolver só no próprio aparelho, que depois envia as vendas de novo.</p>`
+      : !ehCaixa() ? '<p class="sub nota-acoes">Na Gestão é só consulta: cancelar, trocar e devolver nos aparelhos de caixa.</p>' : `<div class="acoes-venda">
       ${venda.itens.length && sobra ? `<button type="button" class="btn" id="devolver">Devolver</button><button type="button" class="btn" id="trocar">Trocar</button>` : ''}
       <button type="button" class="btn perigo" id="cancelar" ${ligados.length ? 'disabled' : ''}>Cancelar ${tipo === 'venda' ? 'venda' : nomeTipo.toLowerCase()}</button>
     </div>

@@ -1181,11 +1181,9 @@ dialog.dialogo .acoes { flex-wrap: wrap; }
 .estado-caixa.pendente { color: var(--marca-texto); }
 .estado-caixa.ok { color: var(--ok); }
 
-/* Menu do celular com 7 itens (Gestão, v0.26.0): letras menores para caber */
-@media (max-width: 479px) {
-  body:not(.modo-caixa) .nav a { font-size: .625rem; letter-spacing: -.01em; min-width: 0; }
-  body:not(.modo-caixa) .nav a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
+/* Gestão não vende (v0.28.0): sem Vender e sem Gaveta no menu */
+body:not(.modo-caixa) .nav a[data-rota="vender"],
+body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 /* Aviso no campo do Pix/cartão com valor maior que o que falta */
 .aviso-maior { margin: 4px 0 0; font-size: .875rem; font-weight: 600; color: var(--marca-texto); text-align: right; }
 
@@ -1200,3 +1198,34 @@ dialog.dialogo .acoes { flex-wrap: wrap; }
 .contas > .sub-linha { font-size: .8125rem; color: var(--texto-2); padding-left: 12px; }
 
 .sobretitulo { margin: 0 0 2px; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--marca-texto); }
+
+/* ---------- Estoque levado com botões (v0.28.0) ---------- */
+.grade-levado { margin-top: 12px; }
+.grade-levado .grupo-venda + .grupo-venda { margin-top: 14px; }
+.item-estoque .iv-foto { position: relative; }
+.item-estoque.zerado .iv-foto { opacity: .55; }
+.selo-qtd {
+  position: absolute; top: 6px; right: 6px; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 17px;
+  display: grid; place-items: center; background: var(--marca); color: #fff; font-size: 1rem; font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+}
+.item-estoque.alterado { border-color: #E8A100; box-shadow: inset 0 0 0 2px #E8A100; }
+.item-estoque.alterado .selo-qtd { background: #E8A100; color: #1d1d1d; }
+.iv-levado { white-space: nowrap; }
+.iv-levado strong { color: var(--texto); font-size: .9375rem; }
+.item-estoque.lido { animation: lido 1.2s ease-out; }
+.so-texto .selo-qtd { display: none; }
+.qtd-levado { width: 140px; text-align: center; }
+.lista-revisao { list-style: none; margin: 8px 0; padding: 0; max-height: 46vh; overflow-y: auto; border: 1px solid var(--linha); border-radius: var(--raio-p); }
+.lista-revisao li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; }
+.lista-revisao li + li { border-top: 1px solid var(--linha); }
+.lista-revisao s { color: var(--texto-2); }
+
+/* ---------- Apagar dados de teste (v0.28.0) ---------- */
+.lista-limpar { list-style: none; margin: 8px 0 0; padding: 0; }
+.lista-limpar li + li { border-top: 1px solid var(--linha); }
+.lista-limpar .marcar { display: flex; gap: 12px; align-items: flex-start; padding: 10px 2px; cursor: pointer; }
+.lista-limpar input[type="checkbox"] { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--erro); }
+/* Opções da janela "valor maior que o que falta" */
+.opcoes-maior { margin: 8px 0 0; padding-left: 18px; }
+.opcoes-maior li + li { margin-top: 4px; }

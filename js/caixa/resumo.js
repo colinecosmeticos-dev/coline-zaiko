@@ -17,13 +17,16 @@ export async function resumoCaixa(caixa) {
   // Recebimentos por forma de pagamento (na ordem em que aparecem)
   // Pix/cartão com troco em dinheiro (v0.26.0): a forma conta o valor passado na
   // maquininha (para conferir com o relatório dela) e o troco sai do dinheiro esperado.
+  // Sem dar troco (v0.28.0): a forma conta o valor passado; a diferença aparece como "a mais".
   const formas = new Map();
   let trocoDeOutrasFormas = 0;
   for (const r of registros) {
     for (const p of r.pagamentos || []) {
       const chave = p.formaId || p.formaNome;
-      const f = formas.get(chave) || { nome: p.formaNome, tipo: p.tipo, valor: 0, quantidade: 0, trocoDinheiro: 0 };
-      if (p.trocoEmDinheiro) { f.valor += p.recebido; f.trocoDinheiro += p.troco || 0; trocoDeOutrasFormas += p.troco || 0; } else f.valor += p.valor;
+      const f = formas.get(chave) || { nome: p.formaNome, tipo: p.tipo, valor: 0, quantidade: 0, trocoDinheiro: 0, aMais: 0 };
+      if (p.trocoEmDinheiro) { f.valor += p.recebido; f.trocoDinheiro += p.troco || 0; trocoDeOutrasFormas += p.troco || 0; }
+      else if (p.aMais) { f.valor += p.recebido; f.aMais += p.aMais; }   // sem troco (v0.28.0): entrou a mais na conta
+      else f.valor += p.valor;
       f.quantidade += 1;
       formas.set(chave, f);
     }

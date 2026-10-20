@@ -6,6 +6,7 @@
 // =========================================================
 import { db, lerEventoAtivo } from '../db.js';
 import { esc, dinheiro, hojeISO, icones } from '../ui.js';
+import { ehCaixa } from '../modo.js';
 
 const ROTULO_TIPO = { troca: 'Troca', devolucao: 'Devolução' };
 
@@ -43,7 +44,7 @@ export async function render(el) {
 
   el.innerHTML = `
     <header class="cab">
-      <div><h1>Histórico</h1><p class="sub">Vendas, trocas, devoluções e cancelamentos de ${esc(evento.nome)}. Toque numa venda para ver, trocar, devolver ou cancelar.</p></div>
+      <div><h1>Histórico</h1><p class="sub">Vendas, trocas, devoluções e cancelamentos de ${esc(evento.nome)}. ${ehCaixa() ? 'Toque numa venda para ver, trocar, devolver ou cancelar.' : 'Toque numa venda para ver os detalhes.'}</p></div>
     </header>
     ${vendas.length ? `
       <div class="filtros">
@@ -54,7 +55,8 @@ export async function render(el) {
       <p class="sub contagem" id="contagem"></p>
       <ul class="lista" id="lista"></ul>`
     : `<div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Nenhuma venda ainda</h2>
-        <p>As vendas deste evento vão aparecer aqui, com a opção de cancelar.</p><a class="btn primario" href="#/vender">Ir para Vender</a></div>`}`;
+        ${ehCaixa() ? '<p>As vendas deste evento vão aparecer aqui, com a opção de cancelar.</p><a class="btn primario" href="#/vender">Ir para Vender</a>'
+          : '<p>As vendas dos caixas aparecem aqui depois de buscá-las.</p><a class="btn primario" href="#/sincronizar">Buscar vendas dos caixas</a>'}</div>`}`;
   if (!vendas.length) return;
 
   const $ = (s) => el.querySelector(s);

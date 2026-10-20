@@ -93,7 +93,9 @@ export async function render(el) {
       return;
     }
     caixa = novo;
-    aviso('Caixa aberto. Boas vendas!');
+    // (v0.28.0) Em vez do catálogo (que parecia uma venda em andamento), o painel
+    // "Caixa livre" confirma a abertura e espera o primeiro cliente
+    ultimaConcluida = { abertura: caixa };
   }
 
   // ---------- Dados ----------
@@ -540,9 +542,12 @@ export async function render(el) {
     if (!c) return;
     const r = c.registro;
     let titulo, linha;
-    if (c.saida) {
+    if (c.abertura) {
+      titulo = 'Caixa aberto';
+      linha = `Troco inicial ${dinheiro(c.abertura.trocoInicial || 0)} · ${esc(evento.nome)}`;
+    } else if (c.saida) {
       titulo = c.saida.tipo === 'avaria' ? 'Avaria registrada' : 'Brinde registrado';
-      linha = `${c.saida.pecas} ${c.saida.pecas === 1 ? 'peça' : 'peças'} · ${esc(c.saida.motivo)}`;
+      linha = `${c.saida.pecas} ${c.saida.pecas === 1 ? 'peça' : 'peças'}${c.saida.motivo ? ` · ${esc(c.saida.motivo)}` : ''}`;
     } else {
       const nome = r.tipo === 'troca' ? 'Troca' : r.tipo === 'devolucao' ? 'Devolução' : 'Venda';
       titulo = `${nome} ${esc(r.numero)} concluída`;
@@ -551,6 +556,8 @@ export async function render(el) {
       else partes.push(dinheiro(Math.abs(r.total)));
       const formas = textoPagamento(r);
       if (formas) partes.push(esc(formas));
+      const aMais = (r.pagamentos || []).reduce((s, x) => s + (x.aMais || 0), 0);
+      if (aMais) partes.push(`<strong>${dinheiro(aMais)} a mais, sem troco</strong>`);
       if (r.troco) partes.push(`<strong>Troco ${(r.pagamentos || []).some((x) => x.trocoEmDinheiro) ? 'em dinheiro ' : ''}${dinheiro(r.troco)}</strong>`);
       linha = partes.join(' · ');
     }
@@ -561,11 +568,11 @@ export async function render(el) {
           <div class="marca-ok pequena" aria-hidden="true">✓</div>
           <div><strong>${titulo}</strong><br><span class="num">${linha}</span></div>
         </div>
-        <p class="cl-livre">Caixa livre</p>
-        <p class="sub">Leia um código ou toque para o próximo cliente</p>
+        <p class="cl-livre">${c.abertura ? 'Pronto para vender' : 'Caixa livre'}</p>
+        <p class="sub">Leia um código ou toque para ${c.abertura ? 'o primeiro' : 'o próximo'} cliente</p>
         <div class="acoes" style="justify-content:center;flex-wrap:wrap">
           ${r && r.id ? `<a class="btn" href="#/vendas/${encodeURIComponent(r.id)}" id="ver-venda">Ver venda</a>` : ''}
-          <button type="button" class="btn primario" id="proximo">Próximo cliente</button>
+          <button type="button" class="btn primario" id="proximo">${c.abertura ? 'Começar a vender' : 'Próximo cliente'}</button>
         </div>
       </div>`;
     p.hidden = false;

@@ -39,6 +39,7 @@ import * as backup from './telas/backup.js';
 import * as codigos from './telas/codigos.js';
 import * as precosEvento from './telas/precos-evento.js';
 import * as instalar from './telas/instalar.js';
+import * as limpar from './telas/limpar.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -78,7 +79,8 @@ const rotas = [
   ['eventos/:id/precos', precosEvento.render],
   ['estoque', estoque.render],
   ['fechamento', fechamento.render],
-  ['painel', painel.render]
+  ['painel', painel.render],
+  ['limpar', limpar.render]
 ];
 
 const tela = document.getElementById('tela');

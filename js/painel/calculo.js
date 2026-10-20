@@ -52,7 +52,7 @@ export function calcularPainel(registros) {
       formas.set(chave, f);
       if (p.tipo === 'dinheiro') continue;
       // Taxa sobre o valor passado na maquininha (com troco em dinheiro, é o recebido)
-      if (p.taxa == null) pagamentosSemTaxa += 1; else taxas += Math.round(((p.trocoEmDinheiro ? p.recebido : p.valor) * p.taxa) / 10000);
+      if (p.taxa == null) pagamentosSemTaxa += 1; else taxas += Math.round(((p.trocoEmDinheiro || p.aMais ? p.recebido : p.valor) * p.taxa) / 10000);
     }
   }
   for (const v of vendas) {

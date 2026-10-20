@@ -16,12 +16,14 @@ const itensGestao = [
   ['#/fechamento', 'Fechamento do evento', 'Totais, resultado, resumo por dia e planilha'],
   ['#/painel', 'Painel de vendas', 'Vendas do aparelho, protegido por PIN'],
   ['#/backup', 'Backup', 'Cópia completa do aparelho no Drive ou em arquivo, e restauração'],
-  ['#/configuracoes', 'Configurações', 'Aparelho, modo, formas de pagamento, retiradas, PIN e tema']
+  ['#/configuracoes', 'Configurações', 'Aparelho, modo, formas de pagamento, retiradas, PIN e tema'],
+  ['#/limpar', 'Apagar dados de teste', 'Antes de usar de verdade: apaga eventos e vendas de teste e mantém o catálogo']
 ];
 
 const itensCaixa = [
   ['#/painel', 'Painel de vendas', 'Vendas e totais deste aparelho, protegido pelo PIN'],
-  ['#/backup', 'Backup', 'Cópia completa deste aparelho no Drive ou em arquivo']
+  ['#/backup', 'Backup', 'Cópia completa deste aparelho no Drive ou em arquivo'],
+  ['#/limpar', 'Apagar dados de teste', 'Antes de usar de verdade: apaga eventos e vendas de teste']
 ];
 
 const lista = (itens) => `

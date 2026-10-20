@@ -7,9 +7,10 @@
 //     caixa de outro dia aberto, fora das datas, venda em andamento,
 //     versão nova do app; Caixa: vendas sem enviar / nunca sincronizado;
 //     Gestão: alterações não publicadas para os caixas;
-//   - cartões: Caixa (abrir / vender / fechado) e Hoje (só a quantidade
-//     de vendas; valores no Painel, com PIN); Caixa: Sincronizar;
-//     Gestão: Evento, Base dos caixas e Catálogo.
+//   - cartões no Caixa: Caixa (abrir / vender / fechado), Sincronizar e Hoje
+//     (só a quantidade de vendas; valores no Painel, com PIN);
+//     na Gestão (que não vende desde a v0.28.0): Evento, Base dos caixas,
+//     Catálogo e Vendas do evento (as já buscadas dos caixas).
 // =========================================================
 import { db, lerEventoAtivo, lerAparelho, lerConfig, caixaAbertoDoEvento, caixaDoDia } from '../db.js';
 import { ehCaixa } from '../modo.js';
@@ -49,9 +50,10 @@ export async function render(el) {
   const caixaEsquecido = caixaAberto && caixaAberto.data !== hoje ? caixaAberto : null;
   const foraDasDatas = evento && !dentroDasDatas(evento, hoje);
   // Vendas de hoje deste aparelho (só a quantidade)
-  const vendasHoje = evento ? (await db.vendas.where('eventoId').equals(evento.id).toArray())
-    .filter((v) => (v.tipo || 'venda') === 'venda' && v.status !== 'cancelada' && diaLocal(v.criadoEm) === hoje
-      && (!aparelho || !v.aparelho || v.aparelho.id === aparelho.id)).length : 0;
+  const vendasEvento = evento ? (await db.vendas.where('eventoId').equals(evento.id).toArray())
+    .filter((v) => (v.tipo || 'venda') === 'venda' && v.status !== 'cancelada') : [];
+  const vendasHoje = vendasEvento.filter((v) => diaLocal(v.criadoEm) === hoje && (!aparelho || !v.aparelho || v.aparelho.id === aparelho.id)).length;
+  const siglasEvento = [...new Set(vendasEvento.map((v) => v.aparelho?.sigla).filter(Boolean))];
 
   let diaDoEvento = '';
   if (evento && !foraDasDatas) {
@@ -67,9 +69,9 @@ export async function render(el) {
   if (!evento) avisos.push({ nivel: 'atencao', texto: '<strong>Nenhum evento em uso.</strong> As vendas precisam de um evento.', botao: gestao ? ['#/eventos', totalEventos ? 'Escolher o evento' : 'Criar evento'] : ['evento', 'Escolher o evento'] });
   // Gestão: algo mudou (evento novo, preços, produtos...) e os caixas ainda não receberam
   if (gestao && base && (!base.publicada || base.alterada)) avisos.push({ nivel: 'atencao', texto: base.publicada ? '<strong>Há alterações não enviadas aos caixas</strong> (evento, preços, produtos ou formas de pagamento). Publique a base e sincronize os caixas.' : '<strong>A base para os caixas ainda não foi publicada.</strong>', botao: ['#/sincronizar', 'Publicar base'] });
-  if (caixaEsquecido) avisos.push({ nivel: 'erro', texto: `<strong>O caixa de ${dataCurta(caixaEsquecido.data)} ainda está aberto.</strong> Feche (com a contagem do dinheiro) antes de abrir o de hoje.`, botao: ['#/caixa', 'Ir para a Gaveta'] });
+  if (caixaEsquecido && !gestao) avisos.push({ nivel: 'erro', texto: `<strong>O caixa de ${dataCurta(caixaEsquecido.data)} ainda está aberto.</strong> Feche (com a contagem do dinheiro) antes de abrir o de hoje.`, botao: ['#/caixa', 'Ir para a Gaveta'] });
   if (foraDasDatas) avisos.push({ nivel: 'atencao', texto: `<strong>Hoje está fora das datas do evento</strong> ${esc(evento.nome)} (${periodoEvento(evento)}). Confira se é o evento certo.`, botao: gestao ? ['#/eventos', 'Trocar o evento'] : ['evento', 'Trocar o evento'] });
-  if (temVendaEmAndamento()) {
+  if (temVendaEmAndamento() && !gestao) {
     const { quantidade, total } = calcularTotais();
     const pago = totalPago();
     avisos.push({ nivel: 'atencao', texto: `<strong>${carrinho.troca ? 'Troca' : 'Venda'} em andamento:</strong> <span class="num">${quantidade} ${quantidade === 1 ? 'item' : 'itens'} · ${dinheiro(Math.abs(total))}${pago ? ` · ${dinheiro(pago)} já pagos` : ''}</span>.`, botao: ['#/vender', 'Continuar venda'] });
@@ -97,19 +99,19 @@ export async function render(el) {
     </div>
 
     <section class="cartao avisos-caixa ${avisos.length ? '' : 'tudo-certo'}" aria-live="polite">
-      ${avisos.length ? `<h2>Antes de vender</h2>
+      ${avisos.length ? `<h2>${gestao ? 'Avisos' : 'Antes de vender'}</h2>
       <ul class="lista-avisos">${avisos.map((a) => `
         <li class="${a.nivel}"><span>${a.texto}</span>${a.botao ? (a.botao[0].startsWith('#') ? `<a class="btn" href="${a.botao[0]}">${a.botao[1]}</a>` : `<button type="button" class="btn" data-acao="${a.botao[0]}">${a.botao[1]}</button>`) : ''}</li>`).join('')}
-      </ul>` : '<p class="tudo-certo-texto"><span class="marca-ok pequena" aria-hidden="true">✓</span> Tudo certo para vender.</p>'}
+      </ul>` : `<p class="tudo-certo-texto"><span class="marca-ok pequena" aria-hidden="true">✓</span> ${gestao ? 'Tudo certo.' : 'Tudo certo para vender.'}</p>`}
     </section>
 
     <div class="grade-inicio grade-inicio-caixa">
-      <section class="cartao cartao-caixa ${cartaoCaixa.ok ? 'aberto' : ''}">
+      ${gestao ? '' : `<section class="cartao cartao-caixa ${cartaoCaixa.ok ? 'aberto' : ''}">
         <h2>Caixa</h2>
         <p class="estado-caixa">${cartaoCaixa.estado}</p>
         <p class="sub">${cartaoCaixa.detalhe}</p>
         <div class="acoes" style="justify-content:flex-start">${cartaoCaixa.botoes}</div>
-      </section>
+      </section>`}
 
       ${gestao ? `<section class="cartao">
         <h2>Evento</h2>
@@ -140,11 +142,16 @@ export async function render(el) {
         <div class="acoes" style="justify-content:flex-start"><button type="button" class="btn" data-acao="sincronizar">${icones.compartilhar} Sincronizar agora</button></div>
       </section>` : ''}
 
-      <section class="cartao">
+      ${gestao ? (evento ? `<section class="cartao">
+        <h2>Vendas do evento</h2>
+        <p class="numero-grande">${vendasEvento.length}</p>
+        <p class="sub">${vendasEvento.length === 1 ? 'venda' : 'vendas'} já buscadas${siglasEvento.length ? ` (${esc(siglasEvento.join(', '))})` : ''}. Valores no Painel de vendas (Mais), com o PIN.</p>
+        <div class="acoes" style="justify-content:flex-start"><a class="btn" href="#/sincronizar">Buscar vendas dos caixas</a><a class="btn texto" href="#/vendas">Histórico</a></div>
+      </section>` : '') : `<section class="cartao">
         <h2>Hoje</h2>
         <p class="numero-grande">${vendasHoje}</p>
         <p class="sub">${vendasHoje === 1 ? 'venda neste aparelho' : 'vendas neste aparelho'}. Valores no Painel de vendas (Mais), com o PIN.</p>
-      </section>
+      </section>`}
     </div>
 
     <p class="sub rotina-caixa">${gestao
