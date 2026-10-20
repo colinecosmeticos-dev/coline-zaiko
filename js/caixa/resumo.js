@@ -22,8 +22,8 @@ export async function resumoCaixa(caixa) {
   for (const r of registros) {
     for (const p of r.pagamentos || []) {
       const chave = p.formaId || p.formaNome;
-      const f = formas.get(chave) || { nome: p.formaNome, tipo: p.tipo, valor: 0, quantidade: 0 };
-      if (p.trocoEmDinheiro) { f.valor += p.recebido; trocoDeOutrasFormas += p.troco || 0; } else f.valor += p.valor;
+      const f = formas.get(chave) || { nome: p.formaNome, tipo: p.tipo, valor: 0, quantidade: 0, trocoDinheiro: 0 };
+      if (p.trocoEmDinheiro) { f.valor += p.recebido; f.trocoDinheiro += p.troco || 0; trocoDeOutrasFormas += p.troco || 0; } else f.valor += p.valor;
       f.quantidade += 1;
       formas.set(chave, f);
     }
@@ -53,7 +53,8 @@ export async function resumoCaixa(caixa) {
     devolvido,
     esperado: (caixa.trocoInicial || 0) + dinheiroVendas + reforcos - retiradas - devolvido.dinheiro - trocoDeOutrasFormas,
     porForma,
-    totalRecebido: porForma.reduce((s, f) => s + f.valor, 0),
+    // Total que fica com o aparelho: o passado na maquininha menos o troco dado em dinheiro
+    totalRecebido: porForma.reduce((s, f) => s + f.valor, 0) - trocoDeOutrasFormas,
     totalDevolvido: devolvido.dinheiro + devolvido.pix + devolvido.estorno,
     vendas: conta('venda'), trocas: conta('troca'), devolucoes: conta('devolucao')
   };

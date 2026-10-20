@@ -70,13 +70,19 @@ export async function render(el) {
   };
   // Caixa de outro dia esquecido aberto: fechar antes de vender
   if (caixa && caixa.data !== hojeISO()) {
-    bloquear('Feche o caixa anterior', `O caixa de ${new Date(caixa.data + 'T12:00').toLocaleDateString('pt-BR')} ainda está aberto. Feche-o (com a contagem do dinheiro) para abrir o de hoje.`, '<a class="btn primario" href="#/caixa">Ir para o Caixa</a>');
+    bloquear('Feche o caixa anterior', `O caixa de ${new Date(caixa.data + 'T12:00').toLocaleDateString('pt-BR')} ainda está aberto. Feche-o (com a contagem do dinheiro) para abrir o de hoje.`, '<a class="btn primario" href="#/caixa">Ir para a Gaveta</a>');
     return;
   }
   if (!caixa) {
     const deHoje = await caixaDoDia(evento.id, hojeISO());
     if (deHoje) {
-      bloquear('Caixa de hoje fechado', 'Para voltar a vender, reabra o caixa na tela Caixa.', '<a class="btn primario" href="#/caixa">Ir para o Caixa</a>');
+      // Caixa deste evento já fechado hoje: reabrir (na Gaveta) ou trocar o evento (v0.27.0)
+      bloquear('Caixa de hoje fechado', `O caixa de hoje de <strong>${esc(evento.nome)}</strong> já foi fechado. Para voltar a vender neste evento, reabra na Gaveta. Se for vender em outro evento, troque o evento.`,
+        '<div class="acoes" style="justify-content:center;flex-wrap:wrap"><a class="btn primario" href="#/caixa">Reabrir na Gaveta</a><button type="button" class="btn" id="trocar-evento">Trocar o evento</button></div>');
+      el.querySelector('#trocar-evento').addEventListener('click', async () => {
+        if (!caixaModo) { location.hash = '#/eventos'; return; }
+        if (await escolherEvento()) render(el);
+      });
       return;
     }
     const novo = await pedirAberturaCaixa(evento);
@@ -328,7 +334,7 @@ export async function render(el) {
   async function desenharCarrinho(destacar) {
     const { subtotal, descontoVenda, total, quantidade } = calcularTotais();
     const { numero } = await proximoNumeroVenda();
-    $('#numero-venda').textContent = numero;
+    $('#numero-venda').textContent = `${numero} · ${evento.nome}`;   // o evento sempre à vista
     $('#itens').innerHTML = carrinho.itens.length ? carrinho.itens.map((i) => {
       const c = calcularItem(i);
       return `

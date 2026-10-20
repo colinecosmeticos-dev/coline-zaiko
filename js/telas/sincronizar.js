@@ -14,7 +14,7 @@ import { lerConfig, lerEventoAtivo } from '../db.js';
 import { esc, aviso, abrirJanela, icones } from '../ui.js';
 import { driveConfigurado, prepararDrive, autorizar } from '../drive.js';
 import { ehCaixa } from '../modo.js';
-import { pendencias, sincronizarCaixa, situacaoBase, publicarBase, buscarVendasDosCaixas } from '../sincronizar.js';
+import { pendencias, sincronizarCaixa, situacaoBase, publicarBase, buscarVendasDosCaixas, precisaSincronizar } from '../sincronizar.js';
 
 const quando = (iso) => {
   if (!iso) return '';
@@ -47,11 +47,12 @@ export async function atualizarIndicador() {
     } catch (e) { /* ok */ }
     return;
   }
+  // Caixa: ponto vermelho, pulsando, só quando é hora de sincronizar (v0.27.0)
   try {
-    const p = await pendencias();
-    const pendente = !p.ultimo || p.vendas + p.outros > 0;
-    link.classList.toggle('pendente', pendente);
-    link.title = pendente ? (p.ultimo ? `${textoPendente(p)} sem enviar` : 'Ainda não sincronizado') : 'Tudo enviado';
+    const s = await precisaSincronizar();
+    link.classList.remove('pendente');
+    link.classList.toggle('alerta', s.urgente);
+    link.title = s.semCatalogo ? 'Receba o catálogo: sincronize' : s.urgente ? `${textoPendente(s)} sem enviar: sincronize` : s.semEnviar ? `${textoPendente(s)} sem enviar (vão ao fechar o caixa)` : 'Tudo enviado';
   } catch (e) { /* ok */ }
 }
 

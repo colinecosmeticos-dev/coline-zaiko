@@ -29,7 +29,7 @@ let diaEscolhido = null;
 export async function render(el) {
   const evento = await lerEventoAtivo();
   if (!evento) {
-    el.innerHTML = `<header class="cab"><h1>Vendas</h1></header>
+    el.innerHTML = `<header class="cab"><h1>Histórico</h1></header>
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Escolha o evento</h2>
       <p>As vendas aparecem aqui separadas por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
     return;
@@ -43,7 +43,7 @@ export async function render(el) {
 
   el.innerHTML = `
     <header class="cab">
-      <div><h1>Vendas</h1><p class="sub">${esc(evento.nome)}</p></div>
+      <div><h1>Histórico</h1><p class="sub">Vendas, trocas, devoluções e cancelamentos de ${esc(evento.nome)}. Toque numa venda para ver, trocar, devolver ou cancelar.</p></div>
     </header>
     ${vendas.length ? `
       <div class="filtros">

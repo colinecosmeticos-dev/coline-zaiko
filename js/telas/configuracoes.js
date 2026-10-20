@@ -49,7 +49,7 @@ export async function render(el) {
 
     <section class="cartao">
       <h2>Modo deste aparelho: Gestão</h2>
-      <p class="sub">No modo <strong>Caixa</strong>, o aparelho mostra só Vender, Vendas e Caixa, para a equipe de venda. Para voltar à Gestão, ${pinDefinido ? 'é preciso o PIN' : 'defina um PIN antes, ou qualquer pessoa poderá voltar'}.</p>
+      <p class="sub">No modo <strong>Caixa</strong>, o aparelho mostra só Início, Vender, Histórico, Gaveta e Sincronizar, para a equipe de venda. Para voltar à Gestão, ${pinDefinido ? 'é preciso o PIN' : 'defina um PIN antes, ou qualquer pessoa poderá voltar'}.</p>
       <div class="acoes" style="justify-content:flex-start"><button type="button" class="btn" id="modo-caixa">Mudar para modo Caixa</button></div>
     </section>
 

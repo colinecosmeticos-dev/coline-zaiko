@@ -14,16 +14,17 @@ import { pedirMovimento, pedirFechamento, pedirFechamentoCego, htmlResumo } from
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
 import { ehCaixa } from '../modo.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
-import { lembrarDeSincronizar } from './sincronizar.js';
+import { lembrarDeSincronizar, atualizarIndicador } from './sincronizar.js';
 import { driveConfigurado } from '../drive.js';
 import { temVendaEmAndamento, calcularTotais, totalPago } from '../venda/carrinho.js';
+import { textoPagamento } from '../venda/cobrar.js';
 
 const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
 const diaCurto = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
 const vazio = (titulo, texto, botao = '') => `
-  <header class="cab"><h1>Caixa</h1></header>
+  <header class="cab"><div><h1>Gaveta</h1><p class="sub">Abrir e fechar o caixa do dia, troco, reforço e retirada.</p></div></header>
   <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
 
 export async function render(el, { id, mostrarTotais = false } = {}) {
@@ -83,17 +84,30 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   const comPin = await temPin();
   const verTotais = !comPin || mostrarTotais;
 
-  const linhasMov = [
-    `<li class="mov"><span class="mov-hora num">${hora(caixa.abertoEm)}</span><span class="mov-desc">Abertura (troco)</span><span class="num mov-valor">${dinheiro(caixa.trocoInicial)}</span><span></span></li>`,
-    ...movimentos.map((m) => `
+  // Linha do tempo do caixa (v0.27.0): abertura, vendas, reforços e retiradas,
+  // fechamentos e reaberturas, na ordem. Assim se vê o que entrou antes e depois
+  // de uma reabertura (o resumo soma tudo o que está aqui).
+  const registros = (await db.vendas.where('caixaId').equals(caixa.id).toArray());
+  const NOME = { venda: 'Venda', troca: 'Troca', devolucao: 'Devolução' };
+  const itens = [
+    { em: caixa.abertoEm, html: `<li class="mov"><span class="mov-hora num">${hora(caixa.abertoEm)}</span><span class="mov-desc">Abertura (troco)</span><span class="num mov-valor">${dinheiro(caixa.trocoInicial)}</span><span></span></li>` },
+    ...registros.map((r) => ({ em: r.criadoEm, html: `
+      <li class="mov venda-mov${r.status === 'cancelada' ? ' cancelado' : ''}">
+        <span class="mov-hora num">${hora(r.criadoEm)}</span>
+        <span class="mov-desc"><a href="#/vendas/${encodeURIComponent(r.id)}">${NOME[r.tipo || 'venda']} ${esc(r.numero)}</a> <span class="sub">${esc(textoPagamento(r) || (r.reembolsos || []).map((x) => x.nome).join(' + '))}</span>${r.status === 'cancelada' ? ' <span class="etiqueta erro">Cancelada</span>' : ''}</span>
+        <span class="num mov-valor">${r.tipo === 'devolucao' ? '− ' + dinheiro(Math.abs(r.credito || 0)) : dinheiro(r.total)}</span><span></span>
+      </li>` })),
+    ...(caixa.fechamentos || []).map((f) => ({ em: f.em, html: `<li class="mov info"><span class="mov-hora num">${hora(f.em)}</span><span class="mov-desc">Caixa fechado${f.cego ? ' (às cegas)' : ''}</span><span></span><span></span></li>` })),
+    ...movimentos.map((m) => ({ em: m.criadoEm, html: `
       <li class="mov${m.status === 'cancelado' ? ' cancelado' : ''}">
         <span class="mov-hora num">${hora(m.criadoEm)}</span>
         <span class="mov-desc">${m.tipo === 'reforco' ? 'Reforço' : `Retirada · ${esc(m.categoriaNome)}`}${m.motivo ? ` <span class="sub">— ${esc(m.motivo)}</span>` : ''}${m.status === 'cancelado' ? ' <span class="etiqueta erro">Cancelado</span>' : ''}</span>
         <span class="num mov-valor ${m.tipo}">${m.tipo === 'reforco' ? '+ ' : '− '}${dinheiro(m.valor)}</span>
         ${aberto && m.status !== 'cancelado' ? `<button type="button" class="btn-icone" data-cancelar="${esc(m.id)}" aria-label="Cancelar movimento">${icones.fechar}</button>` : '<span></span>'}
-      </li>`),
-    ...(caixa.reaberturas || []).map((r) => `<li class="mov info"><span class="mov-hora num">${hora(r.em)}</span><span class="mov-desc">Caixa reaberto</span><span></span><span></span></li>`)
-  ].join('');
+      </li>` })),
+    ...(caixa.reaberturas || []).map((r) => ({ em: r.em, html: `<li class="mov info"><span class="mov-hora num">${hora(r.em)}</span><span class="mov-desc">Caixa reaberto</span><span></span><span></span></li>` }))
+  ];
+  const linhasMov = itens.sort((a, b) => a.em.localeCompare(b.em)).map((x) => x.html).join('');
 
   // Situação do fechamento (com PIN)
   let blocoFechamento = '';
@@ -130,8 +144,8 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   el.innerHTML = `
     ${voltar ? `<a class="voltar" href="#/caixa">${icones.voltar} Caixa</a>` : ''}
     <header class="cab">
-      <div><h1>Caixa de ${esc(dia(caixa.data))}</h1>
-        <p class="sub">${evento ? esc(evento.nome) + ' · ' : ''}Aberto às ${hora(caixa.abertoEm)} com ${dinheiro(caixa.trocoInicial)} de troco</p></div>
+      <div><p class="sobretitulo">Gaveta</p><h1>Caixa de ${esc(dia(caixa.data))}</h1>
+        <p class="sub">${evento ? `<strong>${esc(evento.nome)}</strong> · ` : ''}Aberto às ${hora(caixa.abertoEm)} com ${dinheiro(caixa.trocoInicial)} de troco. Aqui fica o controle do dinheiro da gaveta: reforço, retirada e fechamento.</p></div>
       <span class="etiqueta grande ${aberto ? 'marca' : ''}">${aberto ? 'Aberto' : 'Fechado'}</span>
     </header>
     ${atrasado ? `<div class="cartao alerta-cancelada"><strong>Este caixa ficou aberto</strong>
@@ -143,16 +157,17 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
     </div>` : ehHoje ? `<div class="acoes-caixa"><button type="button" class="btn" id="reabrir">Reabrir caixa</button></div>` : ''}
     <div class="caixa-colunas">
       <section class="cartao">
-        <h2>Movimentos</h2>
+        <h2>Movimentos do caixa</h2>
         <ul class="lista-movimentos">${linhasMov}</ul>
-        <p class="sub nota-mov">Vendas, trocas e devoluções ficam na tela Vendas.</p>
+        <p class="sub nota-mov">Vendas, trocas, devoluções, reforços e retiradas deste caixa, na ordem. Toque numa venda para ver os detalhes.</p>
       </section>
       <div class="caixa-lado">${blocoResumo}${blocoFechamento}</div>
     </div>
     ${voltar || !evento ? '' : await htmlAnteriores(evento, caixa)}`;
 
   // Recarrega a tela mantendo (ou não) os totais à mostra
-  const recarregar = (mostrar = mostrarTotais) => render(el, voltar ? { id: caixa.id, mostrarTotais: mostrar } : { mostrarTotais: mostrar });
+  // (a cada recarga, atualiza também o ponto do Sincronizar: fechar o caixa pode acendê-lo)
+  const recarregar = (mostrar = mostrarTotais) => { atualizarIndicador(); return render(el, voltar ? { id: caixa.id, mostrarTotais: mostrar } : { mostrarTotais: mostrar }); };
   const pin = (titulo) => pedirPin({ titulo, texto: 'Digite o PIN.' });
   const $ = (s) => el.querySelector(s);
 
@@ -195,7 +210,9 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   });
   $('#reabrir')?.addEventListener('click', async () => {
     if (!mostrarTotais && !(await pin('Reabrir o caixa'))) return;
-    const ok = await confirmar({ titulo: 'Reabrir o caixa de hoje?', texto: 'Fica registrado que o caixa foi reaberto. Depois, feche de novo com a nova contagem.', botao: 'Reabrir' });
+    const ja = (await db.vendas.where('caixaId').equals(caixa.id).toArray()).filter((v) => v.status !== 'cancelada' && (v.tipo || 'venda') === 'venda');
+    const ok = await confirmar({ titulo: `Reabrir o caixa de hoje${evento ? ` (${evento.nome})` : ''}?`,
+      texto: `${ja.length ? `Este caixa já tem ${ja.length} ${ja.length === 1 ? 'venda' : 'vendas'} (${dinheiro(ja.reduce((s, v) => s + v.total, 0))}) de antes do fechamento: elas continuam somando no mesmo caixa. ` : ''}Fica registrado que o caixa foi reaberto. Depois, feche de novo com a nova contagem.`, botao: 'Reabrir' });
     if (!ok) return;
     await reabrirCaixa(caixa.id);
     aviso('Caixa reaberto.');

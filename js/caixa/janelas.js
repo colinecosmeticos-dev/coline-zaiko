@@ -77,7 +77,8 @@ export function htmlResumo(r, { categorias = true } = {}) {
       <section>
         <h3>Recebido por forma <span class="sub">${qtd}</span></h3>
         <div class="contas">
-          ${r.porForma.length ? r.porForma.map((f) => linha(`${esc(f.nome)} <span class="sub">(${f.quantidade})</span>`, f.valor)).join('') : '<div><span class="sub">Nada recebido.</span></div>'}
+          ${r.porForma.length ? r.porForma.map((f) => linha(`${esc(f.nome)} <span class="sub">(${f.quantidade})</span>`, f.valor)
+            + (f.trocoDinheiro ? `<div class="sub-linha"><span>troco dado em dinheiro</span><span class="num">− ${dinheiro(f.trocoDinheiro)}</span></div>` : '')).join('') : '<div><span class="sub">Nada recebido.</span></div>'}
           ${r.devolvido.pix ? linha('Devolvido por Pix', r.devolvido.pix, '− ') : ''}
           ${r.devolvido.estorno ? linha('Estornado na maquininha', r.devolvido.estorno, '− ') : ''}
           <div class="total"><span>Total recebido</span><strong class="num">${dinheiro(r.totalRecebido - r.totalDevolvido)}</strong></div>

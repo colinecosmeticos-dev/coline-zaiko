@@ -8,7 +8,7 @@
 // Devolve o caixa aberto, 'outro-evento' (escolheu outro evento:
 // quem chamou desenha de novo) ou null.
 // =========================================================
-import { abrirCaixa } from '../db.js';
+import { db, abrirCaixa, definirEventoAtivo } from '../db.js';
 import { abrirJanela, campoDinheiro, lerCentavos, esc, hojeISO, diasEntre } from '../ui.js';
 import { ehCaixa } from '../modo.js';
 import { escolherEvento } from './escolher-evento.js';
@@ -23,8 +23,20 @@ export function dentroDasDatas(evento, hoje = hojeISO()) {
 export const periodoEvento = (evento) => (evento.dataFim && evento.dataFim !== evento.dataInicio
   ? `${dataBR(evento.dataInicio)} a ${dataBR(evento.dataFim)}` : dataBR(evento.dataInicio));
 
+let escolhaDoDia = null;   // { dia, eventoId }: evento escolhido hoje entre os do dia
+
 export async function pedirAberturaCaixa(evento) {
   const hoje = hojeISO();
+  // Dois ou mais eventos acontecendo hoje (v0.27.0): pergunta em qual vender
+  // (a escolha vale para o dia: depois de escolher, a abertura segue sem perguntar de novo)
+  const deHoje = (await db.eventos.toArray()).filter((e) => e.status !== 'encerrado' && dentroDasDatas(e, hoje) && e.dataInicio);
+  const jaEscolheu = escolhaDoDia && escolhaDoDia.dia === hoje && escolhaDoDia.eventoId === evento.id;
+  if (deHoje.length > 1 && !jaEscolheu) {
+    const escolhido = await escolherEntre(deHoje, evento);
+    if (!escolhido) return null;
+    escolhaDoDia = { dia: hoje, eventoId: escolhido.id };
+    if (escolhido.id !== evento.id) { await definirEventoAtivo(escolhido.id); return 'outro-evento'; }
+  }
   let fora = false;
   if (!dentroDasDatas(evento, hoje)) {
     const escolha = await avisarForaDasDatas(evento, hoje);
@@ -62,6 +74,25 @@ export async function pedirAberturaCaixa(evento) {
       caixa = await abrirCaixa({ eventoId: evento.id, data: hoje, trocoInicial: lerCentavos(campo) || 0, foraDasDatas: fora });
       d.close();
     });
+  });
+}
+
+// Hoje há mais de um evento: um toque escolhe (o em uso vem marcado)
+function escolherEntre(eventos, atual) {
+  return new Promise((resolver) => {
+    let escolhido = null;
+    const d = abrirJanela(`
+      <h2>Em qual evento você vai vender hoje?</h2>
+      <p>Hoje há ${eventos.length} eventos acontecendo. As vendas deste caixa entram no evento escolhido.</p>
+      <ul class="lista lista-links" style="margin-top:12px">
+        ${eventos.map((e) => `<li><button type="button" class="link-evento" data-evento="${esc(e.id)}">
+          <span><strong>${esc(e.nome)}</strong>${atual && atual.id === e.id ? ' <span class="etiqueta marca">em uso</span>' : ''}<br>
+          <span class="sub">${esc(e.local || '')}${e.local ? ' · ' : ''}${periodoEvento(e)} · ${esc(e.codigo || '')}</span></span>
+          <span class="seta" aria-hidden="true">›</span></button></li>`).join('')}
+      </ul>
+      <div class="acoes"><button type="button" class="btn" id="cancelar">Agora não</button></div>`, { aoFechar: () => resolver(escolhido) });
+    d.querySelector('#cancelar').addEventListener('click', () => d.close());
+    d.querySelectorAll('[data-evento]').forEach((b) => b.addEventListener('click', () => { escolhido = eventos.find((e) => e.id === b.dataset.evento); d.close(); }));
   });
 }
 

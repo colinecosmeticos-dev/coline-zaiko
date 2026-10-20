@@ -1188,3 +1188,15 @@ dialog.dialogo .acoes { flex-wrap: wrap; }
 }
 /* Aviso no campo do Pix/cartão com valor maior que o que falta */
 .aviso-maior { margin: 4px 0 0; font-size: .875rem; font-weight: 600; color: var(--marca-texto); text-align: right; }
+
+/* Ponto do Sincronizar no Caixa (v0.27.0): vermelho e pulsando, só quando é hora */
+.nav a[data-rota="sincronizar"].alerta::after {
+  content: ""; position: absolute; top: 6px; right: calc(50% - 20px); width: 12px; height: 12px; border-radius: 50%;
+  background: var(--erro); box-shadow: 0 0 0 2px var(--superficie); animation: pulsar 1.4s ease-in-out infinite;
+}
+.nav a[data-rota="sincronizar"].alerta { color: var(--erro); }
+@keyframes pulsar { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.35); opacity: .7; } }
+@media (prefers-reduced-motion: reduce) { .nav a[data-rota="sincronizar"].alerta::after { animation: none; } }
+.contas > .sub-linha { font-size: .8125rem; color: var(--texto-2); padding-left: 12px; }
+
+.sobretitulo { margin: 0 0 2px; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--marca-texto); }

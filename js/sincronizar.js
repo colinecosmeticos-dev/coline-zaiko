@@ -85,6 +85,23 @@ export async function pendencias() {
   return { vendas: v.length, outros: s.length + c.length + m.length, eventos: [...eventos], ultimo };
 }
 
+// ---------- Caixa: é hora de sincronizar? (v0.27.0) ----------
+// Durante as vendas, ter vendas sem enviar é normal e NÃO alerta (o ponto
+// aceso o tempo todo virava paisagem). Alerta só quando há algo a fazer:
+//   - há vendas ou registros de caixa sem enviar e o caixa de hoje não está
+//     aberto (fechou no fim do dia, ou ficou para o dia seguinte); ou
+//   - o aparelho ainda não tem catálogo (precisa receber a base).
+export async function precisaSincronizar() {
+  const p = await pendencias();
+  const semEnviar = p.vendas + p.outros;
+  const evento = await lerEventoAtivo();
+  const aberto = evento ? await caixaAbertoDoEvento(evento.id) : null;
+  const caixaAbertoHoje = !!aberto && aberto.data === new Date().toLocaleDateString('sv-SE');
+  const semCatalogo = !(await db.produtos.count());
+  const urgente = semCatalogo || (semEnviar > 0 && !caixaAbertoHoje);
+  return { urgente, semCatalogo, semEnviar, caixaAbertoHoje, ...p };
+}
+
 // ---------- Caixa: sincronizar ----------
 // passo(texto) mostra o andamento. Devolve um resumo do que aconteceu.
 export async function sincronizarCaixa(passo = () => {}) {

@@ -15,7 +15,7 @@ import { db, lerEventoAtivo, lerAparelho, lerConfig, caixaAbertoDoEvento, caixaD
 import { ehCaixa } from '../modo.js';
 import { situacaoBase } from '../sincronizar.js';
 import { esc, dinheiro, icones, hojeISO, diasEntre, periodo } from '../ui.js';
-import { pendencias } from '../sincronizar.js';
+import { precisaSincronizar } from '../sincronizar.js';
 import { driveConfigurado, prepararDrive } from '../drive.js';
 import { iniciarSincronizacao } from './sincronizar.js';
 import { diaLocal } from './vendas.js';
@@ -39,7 +39,7 @@ export async function render(el) {
   const hoje = hojeISO();
   const [aparelho, evento, totalProdutos, recebida, ultimaSinc, pend] = await Promise.all([
     lerAparelho(), lerEventoAtivo(), db.produtos.count(), lerConfig('baseRecebida', null), lerConfig('ultimaSincronizacao', null),
-    pendencias().catch(() => ({ vendas: 0, outros: 0, ultimo: null }))
+    precisaSincronizar().catch(() => ({ vendas: 0, outros: 0, ultimo: null, urgente: false }))
   ]);
   const [totalItens, totalEventos, base] = gestao
     ? await Promise.all([db.variacoes.count(), db.eventos.count(), drive ? situacaoBase().catch(() => null) : null])
@@ -67,7 +67,7 @@ export async function render(el) {
   if (!evento) avisos.push({ nivel: 'atencao', texto: '<strong>Nenhum evento em uso.</strong> As vendas precisam de um evento.', botao: gestao ? ['#/eventos', totalEventos ? 'Escolher o evento' : 'Criar evento'] : ['evento', 'Escolher o evento'] });
   // Gestão: algo mudou (evento novo, preços, produtos...) e os caixas ainda não receberam
   if (gestao && base && (!base.publicada || base.alterada)) avisos.push({ nivel: 'atencao', texto: base.publicada ? '<strong>Há alterações não enviadas aos caixas</strong> (evento, preços, produtos ou formas de pagamento). Publique a base e sincronize os caixas.' : '<strong>A base para os caixas ainda não foi publicada.</strong>', botao: ['#/sincronizar', 'Publicar base'] });
-  if (caixaEsquecido) avisos.push({ nivel: 'erro', texto: `<strong>O caixa de ${dataCurta(caixaEsquecido.data)} ainda está aberto.</strong> Feche (com a contagem do dinheiro) antes de abrir o de hoje.`, botao: ['#/caixa', 'Ir para o Caixa'] });
+  if (caixaEsquecido) avisos.push({ nivel: 'erro', texto: `<strong>O caixa de ${dataCurta(caixaEsquecido.data)} ainda está aberto.</strong> Feche (com a contagem do dinheiro) antes de abrir o de hoje.`, botao: ['#/caixa', 'Ir para a Gaveta'] });
   if (foraDasDatas) avisos.push({ nivel: 'atencao', texto: `<strong>Hoje está fora das datas do evento</strong> ${esc(evento.nome)} (${periodoEvento(evento)}). Confira se é o evento certo.`, botao: gestao ? ['#/eventos', 'Trocar o evento'] : ['evento', 'Trocar o evento'] });
   if (temVendaEmAndamento()) {
     const { quantidade, total } = calcularTotais();
@@ -75,15 +75,16 @@ export async function render(el) {
     avisos.push({ nivel: 'atencao', texto: `<strong>${carrinho.troca ? 'Troca' : 'Venda'} em andamento:</strong> <span class="num">${quantidade} ${quantidade === 1 ? 'item' : 'itens'} · ${dinheiro(Math.abs(total))}${pago ? ` · ${dinheiro(pago)} já pagos` : ''}</span>.`, botao: ['#/vender', 'Continuar venda'] });
   }
   const semEnviar = pend.vendas + pend.outros;
-  if (!gestao && drive && (!pend.ultimo || semEnviar)) avisos.push({ nivel: 'atencao', texto: !ultimaSinc ? '<strong>Este aparelho ainda não sincronizou.</strong>' : `<strong>${pend.vendas ? `${pend.vendas} ${pend.vendas === 1 ? 'venda' : 'vendas'}` : `${pend.outros} ${pend.outros === 1 ? 'registro' : 'registros'} de caixa`} sem enviar</strong> para a Gestão.`, botao: ['sincronizar', 'Sincronizar agora'] });
+  // Caixa: só quando é hora de sincronizar (caixa fechado com vendas sem enviar)
+  if (!gestao && drive && pend.urgente && semEnviar) avisos.push({ nivel: 'erro', texto: `<strong>${pend.vendas ? `${pend.vendas} ${pend.vendas === 1 ? 'venda' : 'vendas'}` : `${pend.outros} ${pend.outros === 1 ? 'registro' : 'registros'} de caixa`} sem enviar para a Gestão.</strong> O caixa não está aberto: sincronize para não perder nada se acontecer algo com o aparelho.`, botao: ['sincronizar', 'Sincronizar agora'] });
   if (temVersaoNova()) avisos.push({ nivel: 'info', texto: '<strong>Versão nova do app disponível.</strong> Toque em Atualizar agora, no topo da tela (fora do horário de venda).' });
 
   // ---------- Cartão do caixa ----------
   let cartaoCaixa;
   if (!evento) cartaoCaixa = { estado: 'Sem evento', detalhe: 'Escolha o evento para abrir o caixa.', botoes: '' };
-  else if (caixaEsquecido) cartaoCaixa = { estado: 'Caixa anterior aberto', detalhe: `Aberto em ${dataCurta(caixaEsquecido.data)}.`, botoes: '<a class="btn primario" href="#/caixa">Fechar o caixa anterior</a>' };
-  else if (caixaAberto) cartaoCaixa = { estado: 'Aberto', ok: true, detalhe: `Desde ${hora(caixaAberto.abertoEm)}${caixaAberto.foraDasDatas ? ' · fora das datas do evento' : ''}.`, botoes: '<a class="btn primario btn-grande" href="#/vender">Vender</a><a class="btn" href="#/caixa">Caixa</a>' };
-  else if (caixaHoje) cartaoCaixa = { estado: 'Fechado', detalhe: `Fechado hoje${(caixaHoje.fechamentos || []).at(-1) ? ` às ${hora(caixaHoje.fechamentos.at(-1).em)}` : ''}. Para vender de novo, reabra na tela Caixa.`, botoes: '<a class="btn" href="#/caixa">Ir para o Caixa</a>' };
+  else if (caixaEsquecido) cartaoCaixa = { estado: 'Caixa anterior aberto', detalhe: `Aberto em ${dataCurta(caixaEsquecido.data)}.`, botoes: '<a class="btn primario" href="#/caixa">Fechar na Gaveta</a>' };
+  else if (caixaAberto) cartaoCaixa = { estado: 'Aberto', ok: true, detalhe: `Desde ${hora(caixaAberto.abertoEm)}${caixaAberto.foraDasDatas ? ' · fora das datas do evento' : ''}.`, botoes: '<a class="btn primario btn-grande" href="#/vender">Vender</a><a class="btn" href="#/caixa">Gaveta</a>' };
+  else if (caixaHoje) cartaoCaixa = { estado: 'Fechado', detalhe: `Fechado hoje${(caixaHoje.fechamentos || []).at(-1) ? ` às ${hora(caixaHoje.fechamentos.at(-1).em)}` : ''}. Para vender de novo, reabra na Gaveta.`, botoes: '<a class="btn" href="#/caixa">Ir para a Gaveta</a>' };
   else cartaoCaixa = { estado: 'Ainda não aberto', detalhe: 'Confira os avisos e abra o caixa com o troco do dia.', botoes: `<button type="button" class="btn primario btn-grande" id="abrir-caixa" ${totalProdutos ? '' : 'disabled'}>Abrir caixa</button>` };
 
   el.innerHTML = `
