@@ -15,7 +15,7 @@ export async function render(el) {
     el.innerHTML = `
       <header class="cab"><h1>Produtos</h1></header>
       <div class="cartao vazio">
-        <div class="simbolo" aria-hidden="true">在庫</div>
+        <div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div>
         <h2>Nenhum produto cadastrado</h2>
         <p>Cadastre os produtos que você leva para os eventos. Com o leitor ligado, você também pode ler um código aqui para começar o cadastro.</p>
         <a class="btn primario" href="#/produtos/novo">Cadastrar o primeiro produto</a>

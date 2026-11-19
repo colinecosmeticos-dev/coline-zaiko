@@ -120,11 +120,8 @@ img { display: block; max-width: 100%; }
     border-top: 0; border-right: 1px solid var(--linha);
     padding: 16px 8px;
   }
-  .nav .marca {
-    display: block; text-align: center;
-    font-size: 1.375rem; font-weight: 700; letter-spacing: .04em;
-    color: var(--marca); margin: 4px 0 18px;
-  }
+  .nav .marca { display: flex; justify-content: center; margin: 6px 0 18px; }
+  .nav .marca .logo-app { width: 70px; height: 32px; }
   .nav a { flex: none; min-height: 68px; border-radius: var(--raio); }
   .nav a:hover { background: var(--superficie-2); }
   .nav a[aria-current="page"] { background: var(--marca-suave); }
@@ -412,7 +409,8 @@ img { display: block; max-width: 100%; }
 
 /* ---------- Início ---------- */
 .saudacao { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
-.saudacao .kanji { font-size: 2rem; font-weight: 700; color: var(--marca); letter-spacing: .04em; }
+.saudacao { align-items: center; }
+.saudacao .logo-saudacao { flex: none; width: 104px; height: 47px; }
 .grade-inicio { display: grid; gap: 16px; }
 @media (min-width: 840px) { .grade-inicio { grid-template-columns: 1fr 1fr; } .grade-inicio .cartao + .cartao { margin-top: 0; } }
 .cartao .acoes { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1242,3 +1240,11 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .iv-levado .antes { color: #9a6a00; font-weight: 600; }
 @media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .iv-levado .antes { color: #F2B630; } }
 :root[data-tema="escuro"] .iv-levado .antes { color: #F2B630; }
+
+/* ---------- Logo coline zaiko (v0.30.0): no lugar do 在庫 ---------- */
+/* "coline" em Cabin com "zaiko" embaixo, em vetor (icons/logo.svg) */
+.logo-app { display: inline-block; width: 120px; height: 54px; background: url(../icons/logo.svg) center / contain no-repeat; vertical-align: middle; }
+.vazio .simbolo { line-height: 0; }
+.vazio .simbolo .logo-app { width: 110px; height: 50px; }
+.simbolo-assistente { line-height: 0; }
+.simbolo-assistente .logo-app { width: 150px; height: 68px; }

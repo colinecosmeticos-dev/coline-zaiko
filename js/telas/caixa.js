@@ -25,7 +25,7 @@ const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit
 
 const vazio = (titulo, texto, botao = '') => `
   <header class="cab"><div><h1>Gaveta</h1><p class="sub">Abrir e fechar o caixa do dia, troco, reforço e retirada.</p></div></header>
-  <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
+  <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
 
 export async function render(el, { id, mostrarTotais = false } = {}) {
   const aparelho = await lerAparelho();

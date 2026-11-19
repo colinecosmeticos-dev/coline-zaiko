@@ -19,7 +19,7 @@ export async function render(el, { mostrar = false, periodo = null } = {}) {
   const cabecalho = `<a class="voltar" href="#/mais">${icones.voltar} Mais</a>`;
   if (!evento) {
     el.innerHTML = `${cabecalho}<header class="cab"><h1>Painel de vendas</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Escolha o evento</h2><p>O painel mostra as vendas do evento em uso.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2><p>O painel mostra as vendas do evento em uso.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
     return;
   }
 

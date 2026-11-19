@@ -38,7 +38,7 @@ export async function render(el) {
         </li>`).join('')}
     </ul>` : `
     <div class="cartao vazio">
-      <div class="simbolo" aria-hidden="true">在庫</div>
+      <div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div>
       <h2>Nenhuma categoria</h2>
       <p>Crie aqui ou direto no cadastro de produto.</p>
       <a class="btn primario" href="#/produtos/categorias/nova">Criar categoria</a>

@@ -91,7 +91,7 @@ export async function render(el) {
 
   el.innerHTML = `
     <div class="saudacao">
-      <span class="kanji" aria-hidden="true">在庫</span>
+      <span class="logo-app logo-saudacao" aria-hidden="true"></span>
       <div>
         <h1>${aparelho ? esc(aparelho.nome) : 'Caixa'} ${aparelho ? `<span class="etiqueta">${esc(aparelho.sigla)}</span>` : ''}</h1>
         <p class="sub">${evento ? `<strong>${esc(evento.nome)}</strong>${diaDoEvento ? ` · ${diaDoEvento}` : ''}${foraDasDatas ? ' · <span class="texto-atencao">fora das datas</span>' : ''}` : 'Nenhum evento escolhido'}</p>

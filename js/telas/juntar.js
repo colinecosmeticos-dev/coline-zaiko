@@ -27,7 +27,7 @@ export async function render(el) {
   const voltar = `<a class="voltar" href="#/sincronizar">${icones.voltar} Sincronizar</a>`;
   if (!aparelho || !evento) {
     el.innerHTML = `${voltar}<header class="cab"><h1>Vendas por arquivo</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div>
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div>
       <h2>${!aparelho ? 'Identifique este aparelho' : 'Escolha o evento'}</h2>
       <p>${!aparelho ? 'Dê nome e sigla ao aparelho em Configurações.' : 'As vendas são juntadas por evento.'}</p>
       <a class="btn primario" href="${!aparelho ? '#/configurar' : ehCaixa() ? '#/mais' : '#/eventos'}">${!aparelho ? 'Configurar aparelho' : 'Escolher o evento'}</a></div>`;

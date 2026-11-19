@@ -39,7 +39,7 @@ export async function render(el) {
     ${eventos.length
       ? `<ul class="lista">${eventos.map(cartao).join('')}</ul>`
       : `<div class="cartao vazio">
-          <div class="simbolo" aria-hidden="true">在庫</div>
+          <div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div>
           <h2>Nenhum evento ainda</h2>
           <p>Cadastre a feira ou ação de venda com nome, local e datas.</p>
           <a class="btn primario" href="#/eventos/novo">Criar o primeiro evento</a>

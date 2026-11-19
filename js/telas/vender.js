@@ -46,7 +46,7 @@ export async function render(el) {
     : null;
   if (falta) {
     el.innerHTML = `<header class="cab"><h1>Vender</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>${falta[0]}</h2><p>${falta[1]}</p><a class="btn primario" href="${falta[2]}">${falta[3]}</a></div>`;
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>${falta[0]}</h2><p>${falta[1]}</p><a class="btn primario" href="${falta[2]}">${falta[3]}</a></div>`;
     // Modo Caixa: escolhe o evento aqui mesmo, sem a tela Eventos
     el.querySelector('a[href="#escolher-evento"]')?.addEventListener('click', async (e) => {
       e.preventDefault();
@@ -59,14 +59,14 @@ export async function render(el) {
   // Evento encerrado: só dá para concluir uma troca (vira registro pós-evento)
   if (evento.status === 'encerrado' && !carrinho.troca) {
     el.innerHTML = `<header class="cab"><h1>Vender</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Evento encerrado</h2>
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Evento encerrado</h2>
       <p>${esc(evento.nome)} foi encerrado. Para vender de novo, reabra o evento em Mais → Fechamento do evento.</p><a class="btn primario" href="#/fechamento">Ir para o Fechamento</a></div>`;
     return;
   }
   let caixa = await caixaAbertoDoEvento(evento.id);
   const bloquear = (titulo, texto, botao) => {
     el.innerHTML = `<header class="cab"><h1>Vender</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
   };
   // Caixa de outro dia esquecido aberto: fechar antes de vender
   if (caixa && caixa.data !== hojeISO()) {

@@ -31,7 +31,7 @@ export async function render(el) {
   const evento = await lerEventoAtivo();
   if (!evento) {
     el.innerHTML = `<header class="cab"><h1>Histórico</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Escolha o evento</h2>
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2>
       <p>As vendas aparecem aqui separadas por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
     return;
   }
@@ -54,7 +54,7 @@ export async function render(el) {
       </div>
       <p class="sub contagem" id="contagem"></p>
       <ul class="lista" id="lista"></ul>`
-    : `<div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Nenhuma venda ainda</h2>
+    : `<div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Nenhuma venda ainda</h2>
         ${ehCaixa() ? '<p>As vendas deste evento vão aparecer aqui, com a opção de cancelar.</p><a class="btn primario" href="#/vender">Ir para Vender</a>'
           : '<p>As vendas dos caixas aparecem aqui depois de buscá-las.</p><a class="btn primario" href="#/sincronizar">Buscar vendas dos caixas</a>'}</div>`}`;
   if (!vendas.length) return;

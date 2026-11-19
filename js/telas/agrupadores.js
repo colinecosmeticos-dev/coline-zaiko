@@ -68,7 +68,7 @@ async function desenhar(el, qual) {
       ${s.titulo ? `<h2 class="titulo-secao">${esc(s.titulo)}</h2>` : ''}
       <ul class="lista">${s.itens.map((t, i) => linhaItem(t, i, s.itens)).join('')}</ul>`).join('') : `
     <div class="cartao vazio">
-      <div class="simbolo" aria-hidden="true">在庫</div>
+      <div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div>
       <h2>Nenhuma ${c.um}</h2>
       <p>${c.vazio}</p>
     </div>`}`;

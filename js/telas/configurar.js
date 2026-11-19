@@ -37,16 +37,16 @@ export async function render(el) {
   function desenhar() {
     if (passo === 1) {
       el.innerHTML = `<div class="assistente">
-        <div class="simbolo-assistente" aria-hidden="true">在庫</div>
+        <div class="simbolo-assistente" aria-hidden="true"><span class="logo-app"></span></div>
         ${cabecalho(1, 'Como este aparelho vai ser usado?', 'Dá para mudar depois.')}
         <div class="opcoes-modo">
           <button type="button" class="cartao-modo ${indicado === 'caixa' ? 'indicado' : ''}" data-modo="caixa">
             <strong>Caixa</strong>
-            <span>Para quem vende no evento. Menu simples: Vender, Vendas e Caixa.</span>
+            <span>Para quem vende no evento. Menu simples: Vender, Histórico e Gaveta.</span>
           </button>
           <button type="button" class="cartao-modo ${indicado === 'gestao' ? 'indicado' : ''}" data-modo="gestao">
             <strong>Gestão</strong>
-            <span>Para quem cuida de tudo: produtos, eventos, estoque, fechamento e relatórios. Também vende.</span>
+            <span>Para quem cuida de tudo: produtos, eventos, estoque, fechamento e relatórios. Não vende.</span>
           </button>
         </div>
       </div>`;

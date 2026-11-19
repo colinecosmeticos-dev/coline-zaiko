@@ -63,7 +63,7 @@ export async function render(el) {
                 ${svgEAN13(v.codigo)}
               </div>`).join('')}</div>
           </section>`).join('')}
-      </div>` : `<div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Nenhum código para imprimir</h2>
+      </div>` : `<div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Nenhum código para imprimir</h2>
         <p>${opcoes.todos ? 'Nenhum produto tem código de barras cadastrado.' : 'Nenhum produto usa código interno. Escolha "Todos os códigos" para incluir os de fábrica.'}</p></div>`}`;
 
     el.querySelectorAll('input[name="quais"]').forEach((r) => r.addEventListener('change', () => { opcoes.todos = r.value === 'todos'; gravarOpcoes(opcoes); desenhar(); }));

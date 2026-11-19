@@ -22,7 +22,7 @@ export async function render(el, { mostrar = false } = {}) {
   const voltar = `<a class="voltar" href="#/mais">${icones.voltar} Mais</a>`;
   if (!evento) {
     el.innerHTML = `${voltar}<header class="cab"><h1>Fechamento do evento</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true">在庫</div><h2>Escolha o evento</h2><p>O fechamento é feito por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2><p>O fechamento é feito por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
     return;
   }
   const comPin = await temPin();
