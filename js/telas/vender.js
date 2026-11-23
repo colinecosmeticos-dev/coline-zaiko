@@ -13,7 +13,7 @@ import { esc, dinheiro, iniciais, icones, aviso, abrirJanela, campoDinheiro, cam
 import { ouvirLeitor } from '../leitor.js';
 import { som } from '../sons.js';
 import { corValida } from '../cores.js';
-import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho, guardarCarrinho, totalPago } from '../venda/carrinho.js';
+import { carrinho, adicionarItem, removerItem, calcularItem, calcularTotais, limparCarrinho, guardarCarrinho, totalPago, temVendaEmAndamento } from '../venda/carrinho.js';
 import { pedirAberturaCaixa } from '../venda/abrir-caixa.js';
 import { abrirCobranca, finalizarTrocaSemCobranca, textoPagamento } from '../venda/cobrar.js';
 import { montarGrupos, temLinhas, SEM_CATEGORIA } from '../venda/grupos.js';
@@ -70,7 +70,7 @@ export async function render(el) {
   };
   // Caixa de outro dia esquecido aberto: fechar antes de vender
   if (caixa && caixa.data !== hojeISO()) {
-    bloquear('Feche o caixa anterior', `O caixa de ${new Date(caixa.data + 'T12:00').toLocaleDateString('pt-BR')} ainda está aberto. Feche-o (com a contagem do dinheiro) para abrir o de hoje.`, '<a class="btn primario" href="#/caixa">Ir para a Gaveta</a>');
+    bloquear('Feche o caixa anterior', `O caixa de ${new Date(caixa.data + 'T12:00').toLocaleDateString('pt-BR')} ainda está aberto. Feche-o (com a contagem do dinheiro) para abrir o de hoje.${temVendaEmAndamento() ? ' A venda em andamento continua guardada: dá para finalizá-la depois, no caixa de hoje.' : ''}`, '<a class="btn primario" href="#/caixa">Ir para a Gaveta</a>');
     return;
   }
   if (!caixa) {
@@ -511,7 +511,14 @@ export async function render(el) {
         ${totalPago() ? `<p><strong>Os ${dinheiro(totalPago())} já lançados (${esc(textoPagamento(carrinho))}) também serão descartados.</strong> Devolva ao cliente ou estorne na maquininha.</p>` : ''}
         <div class="acoes"><button class="btn" value="nao">Cancelar</button><button class="btn primario perigo" value="sim">Limpar</button></div>`);
     d.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-      if (b.value === 'sim') { limparCarrinho(); desenharCarrinho(); }
+      if (b.value === 'sim') {
+        const eraTroca = !!carrinho.troca;
+        limparCarrinho(); desenharCarrinho();
+        // (v0.30.1) Volta para o painel Caixa livre, como depois de uma venda
+        $('#carrinho').classList.remove('aberto');
+        ultimaConcluida = { descartada: eraTroca ? 'troca' : 'venda' };
+        mostrarLivre();
+      }
       d.close();
     }));
   });
@@ -542,7 +549,10 @@ export async function render(el) {
     if (!c) return;
     const r = c.registro;
     let titulo, linha;
-    if (c.abertura) {
+    if (c.descartada) {
+      titulo = c.descartada === 'troca' ? 'Troca desfeita' : 'Venda descartada';
+      linha = 'Nada foi registrado';
+    } else if (c.abertura) {
       titulo = 'Caixa aberto';
       linha = `Troco inicial ${dinheiro(c.abertura.trocoInicial || 0)} · ${esc(evento.nome)}`;
     } else if (c.saida) {
@@ -565,7 +575,7 @@ export async function render(el) {
     p.innerHTML = `
       <div class="cl-conteudo">
         <div class="cl-ultima">
-          <div class="marca-ok pequena" aria-hidden="true">✓</div>
+          ${c.descartada ? '' : '<div class="marca-ok pequena" aria-hidden="true">✓</div>'}
           <div><strong>${titulo}</strong><br><span class="num">${linha}</span></div>
         </div>
         <p class="cl-livre">${c.abertura ? 'Pronto para vender' : 'Caixa livre'}</p>

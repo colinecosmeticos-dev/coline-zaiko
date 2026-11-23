@@ -7,7 +7,7 @@
 // de abrir o de hoje.
 // =========================================================
 import { db, lerAparelho, lerEventoAtivo, caixaAbertoDoEvento, caixaDoDia, listarCaixasDoEvento, cancelarMovimento, reabrirCaixa } from '../db.js';
-import { esc, dinheiro, icones, aviso, hojeISO, confirmar } from '../ui.js';
+import { esc, dinheiro, icones, aviso, hojeISO, confirmar, abrirJanela } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { resumoCaixa } from '../caixa/resumo.js';
 import { pedirMovimento, pedirFechamento, pedirFechamentoCego, htmlResumo } from '../caixa/janelas.js';
@@ -16,7 +16,7 @@ import { ehCaixa } from '../modo.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
 import { lembrarDeSincronizar, atualizarIndicador } from './sincronizar.js';
 import { driveConfigurado } from '../drive.js';
-import { temVendaEmAndamento, calcularTotais, totalPago } from '../venda/carrinho.js';
+import { carrinho, temVendaEmAndamento, calcularTotais, totalPago, limparCarrinho } from '../venda/carrinho.js';
 import { textoPagamento } from '../venda/cobrar.js';
 
 const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
@@ -177,7 +177,13 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   $('#ocultar-totais')?.addEventListener('click', () => recarregar(false));
   $('#fechar')?.addEventListener('click', async () => {
     // Venda em andamento (itens no carrinho ou pagamento lançado): avisa antes de fechar
-    if (temVendaEmAndamento()) {
+    // (v0.30.1) Caixa de um dia anterior: não dá para "ir para a venda" (a tela Vender
+    // exige fechar esse caixa antes); a venda fica no carrinho para o caixa de hoje.
+    if (temVendaEmAndamento() && caixa.data !== hojeISO()) {
+      const escolha = await vendaNoCaixaAnterior();
+      if (!escolha) return;
+      if (escolha === 'descartar') limparCarrinho();
+    } else if (temVendaEmAndamento()) {
       const { quantidade, total } = calcularTotais();
       const pago = totalPago();
       const ir = await confirmar({
@@ -224,4 +230,26 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
     await cancelarMovimento(b.dataset.cancelar);
     recarregar();
   }));
+}
+
+// Fechar o caixa de um dia anterior com venda em andamento (v0.30.1).
+// Devolve 'manter' (fecha e a venda continua no carrinho, para o caixa de hoje),
+// 'descartar' (fecha e limpa o carrinho) ou null (voltou).
+function vendaNoCaixaAnterior() {
+  const { quantidade, total } = calcularTotais();
+  const pago = totalPago();
+  return new Promise((resolver) => {
+    let escolha = null;
+    const d = abrirJanela(`
+      <h2>Há uma venda em andamento</h2>
+      <p class="num">${quantidade} ${quantidade === 1 ? 'item' : 'itens'} · ${dinheiro(Math.abs(total))}${pago ? `, com ${dinheiro(pago)} já pagos (${esc(textoPagamento(carrinho))})` : ''}</p>
+      <p>Ela não foi finalizada e este caixa é de outro dia. Você pode fechar o caixa e <strong>finalizar a venda depois</strong>, no caixa de hoje (ela continua no carrinho), ou descartá-la.</p>
+      ${pago ? '<p class="sub">Os pagamentos já lançados vão para o caixa de hoje quando a venda for finalizada. Se o cliente não está mais aí, descarte e devolva o que ele pagou.</p>' : ''}
+      <div class="acoes acoes-empilhadas">
+        <button type="button" class="btn primario" data-e="manter">Fechar e finalizar a venda hoje</button>
+        <button type="button" class="btn perigo" data-e="descartar">Descartar a venda e fechar</button>
+        <button type="button" class="btn texto" data-e="">Voltar</button>
+      </div>`, { aoFechar: () => resolver(escolha) });
+    d.querySelectorAll('[data-e]').forEach((b) => b.addEventListener('click', () => { escolha = b.dataset.e || null; d.close(); }));
+  });
 }
