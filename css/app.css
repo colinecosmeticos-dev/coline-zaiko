@@ -1248,3 +1248,10 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .vazio .simbolo .logo-app { width: 110px; height: 50px; }
 .simbolo-assistente { line-height: 0; }
 .simbolo-assistente .logo-app { width: 150px; height: 68px; }
+
+/* ---------- Venda de outro dia (v0.31.0) ---------- */
+.nota-retro { margin: -4px 0 12px; }
+.faixa-retro { background: color-mix(in srgb, #E8A100 14%, var(--superficie)); box-shadow: inset 3px 0 0 #E8A100; }
+.faixa-retro .btn.texto { flex: none; }
+.faixa-retro { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--texto); margin-bottom: 8px; }
+.faixa-retro[hidden] { display: none; }

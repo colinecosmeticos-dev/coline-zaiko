@@ -76,6 +76,7 @@ export async function render(el) {
       <div class="iv-topo"><strong class="num">${esc(v.numero)}</strong><span class="sub num">${hora(v.criadoEm)}</span>
         ${ROTULO_TIPO[tipo] ? `<span class="etiqueta marca">${ROTULO_TIPO[tipo]}</span>` : ''}
         ${v.posEvento ? '<span class="etiqueta">Pós-evento</span>' : ''}
+        ${v.registradaDepois ? '<span class="etiqueta">Registrada depois</span>' : ''}
         ${cancelada ? `<span class="etiqueta erro">${tipo === 'venda' ? 'Cancelada' : 'Cancelado'}</span>` : ''}</div>
       <div class="iv-itens">${esc(nomes)}</div>
       <div class="iv-pag sub">${esc(formas)}</div>

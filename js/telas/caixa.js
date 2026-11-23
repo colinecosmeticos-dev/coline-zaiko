@@ -16,7 +16,7 @@ import { ehCaixa } from '../modo.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
 import { lembrarDeSincronizar, atualizarIndicador } from './sincronizar.js';
 import { driveConfigurado } from '../drive.js';
-import { carrinho, temVendaEmAndamento, calcularTotais, totalPago, limparCarrinho } from '../venda/carrinho.js';
+import { carrinho, temVendaEmAndamento, calcularTotais, totalPago, limparCarrinho, iniciarVendaRetroativa } from '../venda/carrinho.js';
 import { textoPagamento } from '../venda/cobrar.js';
 
 const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
@@ -83,6 +83,10 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
   const fechamento = (caixa.fechamentos || []).at(-1);
   const comPin = await temPin();
   const verTotais = !comPin || mostrarTotais;
+  // Venda de outro dia (v0.31.0): só no modo Caixa, caixa fechado de um dia anterior,
+  // do evento em uso e com o evento ainda não encerrado
+  const ativo = await lerEventoAtivo();
+  const podeRetro = ehCaixa() && !aberto && !ehHoje && evento && evento.status !== 'encerrado' && ativo && ativo.id === caixa.eventoId;
 
   // Linha do tempo do caixa (v0.27.0): abertura, vendas, reforços e retiradas,
   // fechamentos e reaberturas, na ordem. Assim se vê o que entrou antes e depois
@@ -94,7 +98,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
     ...registros.map((r) => ({ em: r.criadoEm, html: `
       <li class="mov venda-mov${r.status === 'cancelada' ? ' cancelado' : ''}">
         <span class="mov-hora num">${hora(r.criadoEm)}</span>
-        <span class="mov-desc"><a href="#/vendas/${encodeURIComponent(r.id)}">${NOME[r.tipo || 'venda']} ${esc(r.numero)}</a> <span class="sub">${esc(textoPagamento(r) || (r.reembolsos || []).map((x) => x.nome).join(' + '))}</span>${r.status === 'cancelada' ? ' <span class="etiqueta erro">Cancelada</span>' : ''}</span>
+        <span class="mov-desc"><a href="#/vendas/${encodeURIComponent(r.id)}">${NOME[r.tipo || 'venda']} ${esc(r.numero)}</a> <span class="sub">${esc(textoPagamento(r) || (r.reembolsos || []).map((x) => x.nome).join(' + '))}</span>${r.registradaDepois ? ' <span class="etiqueta">registrada depois</span>' : ''}${r.status === 'cancelada' ? ' <span class="etiqueta erro">Cancelada</span>' : ''}</span>
         <span class="num mov-valor">${r.tipo === 'devolucao' ? '− ' + dinheiro(Math.abs(r.credito || 0)) : dinheiro(r.total)}</span><span></span>
       </li>` })),
     ...(caixa.fechamentos || []).map((f) => ({ em: f.em, html: `<li class="mov info"><span class="mov-hora num">${hora(f.em)}</span><span class="mov-desc">Caixa fechado${f.cego ? ' (às cegas)' : ''}</span><span></span><span></span></li>` })),
@@ -125,7 +129,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
               <strong class="num">${fechamento.diferenca === 0 ? 'Confere' : `${fechamento.diferenca > 0 ? 'Sobra' : 'Falta'} ${dinheiro(Math.abs(fechamento.diferenca))}`}</strong></div>
           </div>
           ${fechamento.observacao ? `<p class="sub">Observação: ${esc(fechamento.observacao)}</p>` : ''}
-          ${ajustado ? `<p class="aviso-inline">Houve cancelamentos depois do fechamento: o esperado ajustado é <strong>${dinheiro(atual.esperado)}</strong> (original ${dinheiro(fechamento.esperado)}).</p>` : ''}
+          ${ajustado ? (() => { const dif = fechamento.contado - atual.esperado; return `<p class="aviso-inline">Houve vendas registradas depois ou cancelamentos depois do fechamento. Ajustado: esperado <strong>${dinheiro(atual.esperado)}</strong> (era ${dinheiro(fechamento.esperado)}), diferença <strong>${dif === 0 ? 'confere' : `${dif > 0 ? 'sobra' : 'falta'} ${dinheiro(Math.abs(dif))}`}</strong>.</p>`; })() : ''}
           ${htmlResumo(ajustado ? atual : fechamento.resumo)}
         </section>`;
     } else {
@@ -154,7 +158,9 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
       <button type="button" class="btn" id="reforco">${icones.mais} Reforço</button>
       <button type="button" class="btn" id="retirada">− Retirada</button>
       <button type="button" class="btn primario" id="fechar">Fechar caixa</button>
-    </div>` : ehHoje ? `<div class="acoes-caixa"><button type="button" class="btn" id="reabrir">Reabrir caixa</button></div>` : ''}
+    </div>` : ehHoje ? `<div class="acoes-caixa"><button type="button" class="btn" id="reabrir">Reabrir caixa</button></div>`
+      : podeRetro ? `<div class="acoes-caixa"><button type="button" class="btn" id="venda-dia">${icones.mais} Registrar venda deste dia</button></div>
+        <p class="sub nota-retro">Para uma venda que ficou sem registrar neste dia: ela entra neste caixa, como ajuste. Pede o PIN.</p>` : ''}
     <div class="caixa-colunas">
       <section class="cartao">
         <h2>Movimentos do caixa</h2>
@@ -180,8 +186,9 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
     // (v0.30.1) Caixa de um dia anterior: não dá para "ir para a venda" (a tela Vender
     // exige fechar esse caixa antes); a venda fica no carrinho para o caixa de hoje.
     if (temVendaEmAndamento() && caixa.data !== hojeISO()) {
-      const escolha = await vendaNoCaixaAnterior();
+      const escolha = await vendaNoCaixaAnterior(caixa);
       if (!escolha) return;
+      if (escolha === 'finalizar') { iniciarVendaRetroativa(caixa); location.hash = '#/vender'; return; }
       if (escolha === 'descartar') limparCarrinho();
     } else if (temVendaEmAndamento()) {
       const { quantidade, total } = calcularTotais();
@@ -214,6 +221,30 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
     }
     else recarregar(true);
   });
+  // Registrar venda de um dia anterior (v0.31.0): PIN; com venda em andamento, pergunta o que fazer com ela
+  $('#venda-dia')?.addEventListener('click', async () => {
+    if (!(await pin(`Venda de ${diaCurto(caixa.data)}`))) return;
+    if (temVendaEmAndamento() && !carrinho.troca) {
+      const { quantidade, total } = calcularTotais();
+      // (janela própria: fechar sem escolher não descarta nada)
+      const escolha = await new Promise((resolver) => {
+        let e = null;
+        const d = abrirJanela(`<h2>Há uma venda em andamento</h2>
+          <p class="num">${quantidade} ${quantidade === 1 ? 'item' : 'itens'} · ${dinheiro(Math.abs(total))}</p>
+          <p>Registrar essa venda em ${diaCurto(caixa.data)}, ou começar uma venda nova (a em andamento é descartada)?</p>
+          <div class="acoes acoes-empilhadas">
+            <button type="button" class="btn primario" data-e="usar">Usar a venda em andamento</button>
+            <button type="button" class="btn" data-e="nova">Começar uma venda nova</button>
+            <button type="button" class="btn texto" data-e="">Voltar</button>
+          </div>`, { aoFechar: () => resolver(e) });
+        d.querySelectorAll('[data-e]').forEach((b) => b.addEventListener('click', () => { e = b.dataset.e || null; d.close(); }));
+      });
+      if (!escolha) return;
+      if (escolha === 'nova') limparCarrinho();
+    } else if (carrinho.troca) limparCarrinho();
+    iniciarVendaRetroativa(caixa);
+    location.hash = '#/vender';
+  });
   $('#reabrir')?.addEventListener('click', async () => {
     if (!mostrarTotais && !(await pin('Reabrir o caixa'))) return;
     const ja = (await db.vendas.where('caixaId').equals(caixa.id).toArray()).filter((v) => v.status !== 'cancelada' && (v.tipo || 'venda') === 'venda');
@@ -235,7 +266,7 @@ async function desenharCaixa(el, caixa, { atrasado = false, voltar = false, most
 // Fechar o caixa de um dia anterior com venda em andamento (v0.30.1).
 // Devolve 'manter' (fecha e a venda continua no carrinho, para o caixa de hoje),
 // 'descartar' (fecha e limpa o carrinho) ou null (voltou).
-function vendaNoCaixaAnterior() {
+function vendaNoCaixaAnterior(caixa) {
   const { quantidade, total } = calcularTotais();
   const pago = totalPago();
   return new Promise((resolver) => {
@@ -243,10 +274,11 @@ function vendaNoCaixaAnterior() {
     const d = abrirJanela(`
       <h2>Há uma venda em andamento</h2>
       <p class="num">${quantidade} ${quantidade === 1 ? 'item' : 'itens'} · ${dinheiro(Math.abs(total))}${pago ? `, com ${dinheiro(pago)} já pagos (${esc(textoPagamento(carrinho))})` : ''}</p>
-      <p>Ela não foi finalizada e este caixa é de outro dia. Você pode fechar o caixa e <strong>finalizar a venda depois</strong>, no caixa de hoje (ela continua no carrinho), ou descartá-la.</p>
+      <p>Ela não foi finalizada e este caixa é de outro dia. O melhor é <strong>finalizar a venda neste caixa</strong> (ela fica no dia em que aconteceu) e depois fechar. Também dá para fechar e finalizar no caixa de hoje, ou descartar.</p>
       ${pago ? '<p class="sub">Os pagamentos já lançados vão para o caixa de hoje quando a venda for finalizada. Se o cliente não está mais aí, descarte e devolva o que ele pagou.</p>' : ''}
       <div class="acoes acoes-empilhadas">
-        <button type="button" class="btn primario" data-e="manter">Fechar e finalizar a venda hoje</button>
+        <button type="button" class="btn primario" data-e="finalizar">Finalizar a venda em ${new Date(caixa.data + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</button>
+        <button type="button" class="btn" data-e="manter">Fechar e finalizar a venda hoje</button>
         <button type="button" class="btn perigo" data-e="descartar">Descartar a venda e fechar</button>
         <button type="button" class="btn texto" data-e="">Voltar</button>
       </div>`, { aoFechar: () => resolver(escolha) });

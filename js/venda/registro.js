@@ -59,6 +59,11 @@ export function registroDoCarrinho({ evento, caixa, pagamentos = [], reembolsos 
     pagamentos, reembolsos, troco,
     posEvento: evento.status === 'encerrado'   // troca depois de encerrar: só histórico
   };
+  // Venda de outro dia do evento (v0.31.0): data daquele dia + quando foi registrada de fato
+  if (carrinho.retroativa && !carrinho.troca) {
+    dados.criadoEm = carrinho.retroativa.criadoEm;
+    dados.registradaDepois = { em: new Date().toISOString(), data: carrinho.retroativa.data };
+  }
   if (carrinho.troca) {
     const { origemId, origemNumero, devolvidos, credito, modoValor, motivo } = carrinho.troca;
     Object.assign(dados, { origemId, origemNumero, devolvidos, credito, modoValor, motivo });

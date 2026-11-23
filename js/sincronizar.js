@@ -77,7 +77,7 @@ export async function pendencias() {
   const deste = (r) => !r.aparelho || !aparelho || r.aparelho.id === aparelho.id;
   const depois = (...datas) => datas.some((d) => d && d > desde);
   const [vendas, saidas, caixas, movimentos] = await Promise.all([db.vendas.toArray(), db.saidas.toArray(), db.caixas.toArray(), db.movimentos.toArray()]);
-  const v = vendas.filter((r) => deste(r) && depois(r.criadoEm, r.cancelamento && r.cancelamento.em));
+  const v = vendas.filter((r) => deste(r) && depois(r.criadoEm, r.cancelamento && r.cancelamento.em, r.registradaDepois && r.registradaDepois.em));
   const s = saidas.filter((r) => deste(r) && depois(r.criadoEm, r.canceladoEm));
   const c = caixas.filter((r) => deste(r) && depois(r.abertoEm, ...(r.fechamentos || []).map((f) => f.em), ...(r.reaberturas || []).map((x) => x.em)));
   const m = movimentos.filter((r) => deste(r) && depois(r.criadoEm, r.canceladoEm));

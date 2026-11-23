@@ -63,17 +63,22 @@ export async function render(el) {
       <p>${esc(evento.nome)} foi encerrado. Para vender de novo, reabra o evento em Mais → Fechamento do evento.</p><a class="btn primario" href="#/fechamento">Ir para o Fechamento</a></div>`;
     return;
   }
-  let caixa = await caixaAbertoDoEvento(evento.id);
+  // Venda de outro dia do evento (v0.31.0): usa o caixa daquele dia, mesmo fechado
+  let retro = carrinho.retroativa ? await db.caixas.get(carrinho.retroativa.caixaId) : null;
+  if (carrinho.retroativa && (!retro || retro.eventoId !== evento.id || retro.data === hojeISO())) {
+    carrinho.retroativa = null; guardarCarrinho(); retro = null;
+  }
+  let caixa = retro || await caixaAbertoDoEvento(evento.id);
   const bloquear = (titulo, texto, botao) => {
     el.innerHTML = `<header class="cab"><h1>Vender</h1></header>
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>${titulo}</h2><p>${texto}</p>${botao}</div>`;
   };
   // Caixa de outro dia esquecido aberto: fechar antes de vender
-  if (caixa && caixa.data !== hojeISO()) {
+  if (!retro && caixa && caixa.data !== hojeISO()) {
     bloquear('Feche o caixa anterior', `O caixa de ${new Date(caixa.data + 'T12:00').toLocaleDateString('pt-BR')} ainda está aberto. Feche-o (com a contagem do dinheiro) para abrir o de hoje.${temVendaEmAndamento() ? ' A venda em andamento continua guardada: dá para finalizá-la depois, no caixa de hoje.' : ''}`, '<a class="btn primario" href="#/caixa">Ir para a Gaveta</a>');
     return;
   }
-  if (!caixa) {
+  if (!caixa) {   // (com retro, caixa já é o do dia escolhido)
     const deHoje = await caixaDoDia(evento.id, hojeISO());
     if (deHoje) {
       // Caixa deste evento já fechado hoje: reabrir (na Gaveta) ou trocar o evento (v0.27.0)
@@ -155,6 +160,7 @@ export async function render(el) {
           <button type="button" class="btn texto" id="limpar">Limpar</button>
         </div>
         <div class="faixa-troca" id="faixa-troca" hidden></div>
+        <div class="faixa-troca faixa-retro" id="faixa-retro" hidden></div>
         <ul class="carrinho-itens" id="itens"></ul>
         <div class="carrinho-rodape">
           <button type="button" class="linha-desconto" id="desconto-venda"></button>
@@ -336,7 +342,11 @@ export async function render(el) {
   async function desenharCarrinho(destacar) {
     const { subtotal, descontoVenda, total, quantidade } = calcularTotais();
     const { numero } = await proximoNumeroVenda();
-    $('#numero-venda').textContent = `${numero} · ${evento.nome}`;   // o evento sempre à vista
+    const diaRetro = retro ? new Date(retro.data + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '';
+    $('#numero-venda').textContent = `${numero} · ${evento.nome}${retro ? ` · ${diaRetro}` : ''}`;   // o evento sempre à vista
+    // Faixa da venda de outro dia (v0.31.0)
+    $('#faixa-retro').hidden = !retro;
+    if (retro) $('#faixa-retro').innerHTML = `<span><strong>Venda de ${diaRetro}</strong> · registrada depois<br><span class="sub">Entra no caixa de ${diaRetro}${retro.status === 'fechado' ? ', como ajuste daquele dia' : ''}.</span></span><button type="button" class="btn texto" id="sair-retro">Sair</button>`;
     $('#itens').innerHTML = carrinho.itens.length ? carrinho.itens.map((i) => {
       const c = calcularItem(i);
       return `
@@ -381,6 +391,11 @@ export async function render(el) {
     guardarCarrinho();   // grava no aparelho: se o app fechar, a venda é recuperada
   }
 
+  $('#faixa-retro').addEventListener('click', (e) => {
+    if (!e.target.closest('#sair-retro')) return;
+    carrinho.retroativa = null; guardarCarrinho();
+    location.hash = retro.status === 'fechado' ? `#/caixa/${encodeURIComponent(retro.id)}` : '#/caixa';
+  });
   $('#itens').addEventListener('click', (e) => {
     const b = e.target.closest('[data-item]');
     if (b) editarItem(carrinho.itens.find((i) => i.chave === b.dataset.item));
@@ -513,7 +528,10 @@ export async function render(el) {
     d.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       if (b.value === 'sim') {
         const eraTroca = !!carrinho.troca;
-        limparCarrinho(); desenharCarrinho();
+        limparCarrinho();
+        // Venda de outro dia descartada: sai do modo e volta para a Gaveta
+        if (retro) { d.close(); location.hash = retro.status === 'fechado' ? `#/caixa/${encodeURIComponent(retro.id)}` : '#/caixa'; return; }
+        desenharCarrinho();
         // (v0.30.1) Volta para o painel Caixa livre, como depois de uma venda
         $('#carrinho').classList.remove('aberto');
         ultimaConcluida = { descartada: eraTroca ? 'troca' : 'venda' };
@@ -535,6 +553,12 @@ export async function render(el) {
       : await abrirCobranca({ evento, caixa });
     // (se a pessoa já saiu da tela Vender, não há o que redesenhar)
     if (!el.isConnected || !$('#carrinho')) return;
+    // Venda de outro dia concluída: volta para a Gaveta daquele dia (v0.31.0)
+    if (concluida && retro) {
+      aviso(`Venda ${concluida.registro?.numero || ''} registrada em ${new Date(retro.data + 'T12:00').toLocaleDateString('pt-BR')}.`);
+      location.hash = retro.status === 'fechado' ? `#/caixa/${encodeURIComponent(retro.id)}` : '#/caixa';
+      return;
+    }
     if (concluida) {
       $('#carrinho').classList.remove('aberto');
       ultimaConcluida = concluida;

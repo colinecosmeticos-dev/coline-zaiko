@@ -66,9 +66,16 @@ export function calcularFechamento({ registros, caixas, movimentos, saidas, prod
   const porAparelho = agrupar((r) => r.aparelho?.sigla || '?').map((a) => ({ ...a, nome: nomeAparelho.get(a.chave) || a.chave })).sort((a, b) => b.faturamento - a.faturamento);
 
   // Caixas: diferença do último fechamento de cada um
+  // (v0.31.0) Vendas registradas depois do fechamento entram como ajuste: o dinheiro
+  // delas soma no esperado daquele caixa (e acerta a diferença)
+  const vendasDepois = registros.filter((r) => r.registradaDepois && r.status !== 'cancelada');
+  const dinheiroDepois = (c, f) => vendasDepois.filter((r) => r.caixaId === c.id && f && r.registradaDepois.em > f.em)
+    .reduce((s, r) => s + (r.pagamentos || []).reduce((t, p) => t + (p.tipo === 'dinheiro' ? p.valor : 0) - (p.trocoEmDinheiro ? p.troco || 0 : 0), 0), 0);
   const listaCaixas = caixas.map((c) => {
     const f = (c.fechamentos || []).at(-1);
-    return { id: c.id, data: c.data, aparelho: c.aparelho, aberto: c.status === 'aberto', foraDasDatas: !!c.foraDasDatas, esperado: f?.esperado ?? null, contado: f?.contado ?? null, diferenca: c.status === 'aberto' ? null : (f?.diferenca ?? null) };
+    const ajuste = c.status === 'aberto' ? 0 : dinheiroDepois(c, f);
+    return { id: c.id, data: c.data, aparelho: c.aparelho, aberto: c.status === 'aberto', foraDasDatas: !!c.foraDasDatas, ajuste,
+      esperado: f ? f.esperado + ajuste : null, contado: f?.contado ?? null, diferenca: c.status === 'aberto' ? null : (f ? f.diferenca - ajuste : null) };
   }).sort((a, b) => a.data.localeCompare(b.data) || (a.aparelho?.sigla || '').localeCompare(b.aparelho?.sigla || ''));
   const diferencaCaixas = listaCaixas.reduce((s, c) => s + (c.diferenca || 0), 0);
 
@@ -78,7 +85,7 @@ export function calcularFechamento({ registros, caixas, movimentos, saidas, prod
     perdaBrindes, perdaAvarias, semCustoPerdas,
     resultado, resultadoDepoisPerdas: resultado - perdaBrindes - perdaAvarias,
     faturamentoLiquido: geral.faturamento - geral.taxas,
-    porDia, porAparelho, caixas: listaCaixas, diferencaCaixas,
+    porDia, porAparelho, caixas: listaCaixas, diferencaCaixas, vendasDepois: vendasDepois.length,
     caixasAbertos: listaCaixas.filter((c) => c.aberto),
     caixasForaDasDatas: listaCaixas.filter((c) => c.foraDasDatas),
     posEvento

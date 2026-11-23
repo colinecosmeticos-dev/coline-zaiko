@@ -15,7 +15,8 @@ export const carrinho = {
   descontoVenda: null,    // { tipo: 'R$' | '%', valor } ou null
   troca: null,            // troca em andamento: { origemId, origemNumero, devolvidos, credito, modoValor, motivo }
   pagamentos: [],         // pagamentos já lançados na cobrança, antes de finalizar
-  recuperada: null        // { em } quando a venda veio gravada de antes do app fechar
+  recuperada: null,       // { em } quando a venda veio gravada de antes do app fechar
+  retroativa: null        // (v0.31.0) venda de outro dia do evento: { caixaId, data, criadoEm }
 };
 
 export function limparCarrinho() {
@@ -24,6 +25,7 @@ export function limparCarrinho() {
   carrinho.troca = null;
   carrinho.pagamentos = [];
   carrinho.recuperada = null;
+  carrinho.retroativa = null;
   guardarCarrinho();
 }
 
@@ -34,7 +36,7 @@ export const totalPago = () => carrinho.pagamentos.reduce((s, p) => s + p.valor,
 // Grava o carrinho no aparelho (vazio = apaga). Chamar depois de cada mudança.
 export function guardarCarrinho() {
   const dados = temVendaEmAndamento()
-    ? { itens: carrinho.itens, descontoVenda: carrinho.descontoVenda, troca: carrinho.troca, pagamentos: carrinho.pagamentos, em: new Date().toISOString() }
+    ? { itens: carrinho.itens, descontoVenda: carrinho.descontoVenda, troca: carrinho.troca, pagamentos: carrinho.pagamentos, retroativa: carrinho.retroativa, em: new Date().toISOString() }
     : null;
   return gravarConfig(CHAVE, dados).catch((e) => console.error(e));
 }
@@ -48,6 +50,7 @@ export async function recuperarCarrinho() {
   carrinho.descontoVenda = salvo.descontoVenda || null;
   carrinho.troca = salvo.troca || null;
   carrinho.pagamentos = salvo.pagamentos || [];
+  carrinho.retroativa = salvo.retroativa || null;
   carrinho.recuperada = { em: salvo.em };
   return true;
 }
@@ -104,4 +107,17 @@ export function calcularTotais() {
   // é a diferença a devolver ao cliente)
   const credito = carrinho.troca ? carrinho.troca.credito : 0;
   return { subtotal, descontoVenda, credito, total: subtotal - descontoVenda - credito, quantidade };
+}
+
+// ---------- Venda de outro dia do evento (v0.31.0) ----------
+// Grava no caixa daquele dia, com a hora no fim do dia (ou 1 minuto antes do
+// fechamento, se ele foi fechado antes da meia-noite), marcada "registrada depois".
+export function iniciarVendaRetroativa(caixa) {
+  const [a, m, d] = caixa.data.split('-').map(Number);
+  let quando = new Date(a, m - 1, d, 23, 59, 0).getTime();
+  const fechou = (caixa.fechamentos || []).at(-1);
+  if (fechou) quando = Math.min(quando, new Date(fechou.em).getTime() - 60000);
+  quando = Math.max(quando, new Date(caixa.abertoEm).getTime() + 60000);
+  carrinho.retroativa = { caixaId: caixa.id, data: caixa.data, criadoEm: new Date(quando).toISOString() };
+  guardarCarrinho();
 }

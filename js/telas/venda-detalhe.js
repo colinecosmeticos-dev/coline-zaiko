@@ -128,6 +128,7 @@ export async function render(el, { id }) {
         <p class="sub">${esc(dataHora(venda.criadoEm))}${venda.aparelho ? ` · ${esc(venda.aparelho.nome)}` : ''}</p>
         ${origem ? `<p class="sub">Da venda <a href="#/vendas/${encodeURIComponent(origem.id)}">${esc(origem.numero)}</a>${venda.motivo ? ` · ${esc(venda.motivo)}` : ''}</p>` : ''}</div>
       ${venda.posEvento ? '<span class="etiqueta grande">Pós-evento</span>' : ''}
+      ${venda.registradaDepois ? `<span class="etiqueta grande" title="Registrada em ${esc(dataHora(venda.registradaDepois.em))}">Registrada depois</span>` : ''}
       ${cancelada ? `<span class="etiqueta erro grande">${tipo === 'venda' ? 'Cancelada' : 'Cancelado'}</span>` : ''}
     </header>
     ${cancelada ? `<div class="cartao alerta-cancelada">

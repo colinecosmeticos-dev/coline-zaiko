@@ -140,7 +140,7 @@ export function abrirCobranca({ evento, caixa }) {
         <div class="cobrar-corpo">
           <div class="grade-formas" id="formas">
             ${formas.map((f) => `<button type="button" class="btn botao-forma" data-forma="${esc(f.id)}">${esc(f.nome)}</button>`).join('')}
-            ${carrinho.troca ? '' : '<button type="button" class="btn texto botao-sem-cobrar" id="sem-cobrar">Sem cobrar: brinde ou avaria</button>'}
+            ${carrinho.troca || carrinho.retroativa ? '' : '<button type="button" class="btn texto botao-sem-cobrar" id="sem-cobrar">Sem cobrar: brinde ou avaria</button>'}
           </div>
           <div class="cobrar-detalhe">
             <ul class="lista-pagamentos" id="pagamentos"></ul>
