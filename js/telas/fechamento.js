@@ -5,6 +5,7 @@
 // resultado, formas de pagamento, dias, aparelhos, despesas, caixas,
 // estoque e exportação em planilha. Aqui também se encerra o evento.
 // =========================================================
+import { custosDoCadastro, completarCustos, completarCustosSaidas } from '../painel/custos.js';
 import { db, lerEventoAtivo, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
 import { esc, dinheiro, icones, aviso, confirmar, periodo } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
@@ -35,13 +36,17 @@ export async function render(el, { mostrar = false } = {}) {
     return;
   }
 
-  const [registros, caixas, movimentos, saidas, produtos, levado, aparelhos, contado] = await Promise.all([
+  const [registrosGravados, caixas, movimentos, saidasGravadas, produtos, levado, aparelhos, contado] = await Promise.all([
     db.vendas.where('eventoId').equals(evento.id).toArray(),
     db.caixas.where('eventoId').equals(evento.id).toArray(),
     db.movimentos.where('eventoId').equals(evento.id).toArray(),
     db.saidas.where('eventoId').equals(evento.id).toArray(),
     listarProdutosCompletos(), lerLevado(evento.id), aparelhosDoEvento(evento), lerContado(evento.id)
   ]);
+  // Itens vendidos sem custo usam o custo atual do cadastro (v0.32.0)
+  const custos = custosDoCadastro(produtos);
+  const { registros, unidades: custoDoCadastro } = completarCustos(registrosGravados, custos);
+  const saidas = completarCustosSaidas(saidasGravadas, custos);
   const f = calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado });
   const ct = f.estoque.contagem;
   const g = f.geral;
@@ -68,7 +73,8 @@ export async function render(el, { mostrar = false } = {}) {
         <li class="${f.estoque.totais.levado ? 'ok' : 'atencao'}">${f.estoque.totais.levado ? `Estoque levado registrado (${qtd(f.estoque.totais.levado, 'peça', 'peças')}).` : 'Estoque levado não registrado: a sobra não pode ser calculada.'} <a href="#/eventos/${encodeURIComponent(evento.id)}/estoque">Estoque</a></li>
         <li class="${ct.itensContados ? 'ok' : 'atencao'}">${ct.itensContados ? `Contagem final: ${ct.itensContados} de ${ct.itensTotal} itens contados.` : 'Contagem final do estoque não feita.'} <a href="#/eventos/${encodeURIComponent(evento.id)}/estoque">Contar</a></li>
         ${f.vendasDepois ? `<li class="ok">${qtd(f.vendasDepois, 'venda registrada depois', 'vendas registradas depois')} (de outro dia, já contadas no dia em que aconteceram).</li>` : ''}
-        ${g.itensSemCusto ? `<li class="atencao">${qtd(g.itensSemCusto, 'item vendido sem custo', 'itens vendidos sem custo')} cadastrado: o lucro aparece maior do que é.</li>` : ''}
+        ${g.itensSemCusto ? `<li class="atencao">${qtd(g.itensSemCusto, 'item vendido sem custo', 'itens vendidos sem custo')} cadastrado: o lucro aparece maior do que é. <a href="#/produtos/precos?semcusto=1">Cadastrar custos</a></li>` : ''}
+        ${custoDoCadastro ? `<li class="ok">${qtd(custoDoCadastro, 'item vendido', 'itens vendidos')} sem custo na hora da venda: usado o custo atual do cadastro. <a href="#/produtos/precos">Preços e custos</a></li>` : ''}
         ${g.pagamentosSemTaxa ? `<li class="atencao">${qtd(g.pagamentosSemTaxa, 'pagamento sem', 'pagamentos sem')} taxa informada: as taxas aparecem menores do que são.</li>` : ''}
       </ul>
     </section>

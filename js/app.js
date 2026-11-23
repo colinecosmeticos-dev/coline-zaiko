@@ -40,6 +40,7 @@ import * as codigos from './telas/codigos.js';
 import * as precosEvento from './telas/precos-evento.js';
 import * as instalar from './telas/instalar.js';
 import * as limpar from './telas/limpar.js';
+import * as precosCustos from './telas/precos-custos.js';
 import { emBreve } from './telas/em-breve.js';
 
 
@@ -61,6 +62,7 @@ const rotas = [
   ['produtos/linhas', agrupadores.renderLinhas],
   ['produtos/organizar', organizar.render],
   ['produtos/codigos', codigos.render],
+  ['produtos/precos', precosCustos.render],
   ['produtos/novo', produtoForm.render],
   ['produtos/:id', produtoForm.render],
   ['mais', mais.render],

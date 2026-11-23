@@ -1255,3 +1255,26 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .faixa-retro .btn.texto { flex: none; }
 .faixa-retro { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--texto); margin-bottom: 8px; }
 .faixa-retro[hidden] { display: none; }
+
+/* ---------- Preços e custos (v0.32.0) ---------- */
+.pc-produto { padding-top: 10px; padding-bottom: 10px; }
+.pc-linha { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; align-items: end; padding: 8px 0; }
+.pc-linha + .pc-linha { border-top: 1px solid var(--linha); }
+.pc-nome { grid-column: 1 / -1; display: flex; flex-direction: column; min-width: 0; }
+.pc-nome .sub { font-size: .75rem; color: var(--texto-2); }
+.pc-var .pc-nome { padding-left: 12px; }
+.pc-campo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pc-campo .rotulo-m { font-size: .75rem; color: var(--texto-2); }
+.pc-campo .entrada { text-align: right; min-height: 44px; }
+.pc-lucro { grid-column: 1 / -1; font-size: .8125rem; text-align: right; }
+.pc-lucro .confere { color: var(--ok); } .pc-lucro .falta { color: var(--erro); }
+.pc-linha.alterado { background: color-mix(in srgb, #E8A100 12%, var(--superficie)); box-shadow: inset 3px 0 0 #E8A100; border-radius: var(--raio-p); padding-left: 8px; padding-right: 8px; }
+@media (min-width: 640px) {
+  .pc-linha { grid-template-columns: minmax(0, 1.6fr) 130px 130px minmax(0, 1fr); }
+  .pc-nome, .pc-lucro { grid-column: auto; }
+  .pc-lucro { align-self: center; }
+  .pc-campo .rotulo-m { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .pc-base .pc-campo .rotulo-m { position: static; width: auto; height: auto; clip: auto; }
+}
+.pc-produto { margin-top: 12px; }
+@media (min-width: 640px) { .pc-nome { align-self: center; } }

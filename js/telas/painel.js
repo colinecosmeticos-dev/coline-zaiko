@@ -4,7 +4,8 @@
 // específico ou o evento inteiro. O PIN vale só enquanto a tela está
 // aberta; ao sair (ou em "Ocultar"), volta a ficar trancado.
 // =========================================================
-import { db, lerAparelho, lerEventoAtivo } from '../db.js';
+import { db, lerAparelho, lerEventoAtivo, listarProdutosCompletos } from '../db.js';
+import { custosDoCadastro, completarCustos } from '../painel/custos.js';
 import { esc, dinheiro, icones, hojeISO } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { calcularPainel } from '../painel/calculo.js';
@@ -36,8 +37,10 @@ export async function render(el, { mostrar = false, periodo = null } = {}) {
   }
 
   // Só as vendas deste aparelho
-  const todos = (await db.vendas.where('eventoId').equals(evento.id).toArray())
+  const gravados = (await db.vendas.where('eventoId').equals(evento.id).toArray())
     .filter((v) => !aparelho || !v.aparelho || v.aparelho.id === aparelho.id);
+  // Itens vendidos sem custo usam o custo atual do cadastro (v0.32.0)
+  const { registros: todos } = completarCustos(gravados, custosDoCadastro(await listarProdutosCompletos()));
   const dias = [...new Set(todos.map((v) => diaLocal(v.criadoEm)))].sort().reverse();
   const hoje = hojeISO();
   if (!periodo) periodo = dias.includes(hoje) || !dias.length ? hoje : dias[0];
