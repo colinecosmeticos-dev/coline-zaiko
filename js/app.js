@@ -82,6 +82,7 @@ const rotas = [
   ['eventos/:id/precos', precosEvento.render],
   ['eventos/:id/estoque', estoque.render],
   ['eventos/:id/custos', eventoCustos.render],
+  ['eventos/:id/fechamento', fechamento.render],
   ['estoque', estoque.render],
   ['fechamento', fechamento.render],
   ['painel', painel.render],

@@ -1,9 +1,12 @@
 // =========================================================
 // Tela Apagar dados de teste (#/limpar; Mais, nos dois modos). v0.28.0
-// Antes de usar o app de verdade: apaga os eventos escolhidos e TUDO o que
-// há neles neste aparelho (vendas, trocas, devoluções, caixas, reforços e
-// retiradas, brindes e avarias, estoque levado e contagem).
-// Mantém: catálogo (produtos, categorias, subcategorias, linhas, fotos),
+// Apaga só o que está marcado como TESTE (v0.37.0; antes listava todos os
+// eventos): os eventos de teste e TUDO o que há neles neste aparelho (vendas,
+// trocas, devoluções, caixas, reforços e retiradas, brindes e avarias, estoque
+// levado e contagem) e, na Gestão, os produtos de teste com as variações.
+// A marca fica no cadastro do evento ("Evento de teste") e do produto
+// ("Produto de teste") e vai aos caixas na base.
+// Mantém: o que não está marcado, catálogo (produtos, categorias, subcategorias, linhas, fotos),
 // formas de pagamento, categorias de retirada, PIN, nome e modo do aparelho.
 // Registros "órfãos" (de eventos que já não existem) entram junto.
 // Sem nenhuma venda sobrando, a numeração das vendas volta para 0001.
@@ -31,11 +34,13 @@ async function levantar() {
   };
   const orfaos = TABELAS.reduce((s, t) => s + dados[t].filter((r) => !ids.has(r.eventoId)).length, 0);
   eventos.sort((a, b) => (b.dataInicio || '').localeCompare(a.dataInicio || ''));
-  return { eventos: eventos.map((e) => ({ ...e, conta: contar(e.id) })), orfaos, dados, ids };
+  const produtos = ehCaixa() ? [] : (await db.produtos.toArray()).filter((p) => p.teste).sort((a, b) => a.nome.localeCompare(b.nome));
+  for (const p of produtos) p.variacoes = await db.variacoes.where('produtoId').equals(p.id).count();
+  return { eventos: eventos.filter((e) => e.teste).map((e) => ({ ...e, conta: contar(e.id) })), semMarca: eventos.filter((e) => !e.teste).length, produtos, orfaos, dados, ids };
 }
 
 export async function render(el) {
-  const { eventos, orfaos } = await levantar();
+  const { eventos, semMarca, produtos, orfaos } = await levantar();
   const ativo = await lerEventoAtivo();
   const caixa = ehCaixa();
   const resumo = (c) => [c.vendas && `${c.vendas} ${c.vendas === 1 ? 'registro de venda' : 'registros de venda'}`, c.caixas && `${c.caixas} ${c.caixas === 1 ? 'caixa' : 'caixas'}`, c.outros && `${c.outros} de estoque e gaveta`].filter(Boolean).join(' · ') || 'nada registrado neste aparelho';
@@ -43,32 +48,44 @@ export async function render(el) {
   el.innerHTML = `
     ${voltarDoMenu()}
     <header class="cab"><div><h1>Apagar dados de teste</h1>
-      <p class="sub">Para começar a usar de verdade: apaga os eventos de teste e tudo o que foi registrado neles <strong>neste aparelho</strong>.</p></div></header>
+      <p class="sub">Apaga só o que está marcado como <strong>teste</strong>, e tudo o que foi registrado nos eventos de teste <strong>neste aparelho</strong>.</p></div></header>
 
     <section class="cartao">
       <h2>O que fica</h2>
-      <p class="sub">Produtos, fotos, categorias, subcategorias e linhas, formas de pagamento e taxas, categorias de retirada, PIN, nome, sigla e modo do aparelho.</p>
+      <p class="sub">Tudo o que não está marcado como teste: eventos, produtos, fotos, categorias, subcategorias e linhas, formas de pagamento e taxas, categorias de retirada, PIN, nome, sigla e modo do aparelho.</p>
       <h2 style="margin-top:14px">O que é apagado</h2>
-      <p class="sub">Os eventos marcados abaixo, com as vendas, trocas, devoluções, caixas, reforços, retiradas, brindes, avarias, estoque levado e contagem de cada um. Sem nenhuma venda sobrando, a numeração volta para ${esc('0001')}.</p>
+      <p class="sub">Os eventos de teste, com as vendas, trocas, devoluções, caixas, reforços, retiradas, brindes, avarias, estoque levado e contagem de cada um. Sem nenhuma venda sobrando, a numeração volta para ${esc('0001')}.</p>
+      <p class="sub" style="margin-top:8px">Para marcar: abra o evento (ou o produto) e ligue <strong>${caixa ? 'Evento de teste' : 'Evento de teste / Produto de teste'}</strong>.${caixa ? ' Nos caixas, a marca chega pela base, ao sincronizar.' : ''}</p>
       <p class="aviso-inline">${caixa
-        ? 'Faça antes na Gestão (e publique a base). Depois, aqui, apague e toque em Sincronizar.'
-        : 'Ordem: 1) apague aqui na Gestão; 2) crie o evento de verdade e publique a base; 3) apague em cada caixa e sincronize.'}</p>
+        ? 'Faça antes na Gestão (e envie aos caixas). Depois, aqui, apague e toque em Sincronizar.'
+        : 'Ordem: 1) marque e apague aqui na Gestão; 2) envie aos caixas; 3) apague em cada caixa e sincronize.'}</p>
       <div class="acoes" style="justify-content:flex-start"><a class="btn" href="#/backup">Fazer um backup antes</a></div>
     </section>
 
     <section class="cartao">
-      <h2>Eventos deste aparelho</h2>
+      <h2>Eventos de teste neste aparelho</h2>
       ${eventos.length || orfaos ? `<ul class="lista-limpar">
         ${eventos.map((e) => `<li><label class="marcar">
           <input type="checkbox" data-evento="${esc(e.id)}" checked>
-          <span><strong>${esc(e.nome)}</strong>${e.id === ativo?.id ? ' <span class="etiqueta">em uso</span>' : ''}${e.status === 'encerrado' ? ' <span class="etiqueta">encerrado</span>' : ''}
+          <span><strong>${esc(e.nome)}</strong>${e.id === ativo?.id ? ' <span class="etiqueta">em uso</span>' : ''}${e.status === 'encerrado' ? ' <span class="etiqueta">encerrado</span>' : ''} <span class="etiqueta teste">Teste</span>
             <br><span class="sub">${esc(periodo(e.dataInicio, e.dataFim))} · ${resumo(e.conta)}</span></span></label></li>`).join('')}
         ${orfaos ? `<li><label class="marcar"><input type="checkbox" id="orfaos" checked>
           <span><strong>Registros soltos</strong><br><span class="sub">${orfaos} ${orfaos === 1 ? 'registro' : 'registros'} de eventos que já não existem</span></span></label></li>` : ''}
-      </ul>` : '<p class="sub">Nenhum evento neste aparelho. Não há o que apagar.</p>'}
+      </ul>` : '<p class="sub">Nenhum evento marcado como teste.</p>'}
+      ${semMarca ? `<p class="sub" style="margin-top:8px">${semMarca} ${semMarca === 1 ? 'evento sem a marca de teste fica' : 'eventos sem a marca de teste ficam'} e não aparece${semMarca === 1 ? '' : 'm'} aqui.</p>` : ''}
     </section>
 
-    ${eventos.length || orfaos ? `<section class="cartao">
+    ${caixa ? '' : `<section class="cartao">
+      <h2>Produtos de teste</h2>
+      ${produtos.length ? `<ul class="lista-limpar">
+        ${produtos.map((p) => `<li><label class="marcar">
+          <input type="checkbox" data-produto="${esc(p.id)}" checked>
+          <span><strong>${esc(p.nome)}</strong> <span class="etiqueta teste">Teste</span>
+            <br><span class="sub">${p.variacoes} ${p.variacoes === 1 ? 'variação' : 'variações'} · as vendas já feitas guardam o nome</span></span></label></li>`).join('')}
+      </ul>` : '<p class="sub">Nenhum produto marcado como teste.</p>'}
+    </section>`}
+
+    ${eventos.length || orfaos || produtos.length ? `<section class="cartao">
       <h2>Confirmar</h2>
       <div class="campo"><label for="palavra">Para confirmar, digite <strong>${PALAVRA}</strong></label>
         <input class="entrada" id="palavra" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
@@ -78,10 +95,12 @@ export async function render(el) {
   const $ = (s) => el.querySelector(s);
   if (!$('#apagar')) return;
   const marcados = () => [...el.querySelectorAll('[data-evento]:checked')].map((c) => c.dataset.evento);
+  const prods = () => [...el.querySelectorAll('[data-produto]:checked')].map((c) => c.dataset.produto);
   const conferir = () => {
-    const n = marcados().length, soltos = $('#orfaos')?.checked;
-    const algo = n || soltos;
-    $('#apagar').textContent = n ? `Apagar ${n} ${n === 1 ? 'evento' : 'eventos'}${soltos ? ' e os registros soltos' : ''}` : soltos ? 'Apagar os registros soltos' : 'Marque o que apagar';
+    const n = marcados().length, np = prods().length, soltos = $('#orfaos')?.checked;
+    const algo = n || np || soltos;
+    const partes = [n && `${n} ${n === 1 ? 'evento' : 'eventos'}`, np && `${np} ${np === 1 ? 'produto' : 'produtos'}`, soltos && 'os registros soltos'].filter(Boolean);
+    $('#apagar').textContent = algo ? `Apagar ${partes.join(', ').replace(/, ([^,]*)$/, ' e $1')}` : 'Marque o que apagar';
     $('#apagar').disabled = !algo || $('#palavra').value.trim().toUpperCase() !== PALAVRA;
   };
   el.addEventListener('change', conferir);
@@ -92,8 +111,8 @@ export async function render(el) {
     if (!(await pedirPin({ titulo: 'Apagar dados de teste', texto: 'Digite o PIN para apagar.' }))) return;
     $('#apagar').disabled = true;
     try {
-      const r = await apagar(marcados(), !!$('#orfaos')?.checked);
-      aviso(`Apagado: ${r.eventos} ${r.eventos === 1 ? 'evento' : 'eventos'} e ${r.registros} ${r.registros === 1 ? 'registro' : 'registros'}.${r.numeracao ? ' A numeração das vendas recomeçou.' : ''}`);
+      const r = await apagar(marcados(), !!$('#orfaos')?.checked, prods());
+      aviso(`Apagado: ${r.eventos} ${r.eventos === 1 ? 'evento' : 'eventos'}, ${r.registros} ${r.registros === 1 ? 'registro' : 'registros'}${r.produtos ? ` e ${r.produtos} ${r.produtos === 1 ? 'produto' : 'produtos'}` : ''}.${r.numeracao ? ' A numeração das vendas recomeçou.' : ''}`);
       render(el);
     } catch (e) {
       console.error(e);
@@ -104,12 +123,26 @@ export async function render(el) {
 }
 
 // Apaga numa transação só: ou apaga tudo, ou nada
-async function apagar(idsEventos, soltos) {
-  const { dados, ids } = await levantar();
-  const apagarEvento = new Set(idsEventos);
+async function apagar(idsEventos, soltos, idsProdutos = []) {
+  const { dados, ids, eventos, produtos } = await levantar();
+  // Só o que está marcado como teste (confere de novo na hora de apagar)
+  const deTeste = new Set(eventos.map((e) => e.id)), prodTeste = new Set(produtos.map((p) => p.id));
+  const apagarEvento = new Set(idsEventos.filter((id) => deTeste.has(id)));
+  const apagarProduto = idsProdutos.filter((id) => prodTeste.has(id));
+  const variacoes = apagarProduto.length ? await db.variacoes.where('produtoId').anyOf(apagarProduto).primaryKeys() : [];
+  const varSai = new Set(variacoes);
   const sai = (r) => apagarEvento.has(r.eventoId) || (soltos && !ids.has(r.eventoId));
   let registros = 0, numeracao = false;
-  await db.transaction('rw', [db.eventos, db.config, ...TABELAS.map((t) => db.table(t))], async () => {
+  await db.transaction('rw', [db.eventos, db.config, db.produtos, db.variacoes, ...TABELAS.map((t) => db.table(t))], async () => {
+    // Produtos de teste: o produto, as variações e o estoque levado/contado delas
+    if (apagarProduto.length) {
+      await db.variacoes.bulkDelete(variacoes);
+      await db.produtos.bulkDelete(apagarProduto);
+      for (const t of ['estoqueLevado', 'estoqueContado']) {
+        const chaves = dados[t].filter((r) => varSai.has(r.variacaoId) && !apagarEvento.has(r.eventoId)).map((r) => r.id);
+        await db.table(t).bulkDelete(chaves);
+      }
+    }
     for (const t of TABELAS) {
       const chaves = dados[t].filter(sai).map((r) => r.id);
       registros += chaves.length;
@@ -131,5 +164,5 @@ async function apagar(idsEventos, soltos) {
     if (!(await db.vendas.count())) { await db.config.delete('seqVenda'); numeracao = true; }
   });
   limparCarrinho();   // venda em andamento de teste também sai
-  return { eventos: apagarEvento.size, registros, numeracao };
+  return { eventos: apagarEvento.size, registros, numeracao, produtos: apagarProduto.length };
 }

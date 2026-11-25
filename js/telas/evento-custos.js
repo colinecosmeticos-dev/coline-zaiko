@@ -19,7 +19,7 @@ const diaCurto = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', {
 
 // Margem do último outro evento com vendas: (faturamento − custo − taxas) / faturamento
 async function margemDeReferencia(eventoAtual) {
-  const eventos = (await db.eventos.toArray()).filter((e) => e.id !== eventoAtual.id).sort((a, b) => (b.dataFim || '').localeCompare(a.dataFim || ''));
+  const eventos = (await db.eventos.toArray()).filter((e) => e.id !== eventoAtual.id && !e.teste).sort((a, b) => (b.dataFim || '').localeCompare(a.dataFim || ''));
   const custos = custosDoCadastro(await listarProdutosCompletos());
   for (const e of eventos) {
     const vendas = (await db.vendas.where('eventoId').equals(e.id).toArray()).filter((r) => !r.posEvento);

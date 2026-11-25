@@ -24,6 +24,7 @@ export async function render(el) {
           <div class="detalhe" style="margin-top:6px">
             <span class="etiqueta num">${esc(ev.codigo)}</span>
             ${situacao}
+            ${ev.teste ? '<span class="etiqueta teste">Teste</span>' : ''}
           </div>
         </div>
         <span class="seta" aria-hidden="true">›</span>

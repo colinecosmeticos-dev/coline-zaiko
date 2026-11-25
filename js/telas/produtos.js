@@ -92,8 +92,9 @@ export async function render(el) {
             ${p.categoria ? `<span class="etiqueta">${esc(p.categoria)}</span>` : ''}
             ${p.tipo ? `<span class="etiqueta">${esc(p.tipo)}</span>` : ''}
             ${p.linha ? `<span class="etiqueta">${esc(p.linha)}</span>` : ''}
-            ${temVariacoes ? `<span>${qtd} ${esc((p.atributo || 'variação').toLowerCase())}${qtd === 1 ? '' : 's'}</span>` : ''}
+            ${temVariacoes ? `<span>${qtd} ${p.atributo ? `${esc(p.atributo.toLowerCase())}${qtd === 1 ? '' : 's'}` : qtd === 1 ? 'variação' : 'variações'}</span>` : ''}
             ${p.ativo ? '' : '<span class="etiqueta">Inativo</span>'}
+            ${p.teste ? '<span class="etiqueta teste">Teste</span>' : ''}
           </div>
         </div>
         <div class="preco">${faixaDePreco(p)}</div>

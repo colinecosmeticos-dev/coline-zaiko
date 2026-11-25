@@ -1347,3 +1347,9 @@ body:not(.modo-caixa) .nav a[data-rota="mais"] { display: none; }
 .tg-ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .evento-gestao + .grade-gestao { margin-top: 16px; }
 .avisos-caixa + .evento-gestao { margin-top: 16px; }
+
+/* ---------- Marca de teste (v0.37.0) ---------- */
+.etiqueta.teste { background: color-mix(in srgb, var(--aviso, #e8a100) 18%, transparent); color: var(--texto); border: 1px dashed color-mix(in srgb, var(--aviso, #e8a100) 70%, transparent); }
+.eg-nome .etiqueta { vertical-align: middle; font-size: .75rem; }
+button.tile-gestao { font: inherit; font-size: .8125rem; font-weight: 500; cursor: pointer; width: 100%; }
+button.tile-gestao:disabled { opacity: .6; }

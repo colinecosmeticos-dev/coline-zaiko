@@ -150,6 +150,11 @@ export async function render(el, { id, consulta }) {
             <span><strong>Disponível para venda</strong><br><span class="dica" style="font-size:.8125rem;color:var(--texto-2)">Desligado, o produto some da tela de venda mas continua cadastrado.</span></span>
             <input type="checkbox" id="f-ativo" ${!modelo || modelo.ativo ? 'checked' : ''}>
           </label>
+
+          <label class="interruptor">
+            <span><strong>Produto de teste</strong><br><span class="dica" style="font-size:.8125rem;color:var(--texto-2)">Marcado, o produto pode ser apagado em Apagar testes (as vendas já feitas guardam o nome).</span></span>
+            <input type="checkbox" id="f-teste" ${modelo && modelo.teste ? 'checked' : ''}>
+          </label>
         </div>
       </section>
 
@@ -717,6 +722,7 @@ export async function render(el, { id, consulta }) {
         unidadesCaixa: (() => { const n = parseInt(($('#f-caixa').value || '').replace(/\D/g, ''), 10); return n > 0 && n !== 12 ? n : null; })(),
         foto: fotoBlob,
         ativo: $('#f-ativo').checked,
+        teste: $('#f-teste').checked,
         criadoEm: produto ? produto.criadoEm : agora,
         atualizadoEm: agora
       };

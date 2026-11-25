@@ -6,6 +6,7 @@
 // =========================================================
 import { db, novoId, lerEventoAtivo, definirEventoAtivo, novoCodigoEvento, lerAparelho, lerLevado, lerContado } from '../db.js';
 import { esc, aviso, confirmar, icones, hojeISO, diasEntre } from '../ui.js';
+import { ehCaixa } from '../modo.js';
 
 export async function render(el, { id }) {
   const editando = !!id;
@@ -16,6 +17,8 @@ export async function render(el, { id }) {
   }
   const ativo = await lerEventoAtivo();
   const emUso = editando && ativo && ativo.id === id;
+  const encerrado = editando && ev.status === 'encerrado';
+  const quandoEncerrou = encerrado && ev.encerradoEm ? new Date(ev.encerradoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
   // Estoque deste evento (v0.29.0: o estoque fica junto do evento)
   const [levado, contado] = editando ? await Promise.all([lerLevado(id), lerContado(id)]) : [new Map(), new Map()];
   const pecasLevadas = [...levado.values()].reduce((s, n) => s + n, 0);
@@ -28,13 +31,18 @@ export async function render(el, { id }) {
     </div></header>
 
     ${editando ? `
-    <section class="cartao faixa-uso ${emUso ? 'ativo' : ''}">
+    ${encerrado && !emUso ? `<section class="cartao faixa-uso">
+      <div>
+        <h2>Evento encerrado${quandoEncerrou ? ` em ${quandoEncerrou}` : ''}</h2>
+        <p class="sub">Encerrado, o evento sai de "em uso". Para usar de novo, reabra no fechamento.</p>
+      </div>
+    </section>` : `<section class="cartao faixa-uso ${emUso ? 'ativo' : ''}">
       <div>
         <h2>${emUso ? 'Em uso neste aparelho' : 'Não está em uso neste aparelho'}</h2>
         <p class="sub">${emUso ? 'As vendas deste aparelho entram neste evento.' : 'Escolha este evento para as vendas deste aparelho entrarem nele.'}</p>
       </div>
       <button type="button" class="btn ${emUso ? '' : 'primario'}" id="alternar-uso">${emUso ? 'Deixar de usar' : 'Usar neste aparelho'}</button>
-    </section>
+    </section>`}
     <section class="cartao faixa-uso">
       <div>
         <h2>Preços deste evento</h2>
@@ -62,7 +70,14 @@ export async function render(el, { id }) {
         })()}</p>
       </div>
       <a class="btn ${ev.custos ? '' : 'primario'}" href="#/eventos/${encodeURIComponent(ev.id)}/custos">Custos do evento</a>
-    </section>` : ''}
+    </section>
+    ${ehCaixa() ? '' : `<section class="cartao faixa-uso">
+      <div>
+        <h2>Fechamento deste evento</h2>
+        <p class="sub">${encerrado ? 'Resultado, planilha e registros pós-evento. Protegido pelo PIN.' : 'Resultado, planilha e encerrar o evento. Protegido pelo PIN.'}</p>
+      </div>
+      <a class="btn ${encerrado ? 'primario' : ''}" href="#/eventos/${encodeURIComponent(ev.id)}/fechamento">Fechamento</a>
+    </section>`}` : ''}
 
     <form class="form-produto" novalidate>
       <section class="cartao">
@@ -86,6 +101,10 @@ export async function render(el, { id }) {
               <span class="dica" id="qtd-dias"></span>
             </div>
           </div>
+          <label class="interruptor">
+            <span><strong>Evento de teste</strong><br><span class="dica" style="font-size:.8125rem;color:var(--texto-2)">Só os eventos marcados aparecem em Apagar testes. Também não entram como referência para outros eventos.</span></span>
+            <input type="checkbox" id="e-teste" ${ev && ev.teste ? 'checked' : ''}>
+          </label>
         </div>
       </section>
 
@@ -130,12 +149,14 @@ export async function render(el, { id }) {
 
     const aparelho = await lerAparelho();
     const registro = {
+      ...(ev || {}),   // mantém preços, custos, perdas e o encerramento (v0.37.0: antes eram apagados ao salvar)
       id: id || novoId(),
       codigo: ev ? ev.codigo : novoCodigoEvento(),
       nome,
       local: $('#e-local').value.trim(),
       dataInicio: ini,
       dataFim: fim,
+      teste: $('#e-teste').checked,
       status: ev ? ev.status : 'aberto',
       criadoPor: ev ? ev.criadoPor : (aparelho ? aparelho.sigla : ''),
       criadoEm: ev ? ev.criadoEm : new Date().toISOString(),
@@ -154,7 +175,7 @@ export async function render(el, { id }) {
   });
 
   if (editando) {
-    $('#alternar-uso').addEventListener('click', async () => {
+    $('#alternar-uso')?.addEventListener('click', async () => {
       if (emUso) {
         await definirEventoAtivo(null);
         aviso('Nenhum evento em uso neste aparelho.');
@@ -169,7 +190,12 @@ export async function render(el, { id }) {
       render(el, { id });
     });
     $('#excluir').addEventListener('click', async () => {
-      // Quando existirem vendas, a exclusão será bloqueada para eventos com vendas
+      // Evento com vendas não se exclui aqui: os registros ficariam soltos (v0.37.0)
+      const vendas = await db.vendas.where('eventoId').equals(id).count();
+      if (vendas) {
+        await confirmar({ titulo: 'Este evento tem vendas', texto: `${vendas} ${vendas === 1 ? 'registro de venda' : 'registros de venda'} neste aparelho. Para apagar um evento de teste com tudo o que há nele, marque "Evento de teste", salve e use Apagar testes, no Início.`, botao: 'Entendi', cancelar: false });
+        return;
+      }
       const ok = await confirmar({ titulo: `Excluir ${ev.nome}?`, texto: 'O evento será apagado deste aparelho.', botao: 'Excluir', perigo: true });
       if (!ok) return;
       await db.eventos.delete(id);

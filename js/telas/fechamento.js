@@ -1,13 +1,16 @@
 // =========================================================
 // Tela Fechamento do evento (Mais → Fechamento do evento), com PIN.
-// Junta tudo o que está neste aparelho sobre o evento em uso (no
-// principal, depois de juntar as vendas dos outros aparelhos):
+// Junta tudo o que está neste aparelho sobre o evento (no principal,
+// depois de juntar as vendas dos outros aparelhos):
 // resultado, formas de pagamento, dias, aparelhos, despesas, caixas,
 // estoque e exportação em planilha. Aqui também se encerra o evento.
+// #/fechamento = evento em uso; #/eventos/<id>/fechamento = qualquer evento
+// (v0.37.0: encerrar tira o evento de "em uso" na Gestão, e o fechamento
+// continua aberto pelo próprio evento).
 // =========================================================
-import { voltarDoMenu } from '../modo.js';
+import { voltarDoMenu, ehCaixa } from '../modo.js';
 import { custosDoCadastro, completarCustos, completarCustosSaidas } from '../painel/custos.js';
-import { db, lerEventoAtivo, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
+import { db, lerEventoAtivo, definirEventoAtivo, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
 import { esc, dinheiro, icones, aviso, confirmar, periodo , percentual } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { calcularFechamento } from '../fechamento/calculo.js';
@@ -19,12 +22,21 @@ const dia = (iso) => new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { week
 const qtd = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
 const dif = (v) => v == null ? '—' : v === 0 ? 'Confere' : `${v > 0 ? 'Sobra' : 'Falta'} ${dinheiro(Math.abs(v))}`;
 
-export async function render(el, { mostrar = false } = {}) {
-  const evento = await lerEventoAtivo();
-  const voltar = `${voltarDoMenu()}`;
+// Depois de encerrar pelo #/fechamento, a tela reabre pelo evento sem pedir o PIN de novo
+let liberadoPara = null;
+
+export async function render(el, { id = null, mostrar = false } = {}) {
+  const emUso = await lerEventoAtivo();
+  const evento = id ? await db.eventos.get(id) : emUso;
+  if (id && !evento) { location.replace('#/eventos'); return; }
+  const doEvento = !!id;
+  const eventoEmUso = !!(emUso && evento && emUso.id === evento.id);
+  const voltar = doEvento ? `<a class="voltar" href="#/eventos/${encodeURIComponent(evento.id)}">${icones.voltar} ${esc(evento.nome)}</a>` : `${voltarDoMenu()}`;
+  const de = (extra = {}) => ({ id, ...extra });
+  if (evento && liberadoPara === evento.id) { mostrar = true; liberadoPara = null; }
   if (!evento) {
     el.innerHTML = `${voltar}<header class="cab"><h1>Fechamento do evento</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2><p>O fechamento é feito por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Nenhum evento em uso</h2><p>O fechamento é feito por evento. Eventos encerrados saem de "em uso": abra o evento em Eventos para ver o fechamento dele.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
     return;
   }
   const comPin = await temPin();
@@ -33,7 +45,7 @@ export async function render(el, { mostrar = false } = {}) {
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true">${icones.cadeado}</div><h2>Protegido pelo PIN</h2>
       <p>Resultado, lucro e despesas do evento. Ao sair da tela, volta a ficar trancado.</p>
       <button type="button" class="btn primario" id="abrir">Ver fechamento</button></div>`;
-    el.querySelector('#abrir').addEventListener('click', async () => { if (await pedirPin({ titulo: 'Fechamento do evento', texto: 'Digite o PIN.' })) render(el, { mostrar: true }); });
+    el.querySelector('#abrir').addEventListener('click', async () => { if (await pedirPin({ titulo: 'Fechamento do evento', texto: 'Digite o PIN.' })) render(el, de({ mostrar: true })); });
     return;
   }
 
@@ -69,7 +81,7 @@ export async function render(el, { mostrar = false } = {}) {
     <section class="cartao conferencia">
       <h2>Conferência antes de fechar</h2>
       <ul class="lista-checagem">
-        <li class="${aparelhos.length ? 'ok' : 'atencao'}">${aparelhos.length ? `Vendas de ${aparelhos.map((a) => `<strong>${esc(a.nome)}</strong> (${a.vendas})`).join(', ')}.` : 'Nenhuma venda neste evento.'} Algum outro aparelho vendeu? <a href="#/sincronizar">Buscar vendas dos caixas</a> · <a href="#/juntar">por arquivo</a></li>
+        <li class="${aparelhos.length ? 'ok' : 'atencao'}">${aparelhos.length ? `Vendas de ${aparelhos.map((a) => `<strong>${esc(a.nome)}</strong> (${a.vendas})`).join(', ')}.` : 'Nenhuma venda neste evento.'} Algum outro aparelho vendeu? ${eventoEmUso ? '<a href="#/sincronizar">Buscar vendas dos caixas</a> · <a href="#/juntar">por arquivo</a>' : 'Para buscar mais vendas, o evento precisa estar em uso neste aparelho.'}</li>
         <li class="${f.caixasAbertos.length ? 'atencao' : 'ok'}">${f.caixasAbertos.length ? `${qtd(f.caixasAbertos.length, 'caixa ainda aberto', 'caixas ainda abertos')}: ${f.caixasAbertos.map((c) => `${esc(c.aparelho?.sigla || '')} ${dia(c.data)}`).join(', ')}. Feche no aparelho e junte de novo.` : 'Todos os caixas estão fechados.'}</li>
         ${f.caixasForaDasDatas.length ? `<li class="atencao">${qtd(f.caixasForaDasDatas.length, 'caixa aberto', 'caixas abertos')} fora das datas do evento: ${f.caixasForaDasDatas.map((c) => `${esc(c.aparelho?.sigla || '')} ${dia(c.data)}`).join(', ')}. Confira se essas vendas são mesmo deste evento.</li>` : ''}
         <li class="${f.estoque.totais.levado ? 'ok' : 'atencao'}">${f.estoque.totais.levado ? `Estoque levado registrado (${qtd(f.estoque.totais.levado, 'peça', 'peças')}).` : 'Estoque levado não registrado: a sobra não pode ser calculada.'} <a href="#/eventos/${encodeURIComponent(evento.id)}/estoque">Estoque</a></li>
@@ -208,11 +220,11 @@ export async function render(el, { mostrar = false } = {}) {
       <div class="acoes"><button type="button" class="btn ${encerrado ? '' : 'primario'}" id="encerrar">${encerrado ? 'Reabrir evento' : 'Encerrar evento'}</button></div>
     </section>`;
 
-  el.querySelector('#ocultar')?.addEventListener('click', () => render(el));
+  el.querySelector('#ocultar')?.addEventListener('click', () => render(el, de()));
   // Brindes e avarias como perda (v0.34.0): grava no evento e redesenha
   ['brindes', 'avarias'].forEach((tipo) => el.querySelector(`#conta-${tipo}`)?.addEventListener('change', async (e) => {
     await db.eventos.update(evento.id, { perdas: { ...(evento.perdas || {}), [tipo]: e.target.checked } });
-    render(el, { mostrar: true });
+    render(el, de({ mostrar: true }));
   }));
   el.querySelector('#planilha-baixar').addEventListener('click', () => baixar(planilhaFechamento(evento, f, registros, produtos)));
   if (driveConfigurado()) {
@@ -241,8 +253,17 @@ export async function render(el, { mostrar = false } = {}) {
       : await confirmar({ titulo: 'Encerrar o evento?', texto: f.caixasAbertos.length ? `Atenção: ainda há ${qtd(f.caixasAbertos.length, 'caixa aberto', 'caixas abertos')}. Encerrar mesmo assim?` : 'Novas vendas ficam bloqueadas. Dá para reabrir depois, se precisar.', botao: 'Encerrar', perigo: true });
     if (!ok) return;
     await db.eventos.update(evento.id, encerrado ? { status: 'aberto', encerradoEm: null } : { status: 'encerrado', encerradoEm: new Date().toISOString() });
-    aviso(encerrado ? 'Evento reaberto.' : 'Evento encerrado.');
-    render(el, { mostrar: true });
+    const atual = await lerEventoAtivo();
+    if (!ehCaixa() && !encerrado && atual && atual.id === evento.id) {
+      // Encerrado sai de "em uso" na Gestão; o fechamento continua pelo próprio evento
+      await definirEventoAtivo(null);
+      aviso('Evento encerrado. Ele saiu de "em uso"; o fechamento continua em Eventos.');
+    } else if (!ehCaixa() && encerrado && !atual) {
+      await definirEventoAtivo(evento.id);
+      aviso('Evento reaberto e de volta em uso neste aparelho.');
+    } else aviso(encerrado ? 'Evento reaberto.' : 'Evento encerrado.');
+    if (!doEvento) { liberadoPara = evento.id; location.replace(`#/eventos/${encodeURIComponent(evento.id)}/fechamento`); return; }
+    render(el, de({ mostrar: true }));
   });
 }
 
