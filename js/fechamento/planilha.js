@@ -60,6 +60,7 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
   // ---------- Aba Resumo em formato de painel (v0.33.0) ----------
   // Colunas: A rótulo · B valor · C % · D barra | E espaço | F rótulo · G valor · H % · I barra
   const fat = g.faturamento || 0;
+  const ce = f.custosEvento;
   const pctDe = (v, base = fat) => (base ? { v: v / base, estilo: 'pct' } : null);
   const barra = (v, max) => (max > 0 && v > 0 ? { v: '█'.repeat(Math.max(1, Math.round((v / max) * 12))), estilo: 'barra' } : null);
   const RS = (c, estilo = 'rs') => (c == null ? null : { v: Math.round(c) / 100, estilo });
@@ -85,7 +86,14 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
     [{ v: '= Faturamento líquido', estilo: 'negrito' }, RS(f.faturamentoLiquido, 'rsNegrito'), pctDe(f.faturamentoLiquido), null],
     ['(−) Custo dos produtos', RS(-g.custo), pctDe(g.custo), null],
     ['(−) Despesas do caixa', RS(-f.despesas), pctDe(f.despesas), null],
-    [{ v: '= Resultado do evento', estilo: 'negrito' }, RS(f.resultado, 'rsNegrito'), pctDe(f.resultado), null],
+    [{ v: ce.tem ? '= Resultado das vendas' : '= Resultado do evento', estilo: 'negrito' }, RS(f.resultado, 'rsNegrito'), pctDe(f.resultado), null],
+    ...(ce.tem ? [
+      ...(ce.valorFixo ? [['(−) Valor do evento', RS(-ce.valorFixo), pctDe(ce.valorFixo), null]] : []),
+      ...(ce.comissaoPct ? [[`(−) Comissão (${(ce.comissaoPct / 100).toLocaleString('pt-BR')}% das vendas)`, RS(-ce.comissao), pctDe(ce.comissao), null]] : []),
+      ...(ce.estrutura ? [['(−) Estrutura', RS(-ce.estrutura), pctDe(ce.estrutura), null]] : []),
+      ...(ce.equipe ? [[`(−) Equipe (${ce.pessoas.length} pessoas, ${ce.diarias} diárias)`, RS(-ce.equipe), pctDe(ce.equipe), null]] : []),
+      [{ v: '= Resultado final', estilo: 'negrito' }, RS(f.resultadoFinal, 'rsNegrito'), pctDe(f.resultadoFinal), null]
+    ] : []),
     f.contaBrindes ? ['(−) Brindes (custo)', RS(-f.perdaBrindes), pctDe(f.perdaBrindes), null] : [{ v: 'Brindes (custo) · fora da conta', estilo: 'sub' }, RS(f.perdaBrindes), null, null],
     f.contaAvarias ? ['(−) Avarias (custo)', RS(-f.perdaAvarias), pctDe(f.perdaAvarias), null] : [{ v: 'Avarias (custo) · fora da conta', estilo: 'sub' }, RS(f.perdaAvarias), null, null]
   ], [{ v: '= Depois das perdas', estilo: 'total' }, RS(f.resultadoDepoisPerdas, 'totalMoeda'), pctDe(f.resultadoDepoisPerdas), null]);
@@ -115,6 +123,7 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
     f.categorias.map((c) => [c.nome, RS(c.valor), I(c.quantidade), c.despesa ? 'Sim' : 'Não']));
   const outros = blocoTabela('Outros números', ['', '', '', ''], [
     ['Descontos concedidos', RS(g.descontos), null, null],
+    ...(ce.equipe && f.equipePorVenda != null ? [['Equipe por venda', RS(f.equipePorVenda), null, null]] : []),
     ['Trocas · devoluções · canceladas', `${g.trocas} · ${g.devolucoes} · ${g.canceladas}`, null, null],
     ['Brindes (peças)', I(g.brindesQtd), null, null],
     ...(f.estoque.contagem.itensContados ? [['Peças faltando na contagem', I(f.estoque.contagem.pecasFaltando), null, null], ['Valor das faltas (custo)', RS(f.estoque.contagem.valorFaltando), null, null]] : []),
@@ -151,7 +160,7 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
   const kP = (v) => (fat ? { v: v / fat, estilo: 'kpiPct' } : kD(''));
   cartoes([
     ['FATURAMENTO', kM(g.faturamento), kD(`líquido ${dinheiroTexto(f.faturamentoLiquido)}`)],
-    ['RESULTADO DO EVENTO', kM(f.resultado), kP(f.resultado)],
+    [ce.tem ? 'RESULTADO FINAL' : 'RESULTADO DO EVENTO', kM(f.resultadoFinal), kP(f.resultadoFinal)],
     ['VENDAS', kI(g.quantidadeVendas), kD(`${g.itensVendidos} itens vendidos`)],
     ['TICKET MÉDIO', kM(g.ticketMedio), kD(f.porDia.length ? `${f.porDia.length} ${f.porDia.length === 1 ? 'dia' : 'dias'} de venda` : '')]
   ]);
@@ -211,11 +220,28 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
   const caixas = [[N('Dia'), N('Aparelho'), N('Situação'), N('Esperado'), N('Contado'), N('Diferença')],
     ...f.caixas.map((c) => [dataBR(c.data), c.aparelho?.nome || c.aparelho?.sigla || '', c.aberto ? 'Aberto' : 'Fechado', R(c.esperado), R(c.contado), R(c.diferenca)])];
 
+  // Aba Equipe (v0.35.0): equipe e estrutura do evento
+  const diaCurtoBR = (iso) => dataBR(iso).slice(0, 5);
+  const equipeAba = [
+    [N('Equipe'), N('Diária'), N('Dias'), N('Quais dias'), N('Total')],
+    ...ce.pessoas.map((p) => [p.nome || '', R(p.diaria), p.quantidadeDias, (p.dias || []).map(diaCurtoBR).join(', '), R(p.total)]),
+    [N('Total da equipe'), null, ce.diarias, '', R(ce.equipe, 'moedaNegrito')],
+    [],
+    [N('Estrutura'), N('Qtd.'), N('Dimensões'), null, N('Valor')],
+    ...((evento.custos?.estrutura) || []).map((x) => [x.item || '', x.qtd ?? null, x.dimensoes || '', null, x.valor == null ? 'incluso' : R(x.valor)]),
+    [N('Total da estrutura'), null, null, null, R(ce.estrutura, 'moedaNegrito')],
+    [],
+    [N('Valor do evento'), null, null, null, R(ce.valorFixo)],
+    ...(ce.comissaoPct ? [[`Comissão (${(ce.comissaoPct / 100).toLocaleString('pt-BR')}% de ${dinheiroTexto(g.faturamento)})`, null, null, null, R(ce.comissao)]] : []),
+    [N('Custos do evento'), null, null, null, R(ce.total, 'moedaNegrito')]
+  ];
+
   const blob = gerarXlsx([
     { nome: 'Resumo', larguras: [30, 14, 9, 22, 3, 30, 14, 9, 22], linhas: resumo, mesclar, alturas, semGrade: true, paisagem: true },
     { nome: 'Itens', larguras: [11, 7, 12, 11, 11, 9, 30, 16, 14, 14, 14, 6, 11, 10, 11, 7, 11, 16, 28, 13, 10], linhas: itens, congelarLinha1: true },
     { nome: 'Estoque', larguras: [30, 16, 9, 9, 9, 9, 9, 15, 9, 10, 11, 14], linhas: estoque, congelarLinha1: true },
-    { nome: 'Caixas', larguras: [12, 18, 10, 13, 13, 13], linhas: caixas, congelarLinha1: true }
+    { nome: 'Caixas', larguras: [12, 18, 10, 13, 13, 13], linhas: caixas, congelarLinha1: true },
+    ...(ce.tem ? [{ nome: 'Equipe', larguras: [34, 12, 18, 30, 14], linhas: equipeAba }] : [])
   ]);
   return new File([blob], `${nomePlanilha(evento)}.xlsx`, { type: blob.type });
 }

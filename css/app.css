@@ -1284,3 +1284,32 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .marcar-perda { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
 .marcar-perda input { width: 20px; height: 20px; accent-color: var(--marca-forte); }
 .contas .fora-conta { color: var(--texto-2); }
+
+/* ---------- Custos do evento (v0.35.0) ---------- */
+.custos-evento { display: grid; gap: 16px; }
+.ce-principal { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ce-principal .cartao + .cartao { margin-top: 0; }
+.ce-valores { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+.ce-valores .campo[hidden] { display: none; }
+.ce-valores .entrada { text-align: right; }
+.ce-tabela { display: grid; gap: 6px 8px; align-items: center; margin-top: 10px; }
+.ce-estrutura { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) 110px 44px; }
+.ce-equipe { grid-template-columns: minmax(0, 1fr) 110px auto 96px 44px; }
+.ce-tabela .rot { font-size: .75rem; font-weight: 600; color: var(--texto-2); }
+.ce-tabela .dir, .ce-linha .dir { text-align: right; }
+.ce-linhas { display: contents; }
+.ce-linha { display: contents; }
+.ce-linhas > .sub { grid-column: 1 / -1; }
+.ce-linha .entrada { min-height: 44px; }
+.ce-dias { display: flex; flex-wrap: wrap; gap: 4px; }
+.ce-dia { min-height: 36px; padding: 0 10px; font-size: .8125rem; }
+.ce-resumo { align-self: start; }
+.ce-cobrir { margin-top: 12px; padding: 10px 12px; border-radius: var(--raio-p); background: var(--superficie-2); line-height: 1.45; }
+@media (min-width: 1080px) { .custos-evento { grid-template-columns: minmax(0, 1fr) 300px; } .ce-resumo { position: sticky; top: 16px; } }
+@media (max-width: 640px) {
+  .ce-estrutura { grid-template-columns: 56px minmax(0, 1fr) 44px; }
+  .ce-estrutura .ce-linha [data-campo="dimensoes"], .ce-estrutura .ce-linha [data-campo="valor"] { grid-column: span 1; }
+  .ce-tabela > .rot { display: none; }
+  .ce-equipe { grid-template-columns: minmax(0, 1fr) 100px 44px; }
+  .ce-equipe .ce-dias { grid-column: 1 / -2; }
+}

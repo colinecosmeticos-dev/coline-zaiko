@@ -7,7 +7,7 @@
 // =========================================================
 import { custosDoCadastro, completarCustos, completarCustosSaidas } from '../painel/custos.js';
 import { db, lerEventoAtivo, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
-import { esc, dinheiro, icones, aviso, confirmar, periodo } from '../ui.js';
+import { esc, dinheiro, icones, aviso, confirmar, periodo , percentual } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { calcularFechamento } from '../fechamento/calculo.js';
 import { planilhaFechamento } from '../fechamento/planilha.js';
@@ -47,7 +47,8 @@ export async function render(el, { mostrar = false } = {}) {
   const custos = custosDoCadastro(produtos);
   const { registros, unidades: custoDoCadastro } = completarCustos(registrosGravados, custos);
   const saidas = completarCustosSaidas(saidasGravadas, custos);
-  const f = calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado, perdas: evento.perdas || {} });
+  const f = calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado, perdas: evento.perdas || {}, custosEvento: evento.custos || null });
+  const ce = f.custosEvento;
   const ct = f.estoque.contagem;
   const g = f.geral;
   const encerrado = evento.status === 'encerrado';
@@ -80,7 +81,7 @@ export async function render(el, { mostrar = false } = {}) {
     </section>
 
     <div class="kpis">
-      <div class="kpi destaque"><span>Resultado do evento</span><strong class="num">${dinheiro(f.resultado)}</strong></div>
+      <div class="kpi destaque"><span>${ce.tem ? 'Resultado final' : 'Resultado do evento'}</span><strong class="num">${dinheiro(f.resultadoFinal)}</strong>${ce.tem && f.margemFinal != null ? `<span class="sub">${Math.round(f.margemFinal * 100)}% do faturamento</span>` : ''}</div>
       <div class="kpi"><span>Faturamento</span><strong class="num">${dinheiro(g.faturamento)}</strong></div>
       <div class="kpi"><span>Vendas</span><strong class="num">${g.quantidadeVendas.toLocaleString('pt-BR')}</strong></div>
       <div class="kpi"><span>Ticket médio</span><strong class="num">${dinheiro(g.ticketMedio)}</strong></div>
@@ -95,7 +96,13 @@ export async function render(el, { mostrar = false } = {}) {
           ${total('Faturamento líquido', f.faturamentoLiquido)}
           ${linha('Custo dos produtos', g.custo, '− ')}
           ${linha('Despesas do caixa', f.despesas, '− ')}
-          ${total('Resultado do evento', f.resultado)}
+          ${total(ce.tem ? 'Resultado das vendas' : 'Resultado do evento', f.resultado)}
+          ${ce.tem ? `
+          ${ce.valorFixo ? linha('Valor do evento', ce.valorFixo, '− ') : ''}
+          ${ce.comissaoPct ? linha(`Comissão (${percentual(ce.comissaoPct)} das vendas)`, ce.comissao, '− ') : ''}
+          ${ce.estrutura ? linha('Estrutura', ce.estrutura, '− ') : ''}
+          ${ce.equipe ? linha(`Equipe <span class="sub">(${ce.pessoas.length} ${ce.pessoas.length === 1 ? 'pessoa' : 'pessoas'}, ${ce.diarias} ${ce.diarias === 1 ? 'diária' : 'diárias'})</span>`, ce.equipe, '− ') : ''}
+          ${total('Resultado final', f.resultadoFinal)}` : ''}
           ${f.contaBrindes ? linha('Brindes (custo)', f.perdaBrindes, '− ') : linha('Brindes (custo) <span class="sub">· fora da conta</span>', f.perdaBrindes, '', 'fora-conta')}
           ${f.contaAvarias ? linha('Avarias (custo)', f.perdaAvarias, '− ') : linha('Avarias (custo) <span class="sub">· fora da conta</span>', f.perdaAvarias, '', 'fora-conta')}
           ${total('Resultado depois das perdas', f.resultadoDepoisPerdas)}
@@ -105,7 +112,8 @@ export async function render(el, { mostrar = false } = {}) {
           <label class="marcar-perda"><input type="checkbox" id="conta-avarias" ${f.contaAvarias ? 'checked' : ''} ${encerrado ? 'disabled' : ''}> Avarias entram como perda</label>
           <p class="sub">Desmarcado: as peças continuam saindo do estoque, mas o custo não é descontado do resultado (ex.: avaria trocada com o fornecedor).</p>
         </div>
-        <p class="sub nota-mov">Lucro bruto (faturamento − custo): ${dinheiro(g.lucroBruto)}. Descontos concedidos: ${dinheiro(g.descontos)}.</p>
+        <p class="sub nota-mov">Lucro bruto (faturamento − custo): ${dinheiro(g.lucroBruto)}. Descontos concedidos: ${dinheiro(g.descontos)}.${ce.equipe && f.equipePorVenda != null ? ` Equipe por venda: ${dinheiro(f.equipePorVenda)}.` : ''}</p>
+        <p class="sub"><a href="#/eventos/${encodeURIComponent(evento.id)}/custos">${ce.tem ? 'Ver ou editar os custos do evento' : 'Informar os custos do evento (valor, estrutura e equipe)'}</a></p>
       </section>
 
       <section class="cartao">

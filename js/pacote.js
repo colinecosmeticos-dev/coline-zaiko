@@ -40,7 +40,8 @@ export async function gerarPacote({ base = null } = {}) {
     formasPagamento,
     categoriasRetirada,
     pin: { hash: await lerConfig('pinHash'), sal: await lerConfig('pinSal') },
-    eventos,
+    // Custos do evento (valores da equipe) e escolhas do fechamento ficam só na Gestão (v0.35.0)
+    eventos: eventos.map(({ custos, perdas, ...e }) => e),
     base
   };
   const texto = JSON.stringify(pacote);

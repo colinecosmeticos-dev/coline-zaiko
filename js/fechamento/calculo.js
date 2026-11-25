@@ -10,11 +10,12 @@
 import { calcularPainel } from '../painel/calculo.js';
 import { calcularEstoque } from '../estoque/calculo.js';
 import { diaLocal } from '../telas/vendas.js';
+import { calcularCustosEvento } from './custos-evento.js';
 
 // perdas (v0.34.0): { brindes, avarias } — se o custo entra como perda no resultado.
 // Desmarcado: a peça continua saindo do estoque, mas o custo fica fora da conta
 // (ex.: avaria trocada com o fornecedor). Guardado no evento (evento.perdas).
-export function calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado, perdas = {} }) {
+export function calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado, perdas = {}, custosEvento = null }) {
   const contaBrindes = perdas.brindes !== false, contaAvarias = perdas.avarias !== false;
   const doEvento = registros.filter((r) => !r.posEvento);
   const posEvento = registros.filter((r) => r.posEvento && r.status !== 'cancelada');
@@ -84,10 +85,16 @@ export function calcularFechamento({ registros, caixas, movimentos, saidas, prod
   const diferencaCaixas = listaCaixas.reduce((s, c) => s + (c.diferenca || 0), 0);
 
   const resultado = geral.lucroBruto - geral.taxas - despesas;
+  const ce = calcularCustosEvento(custosEvento, geral.faturamento);
   return {
     geral, estoque, categorias, despesas, naoDespesas,
     perdaBrindes, perdaAvarias, semCustoPerdas, contaBrindes, contaAvarias,
-    resultado, resultadoDepoisPerdas: resultado - (contaBrindes ? perdaBrindes : 0) - (contaAvarias ? perdaAvarias : 0),
+    // Custos do evento (v0.35.0): valor do evento, comissão, estrutura e equipe
+    custosEvento: ce,
+    resultado, resultadoFinal: resultado - ce.total,
+    margemFinal: geral.faturamento ? (resultado - ce.total) / geral.faturamento : null,
+    equipePorVenda: geral.quantidadeVendas ? Math.round(ce.equipe / geral.quantidadeVendas) : null,
+    resultadoDepoisPerdas: resultado - ce.total - (contaBrindes ? perdaBrindes : 0) - (contaAvarias ? perdaAvarias : 0),
     faturamentoLiquido: geral.faturamento - geral.taxas,
     porDia, porAparelho, caixas: listaCaixas, diferencaCaixas, vendasDepois: vendasDepois.length,
     caixasAbertos: listaCaixas.filter((c) => c.aberto),

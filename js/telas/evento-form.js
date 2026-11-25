@@ -48,6 +48,20 @@ export async function render(el, { id }) {
         <p class="sub">${pecasLevadas ? `Levado: ${pecasLevadas.toLocaleString('pt-BR')} ${pecasLevadas === 1 ? 'peça' : 'peças'} em ${levado.size} ${levado.size === 1 ? 'item' : 'itens'}` : 'Estoque levado ainda não registrado'}${contado.size ? ` · contagem final: ${contado.size} ${contado.size === 1 ? 'item contado' : 'itens contados'}` : ''}.</p>
       </div>
       <a class="btn ${pecasLevadas ? '' : 'primario'}" href="#/eventos/${encodeURIComponent(ev.id)}/estoque">Estoque do evento</a>
+    </section>
+    <section class="cartao faixa-uso">
+      <div>
+        <h2>Custos deste evento</h2>
+        <p class="sub">${(() => {
+          const c = ev.custos;
+          if (!c) return 'Valor do evento, estrutura e equipe ainda não informados.';
+          const partes = [c.modo === 'pct' ? 'comissão sobre as vendas' : c.modo === 'ambos' ? 'valor fixo + comissão' : 'valor fixo'];
+          if ((c.estrutura || []).length) partes.push(`${c.estrutura.length} ${c.estrutura.length === 1 ? 'item de estrutura' : 'itens de estrutura'}`);
+          if ((c.equipe || []).length) partes.push(`${c.equipe.length} ${c.equipe.length === 1 ? 'pessoa na equipe' : 'pessoas na equipe'}`);
+          return `${partes.join(' · ')}. Valores protegidos pelo PIN.`;
+        })()}</p>
+      </div>
+      <a class="btn ${ev.custos ? '' : 'primario'}" href="#/eventos/${encodeURIComponent(ev.id)}/custos">Custos do evento</a>
     </section>` : ''}
 
     <form class="form-produto" novalidate>

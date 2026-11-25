@@ -24,6 +24,7 @@ async function impressaoDaBase() {
   const dados = {};
   for (const t of tabelas) {
     dados[t] = (await db[t].toArray())
+      .map((r) => (t === 'eventos' ? (({ custos, perdas, ...e }) => e)(r) : r))   // não vão na base
       .map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v instanceof Blob ? `blob:${v.size}` : v])))
       .sort((a, b) => String(a.id).localeCompare(String(b.id)));
   }
