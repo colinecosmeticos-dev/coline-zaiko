@@ -1278,3 +1278,9 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 }
 .pc-produto { margin-top: 12px; }
 @media (min-width: 640px) { .pc-nome { align-self: center; } }
+
+/* ---------- Brindes e avarias como perda (v0.34.0) ---------- */
+.opcoes-perdas { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--linha); }
+.marcar-perda { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+.marcar-perda input { width: 20px; height: 20px; accent-color: var(--marca-forte); }
+.contas .fora-conta { color: var(--texto-2); }

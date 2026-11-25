@@ -86,8 +86,8 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
     ['(−) Custo dos produtos', RS(-g.custo), pctDe(g.custo), null],
     ['(−) Despesas do caixa', RS(-f.despesas), pctDe(f.despesas), null],
     [{ v: '= Resultado do evento', estilo: 'negrito' }, RS(f.resultado, 'rsNegrito'), pctDe(f.resultado), null],
-    ['(−) Brindes (custo)', RS(-f.perdaBrindes), pctDe(f.perdaBrindes), null],
-    ['(−) Avarias (custo)', RS(-f.perdaAvarias), pctDe(f.perdaAvarias), null]
+    f.contaBrindes ? ['(−) Brindes (custo)', RS(-f.perdaBrindes), pctDe(f.perdaBrindes), null] : [{ v: 'Brindes (custo) · fora da conta', estilo: 'sub' }, RS(f.perdaBrindes), null, null],
+    f.contaAvarias ? ['(−) Avarias (custo)', RS(-f.perdaAvarias), pctDe(f.perdaAvarias), null] : [{ v: 'Avarias (custo) · fora da conta', estilo: 'sub' }, RS(f.perdaAvarias), null, null]
   ], [{ v: '= Depois das perdas', estilo: 'total' }, RS(f.resultadoDepoisPerdas, 'totalMoeda'), pctDe(f.resultadoDepoisPerdas), null]);
 
   const maxForma = Math.max(0, ...g.porForma.map((x) => x.valor));

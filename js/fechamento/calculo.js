@@ -11,7 +11,11 @@ import { calcularPainel } from '../painel/calculo.js';
 import { calcularEstoque } from '../estoque/calculo.js';
 import { diaLocal } from '../telas/vendas.js';
 
-export function calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado }) {
+// perdas (v0.34.0): { brindes, avarias } — se o custo entra como perda no resultado.
+// Desmarcado: a peça continua saindo do estoque, mas o custo fica fora da conta
+// (ex.: avaria trocada com o fornecedor). Guardado no evento (evento.perdas).
+export function calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado, perdas = {} }) {
+  const contaBrindes = perdas.brindes !== false, contaAvarias = perdas.avarias !== false;
   const doEvento = registros.filter((r) => !r.posEvento);
   const posEvento = registros.filter((r) => r.posEvento && r.status !== 'cancelada');
   const geral = calcularPainel(doEvento);
@@ -82,8 +86,8 @@ export function calcularFechamento({ registros, caixas, movimentos, saidas, prod
   const resultado = geral.lucroBruto - geral.taxas - despesas;
   return {
     geral, estoque, categorias, despesas, naoDespesas,
-    perdaBrindes, perdaAvarias, semCustoPerdas,
-    resultado, resultadoDepoisPerdas: resultado - perdaBrindes - perdaAvarias,
+    perdaBrindes, perdaAvarias, semCustoPerdas, contaBrindes, contaAvarias,
+    resultado, resultadoDepoisPerdas: resultado - (contaBrindes ? perdaBrindes : 0) - (contaAvarias ? perdaAvarias : 0),
     faturamentoLiquido: geral.faturamento - geral.taxas,
     porDia, porAparelho, caixas: listaCaixas, diferencaCaixas, vendasDepois: vendasDepois.length,
     caixasAbertos: listaCaixas.filter((c) => c.aberto),

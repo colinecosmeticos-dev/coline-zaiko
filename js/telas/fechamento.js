@@ -47,7 +47,7 @@ export async function render(el, { mostrar = false } = {}) {
   const custos = custosDoCadastro(produtos);
   const { registros, unidades: custoDoCadastro } = completarCustos(registrosGravados, custos);
   const saidas = completarCustosSaidas(saidasGravadas, custos);
-  const f = calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado });
+  const f = calcularFechamento({ registros, caixas, movimentos, saidas, produtos, levado, contado, perdas: evento.perdas || {} });
   const ct = f.estoque.contagem;
   const g = f.geral;
   const encerrado = evento.status === 'encerrado';
@@ -96,9 +96,14 @@ export async function render(el, { mostrar = false } = {}) {
           ${linha('Custo dos produtos', g.custo, '− ')}
           ${linha('Despesas do caixa', f.despesas, '− ')}
           ${total('Resultado do evento', f.resultado)}
-          ${linha('Brindes (custo)', f.perdaBrindes, '− ')}
-          ${linha('Avarias (custo)', f.perdaAvarias, '− ')}
+          ${f.contaBrindes ? linha('Brindes (custo)', f.perdaBrindes, '− ') : linha('Brindes (custo) <span class="sub">· fora da conta</span>', f.perdaBrindes, '', 'fora-conta')}
+          ${f.contaAvarias ? linha('Avarias (custo)', f.perdaAvarias, '− ') : linha('Avarias (custo) <span class="sub">· fora da conta</span>', f.perdaAvarias, '', 'fora-conta')}
           ${total('Resultado depois das perdas', f.resultadoDepoisPerdas)}
+        </div>
+        <div class="opcoes-perdas">
+          <label class="marcar-perda"><input type="checkbox" id="conta-brindes" ${f.contaBrindes ? 'checked' : ''} ${encerrado ? 'disabled' : ''}> Brindes entram como perda</label>
+          <label class="marcar-perda"><input type="checkbox" id="conta-avarias" ${f.contaAvarias ? 'checked' : ''} ${encerrado ? 'disabled' : ''}> Avarias entram como perda</label>
+          <p class="sub">Desmarcado: as peças continuam saindo do estoque, mas o custo não é descontado do resultado (ex.: avaria trocada com o fornecedor).</p>
         </div>
         <p class="sub nota-mov">Lucro bruto (faturamento − custo): ${dinheiro(g.lucroBruto)}. Descontos concedidos: ${dinheiro(g.descontos)}.</p>
       </section>
@@ -195,6 +200,11 @@ export async function render(el, { mostrar = false } = {}) {
     </section>`;
 
   el.querySelector('#ocultar')?.addEventListener('click', () => render(el));
+  // Brindes e avarias como perda (v0.34.0): grava no evento e redesenha
+  ['brindes', 'avarias'].forEach((tipo) => el.querySelector(`#conta-${tipo}`)?.addEventListener('change', async (e) => {
+    await db.eventos.update(evento.id, { perdas: { ...(evento.perdas || {}), [tipo]: e.target.checked } });
+    render(el, { mostrar: true });
+  }));
   el.querySelector('#planilha-baixar').addEventListener('click', () => baixar(planilhaFechamento(evento, f, registros, produtos)));
   if (driveConfigurado()) {
     const status = el.querySelector('#planilha-status');
