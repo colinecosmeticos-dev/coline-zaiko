@@ -4,6 +4,7 @@
 // específico ou o evento inteiro. O PIN vale só enquanto a tela está
 // aberta; ao sair (ou em "Ocultar"), volta a ficar trancado.
 // =========================================================
+import { voltarDoMenu } from '../modo.js';
 import { db, lerAparelho, lerEventoAtivo, listarProdutosCompletos } from '../db.js';
 import { custosDoCadastro, completarCustos } from '../painel/custos.js';
 import { esc, dinheiro, icones, hojeISO } from '../ui.js';
@@ -17,7 +18,7 @@ const qtd = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1 ? um : va
 export async function render(el, { mostrar = false, periodo = null } = {}) {
   const aparelho = await lerAparelho();
   const evento = await lerEventoAtivo();
-  const cabecalho = `<a class="voltar" href="#/mais">${icones.voltar} Mais</a>`;
+  const cabecalho = `${voltarDoMenu()}`;
   if (!evento) {
     el.innerHTML = `${cabecalho}<header class="cab"><h1>Painel de vendas</h1></header>
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2><p>O painel mostra as vendas do evento em uso.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;

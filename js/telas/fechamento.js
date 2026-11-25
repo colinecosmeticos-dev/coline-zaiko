@@ -5,6 +5,7 @@
 // resultado, formas de pagamento, dias, aparelhos, despesas, caixas,
 // estoque e exportação em planilha. Aqui também se encerra o evento.
 // =========================================================
+import { voltarDoMenu } from '../modo.js';
 import { custosDoCadastro, completarCustos, completarCustosSaidas } from '../painel/custos.js';
 import { db, lerEventoAtivo, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
 import { esc, dinheiro, icones, aviso, confirmar, periodo , percentual } from '../ui.js';
@@ -20,7 +21,7 @@ const dif = (v) => v == null ? '—' : v === 0 ? 'Confere' : `${v > 0 ? 'Sobra' 
 
 export async function render(el, { mostrar = false } = {}) {
   const evento = await lerEventoAtivo();
-  const voltar = `<a class="voltar" href="#/mais">${icones.voltar} Mais</a>`;
+  const voltar = `${voltarDoMenu()}`;
   if (!evento) {
     el.innerHTML = `${voltar}<header class="cab"><h1>Fechamento do evento</h1></header>
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2><p>O fechamento é feito por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;

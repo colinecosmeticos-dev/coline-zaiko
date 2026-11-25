@@ -14,6 +14,7 @@
 // =========================================================
 import { db, lerEventoAtivo, lerAparelho, lerConfig, caixaAbertoDoEvento, caixaDoDia } from '../db.js';
 import { ehCaixa } from '../modo.js';
+import { renderGestao } from './inicio-gestao.js';
 import { situacaoBase } from '../sincronizar.js';
 import { esc, dinheiro, icones, hojeISO, diasEntre, periodo } from '../ui.js';
 import { precisaSincronizar } from '../sincronizar.js';
@@ -34,6 +35,8 @@ const quando = (iso) => {
 };
 
 export async function render(el) {
+  // Gestão: Início em grade, com o cartão do evento e o progresso (v0.36.0)
+  if (!ehCaixa()) return renderGestao(el);
   const gestao = !ehCaixa();
   const drive = driveConfigurado();
   if (drive) prepararDrive().catch(() => {});

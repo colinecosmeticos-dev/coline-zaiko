@@ -2,6 +2,7 @@
 // Tela Eventos: lista dos eventos deste aparelho.
 // O evento "em uso neste aparelho" é onde as vendas vão entrar.
 // =========================================================
+import { voltarDoMenu } from '../modo.js';
 import { db, lerEventoAtivo } from '../db.js';
 import { esc, periodo, icones, hojeISO } from '../ui.js';
 
@@ -30,7 +31,7 @@ export async function render(el) {
   };
 
   el.innerHTML = `
-    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
+    ${voltarDoMenu()}
     <header class="cab">
       <div><h1>Eventos</h1>
         <p class="sub">${eventos.length ? `${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'} neste aparelho` : 'Crie o evento antes de vender: as vendas ficam guardadas dentro dele.'}</p></div>

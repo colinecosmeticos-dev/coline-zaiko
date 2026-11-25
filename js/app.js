@@ -8,7 +8,7 @@ import { aplicarTemaSalvo } from './tema.js';
 import { saida, confirmar } from './ui.js';
 import { iniciarAtualizacoes } from './atualizacao.js';
 import { recuperarCarrinho } from './venda/carrinho.js';
-import { iniciarModo, modoAtual, podeAbrir, telaInicial } from './modo.js';
+import { iniciarModo, modoAtual, podeAbrir, telaInicial, ehCaixa } from './modo.js';
 import * as configurar from './telas/configurar.js';
 import * as sincronizar from './telas/sincronizar.js';
 import { prepararDrive, driveConfigurado } from './drive.js';
@@ -130,7 +130,8 @@ async function navegar() {
 
   // Marca no menu o item da seção atual
   const secao = caminho.split('/')[0];
-  const secaoMenu = ['inicio', 'vender', 'vendas', 'caixa', 'produtos', 'sincronizar'].includes(secao) ? secao : 'mais';
+  // Gestão sem o Mais no menu (v0.36.0): as telas fora do menu marcam o Início
+  const secaoMenu = ['inicio', 'vender', 'vendas', 'caixa', 'produtos', 'sincronizar'].includes(secao) ? secao : (ehCaixa() ? 'mais' : 'inicio');
   document.querySelectorAll('.nav a').forEach((a) => {
     if (a.dataset.rota === secaoMenu) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');

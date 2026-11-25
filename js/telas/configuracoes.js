@@ -5,7 +5,7 @@ import { procurar } from '../atualizacao.js';
 import { sonsLigados, ligarSons } from '../sons.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';
 import { aviso, confirmar, icones } from '../ui.js';
-import { definirModo } from '../modo.js';
+import { definirModo, voltarDoMenu } from '../modo.js';
 import { lerAparelho, gravarAparelho, listarFormasPagamento, listarCategoriasRetirada } from '../db.js';
 
 export async function render(el) {
@@ -22,7 +22,7 @@ export async function render(el) {
   }
 
   el.innerHTML = `
-    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
+    ${voltarDoMenu()}
     <header class="cab"><h1>Configurações</h1></header>
 
     <section class="cartao" id="cartao-aparelho">

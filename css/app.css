@@ -1319,3 +1319,31 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .ce-dia[aria-pressed="true"] { border: 1.5px solid var(--marca-forte); background: var(--marca-forte); color: #fff; font-weight: 600; }
 .ce-dia[aria-pressed="true"]::before { content: "✓ "; }
 .ce-total-item { font-size: .9375rem; }
+
+/* ---------- Início da Gestão em grade (v0.36.0) ---------- */
+body:not(.modo-caixa) .nav a[data-rota="mais"] { display: none; }
+.evento-gestao { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; }
+.eg-info { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.eg-rotulo { font-size: .75rem; font-weight: 600; letter-spacing: .04em; color: var(--texto-2); }
+.eg-nome { font-size: 1.375rem; }
+.eg-progresso { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.eg-topo { display: flex; justify-content: space-between; gap: 8px; }
+.eg-barra { display: grid; gap: 6px; }
+.eg-barra span { height: 8px; border-radius: 4px; background: var(--linha); }
+.eg-barra span.feito { background: var(--ok); }
+.eg-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.grade-gestao { display: grid; gap: 16px; margin-top: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.grade-gestao .cartao { margin-top: 0; }
+.grupo-gestao h2 { margin: 0 0 12px; font-size: 1rem; }
+.tiles-gestao { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tile-gestao {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 92px; padding: 8px 6px;
+  border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); color: var(--texto);
+  font-size: .8125rem; font-weight: 500; text-align: center; text-decoration: none; line-height: 1.2;
+}
+.tile-gestao:hover { border-color: var(--marca); color: var(--texto); }
+.tile-gestao:focus-visible { outline: 3px solid var(--marca); outline-offset: 2px; }
+.tg-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--marca-suave); color: var(--marca-texto); }
+.tg-ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.evento-gestao + .grade-gestao { margin-top: 16px; }
+.avisos-caixa + .evento-gestao { margin-top: 16px; }

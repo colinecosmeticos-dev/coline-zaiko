@@ -5,6 +5,7 @@
 // Restaurar: substitui TUDO neste aparelho pelo backup (pede o PIN e,
 // antes, baixa uma cópia do que existe hoje, por segurança).
 // =========================================================
+import { voltarDoMenu } from '../modo.js';
 import { db, lerAparelho } from '../db.js';
 import { esc, icones, aviso, abrirJanela } from '../ui.js';
 import { pedirPin } from '../pin.js';
@@ -22,7 +23,7 @@ export async function render(el) {
   const comDrive = driveConfigurado();
 
   el.innerHTML = `
-    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
+    ${voltarDoMenu()}
     <header class="cab"><div><h1>Backup</h1>
       <p class="sub">Cópia completa deste aparelho: catálogo com fotos, eventos, vendas, caixas, estoque, formas de pagamento e configurações.</p></div></header>
 

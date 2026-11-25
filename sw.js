@@ -6,7 +6,7 @@
 // (e a versão em js/versao.js). É assim que os aparelhos percebem
 // que existe versão nova e baixam os arquivos de novo.
 // =========================================================
-const CACHE = 'zaiko-0.35.1';
+const CACHE = 'zaiko-0.36.0';
 
 // Todos os arquivos que o app precisa para funcionar offline.
 // Arquivo novo no projeto = acrescentar aqui.
@@ -64,6 +64,7 @@ const ARQUIVOS = [
   './js/lib/dexie.min.mjs',
   './js/lib/qrcode.mjs',
   './js/telas/inicio.js',
+  './js/telas/inicio-gestao.js',
   './js/telas/produtos.js',
   './js/telas/produto-form.js',
   './js/telas/mais.js',

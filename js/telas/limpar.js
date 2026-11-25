@@ -12,7 +12,7 @@
 import { db, lerConfig, gravarConfig, lerEventoAtivo } from '../db.js';
 import { esc, icones, aviso, periodo } from '../ui.js';
 import { pedirPin } from '../pin.js';
-import { ehCaixa } from '../modo.js';
+import { ehCaixa, voltarDoMenu } from '../modo.js';
 import { limparCarrinho } from '../venda/carrinho.js';
 
 const TABELAS = ['vendas', 'caixas', 'movimentos', 'saidas', 'estoqueLevado', 'estoqueContado'];
@@ -41,7 +41,7 @@ export async function render(el) {
   const resumo = (c) => [c.vendas && `${c.vendas} ${c.vendas === 1 ? 'registro de venda' : 'registros de venda'}`, c.caixas && `${c.caixas} ${c.caixas === 1 ? 'caixa' : 'caixas'}`, c.outros && `${c.outros} de estoque e gaveta`].filter(Boolean).join(' · ') || 'nada registrado neste aparelho';
 
   el.innerHTML = `
-    <a class="voltar" href="#/mais">${icones.voltar} Mais</a>
+    ${voltarDoMenu()}
     <header class="cab"><div><h1>Apagar dados de teste</h1>
       <p class="sub">Para começar a usar de verdade: apaga os eventos de teste e tudo o que foi registrado neles <strong>neste aparelho</strong>.</p></div></header>
 

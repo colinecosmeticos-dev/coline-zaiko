@@ -42,3 +42,8 @@ function aplicarNoMenu() {
   document.body.classList.toggle('modo-caixa', modo === 'caixa');
   document.body.classList.toggle('sem-modo', !modo);   // assistente: esconde o menu
 }
+
+// Link "voltar" das telas que ficam no Mais: no Caixa volta ao Mais; na Gestão,
+// que não tem mais o Mais no menu (v0.36.0), volta ao Início.
+const SETA = '<svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
+export const voltarDoMenu = () => (modo === 'caixa' ? `<a class="voltar" href="#/mais">${SETA} Mais</a>` : `<a class="voltar" href="#/inicio">${SETA} Início</a>`);
