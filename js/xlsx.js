@@ -9,10 +9,21 @@
 //     ['Faturamento', { v: 203.01, estilo: 'moeda' }]
 //   ] }])  → Blob
 // Valores: texto, número, null (célula vazia) ou { v, estilo }.
-// Estilos: 'moeda' (1.234,56), 'negrito', 'titulo', 'moedaNegrito'.
+// Estilos: 'moeda' (1.234,56), 'negrito', 'titulo', 'moedaNegrito', 'inteiro' e,
+// para o painel da aba Resumo (v0.33.0): faixa, subtitulo, kpiRotulo, kpiMoeda,
+// kpiInteiro, kpiDetalhe, secao, cabecalho, pct, barra, total, totalMoeda,
+// totalInteiro, rs, rsNegrito, sub, cabecalhoDir.
+// Opções da aba: larguras, congelarLinha1, semGrade (esconde as linhas de grade),
+// mesclar (['A1:I1', ...]), alturas ({ número da linha: altura em pontos }) e
+// paisagem (imprime deitado, cabendo na largura da página).
 // =========================================================
 
-const ESTILOS = { normal: 0, moeda: 1, negrito: 2, titulo: 3, moedaNegrito: 4, inteiro: 5 };
+const ESTILOS = {
+  normal: 0, moeda: 1, negrito: 2, titulo: 3, moedaNegrito: 4, inteiro: 5,
+  faixa: 6, subtitulo: 7, kpiRotulo: 8, kpiMoeda: 9, kpiInteiro: 10, kpiDetalhe: 11,
+  secao: 12, cabecalho: 13, pct: 14, barra: 15, total: 16, totalMoeda: 17, totalInteiro: 18,
+  rs: 19, rsNegrito: 20, sub: 21, cabecalhoDir: 22, kpiPct: 23
+};
 
 const xmlEsc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
@@ -36,29 +47,75 @@ function celula(valor, ref) {
 function folha(aba) {
   const linhas = aba.linhas.map((linha, r) => {
     const cels = (linha || []).map((v, c) => celula(v, `${nomeColuna(c)}${r + 1}`)).join('');
-    return `<row r="${r + 1}">${cels}</row>`;
+    const h = aba.alturas && aba.alturas[r + 1];
+    return `<row r="${r + 1}"${h ? ` ht="${h}" customHeight="1"` : ''}>${cels}</row>`;
   }).join('');
   const cols = aba.larguras && aba.larguras.length
     ? `<cols>${aba.larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` : '';
-  const congelar = aba.congelarLinha1
-    ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' : '';
+  const vista = aba.congelarLinha1 || aba.semGrade
+    ? `<sheetViews><sheetView workbookViewId="0"${aba.semGrade ? ' showGridLines="0"' : ''}>${aba.congelarLinha1 ? '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' : ''}</sheetView></sheetViews>` : '';
+  const mesclas = aba.mesclar && aba.mesclar.length
+    ? `<mergeCells count="${aba.mesclar.length}">${aba.mesclar.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '';
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${congelar}${cols}<sheetData>${linhas}</sheetData></worksheet>`;
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${aba.paisagem ? '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' : ''}${vista}${cols}<sheetData>${linhas}</sheetData>${mesclas}${aba.paisagem ? '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>' : ''}</worksheet>`;
 }
 
+// Fontes: 0 normal, 1 negrito, 2 título 14, 3 faixa (branca 18), 4 cinza 9, 5 número grande 16,
+// 6 seção (rosa 12), 7 cabeçalho (cinza 9 negrito), 8 barra (rosa), 9 cinza 10.
+// Preenchimentos: 2 rosa Coline, 3 cinza claro (cartões), 4 rosa claro (seções).
+// Formatos: 164 = R$ 1.234,56 (negativo em vermelho).
 const ESTILOS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font></fonts>
-<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
-<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;R$&quot; #,##0.00;[Red]-&quot;R$&quot; #,##0.00"/></numFmts>
+<fonts count="10">
+<font><sz val="11"/><name val="Calibri"/></font>
+<font><b/><sz val="11"/><name val="Calibri"/></font>
+<font><b/><sz val="14"/><name val="Calibri"/></font>
+<font><b/><sz val="18"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+<font><sz val="9"/><color rgb="FF6B6B6B"/><name val="Calibri"/></font>
+<font><b/><sz val="16"/><color rgb="FF1F1F1F"/><name val="Calibri"/></font>
+<font><b/><sz val="12"/><color rgb="FFD81B50"/><name val="Calibri"/></font>
+<font><b/><sz val="9"/><color rgb="FF6B6B6B"/><name val="Calibri"/></font>
+<font><sz val="11"/><color rgb="FFFF496F"/><name val="Calibri"/></font>
+<font><sz val="10"/><color rgb="FF6B6B6B"/><name val="Calibri"/></font>
+</fonts>
+<fills count="5">
+<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFFF496F"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFF4F5F7"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFFFE8EE"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="3">
+<border><left/><right/><top/><bottom/><diagonal/></border>
+<border><left/><right/><top/><bottom style="thin"><color rgb="FFD9D9D9"/></bottom><diagonal/></border>
+<border><left/><right/><top style="thin"><color rgb="FF9E9E9E"/></top><bottom/><diagonal/></border>
+</borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="6">
+<cellXfs count="24">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="4" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>
 <xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="0" fontId="3" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="9" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment indent="1"/></xf>
+<xf numFmtId="0" fontId="4" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="bottom" indent="1"/></xf>
+<xf numFmtId="164" fontId="5" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" indent="1"/></xf>
+<xf numFmtId="3" fontId="5" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" indent="1"/></xf>
+<xf numFmtId="0" fontId="4" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top" indent="1"/></xf>
+<xf numFmtId="0" fontId="6" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="7" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>
+<xf numFmtId="9" fontId="9" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>
+<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"/>
+<xf numFmtId="164" fontId="1" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
+<xf numFmtId="3" fontId="1" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="164" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>
+<xf numFmtId="0" fontId="9" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="7" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right"/></xf>
+<xf numFmtId="9" fontId="4" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" vertical="top" indent="1"/></xf>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
