@@ -8,6 +8,7 @@
 // Valores em reais como números (dá para somar e fazer contas na planilha).
 // =========================================================
 import { gerarXlsx } from '../xlsx.js';
+import { totalItem } from './custos-evento.js';
 import { diaLocal } from '../telas/vendas.js';
 
 const R = (centavos, estilo = 'moeda') => centavos == null ? null : { v: Math.round(centavos) / 100, estilo };
@@ -227,8 +228,8 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
     ...ce.pessoas.map((p) => [p.nome || '', R(p.diaria), p.quantidadeDias, (p.dias || []).map(diaCurtoBR).join(', '), R(p.total)]),
     [N('Total da equipe'), null, ce.diarias, '', R(ce.equipe, 'moedaNegrito')],
     [],
-    [N('Estrutura'), N('Qtd.'), N('Dimensões'), null, N('Valor')],
-    ...((evento.custos?.estrutura) || []).map((x) => [x.item || '', x.qtd ?? null, x.dimensoes || '', null, x.valor == null ? 'incluso' : R(x.valor)]),
+    [N('Estrutura'), N('Qtd.'), N('Dimensões'), N('Valor un.'), N('Total')],
+    ...((evento.custos?.estrutura) || []).map((x) => [x.item || '', x.qtd ?? null, x.dimensoes || '', x.valor == null ? 'incluso' : R(x.valor), x.valor == null ? null : R(totalItem(x))]),
     [N('Total da estrutura'), null, null, null, R(ce.estrutura, 'moedaNegrito')],
     [],
     [N('Valor do evento'), null, null, null, R(ce.valorFixo)],

@@ -1293,7 +1293,7 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 .ce-valores .campo[hidden] { display: none; }
 .ce-valores .entrada { text-align: right; }
 .ce-tabela { display: grid; gap: 6px 8px; align-items: center; margin-top: 10px; }
-.ce-estrutura { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) 110px 44px; }
+.ce-estrutura { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) 110px 96px 44px; }
 .ce-equipe { grid-template-columns: minmax(0, 1fr) 110px auto 96px 44px; }
 .ce-tabela .rot { font-size: .75rem; font-weight: 600; color: var(--texto-2); }
 .ce-tabela .dir, .ce-linha .dir { text-align: right; }
@@ -1313,3 +1313,9 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
   .ce-equipe { grid-template-columns: minmax(0, 1fr) 100px 44px; }
   .ce-equipe .ce-dias { grid-column: 1 / -2; }
 }
+
+/* Dias da equipe (v0.35.1): marcado = rosa com ✓; desmarcado = tracejado e cinza */
+.ce-dia { border: 1.5px dashed var(--linha); background: var(--superficie); color: var(--texto-2); font-weight: 500; }
+.ce-dia[aria-pressed="true"] { border: 1.5px solid var(--marca-forte); background: var(--marca-forte); color: #fff; font-weight: 600; }
+.ce-dia[aria-pressed="true"]::before { content: "✓ "; }
+.ce-total-item { font-size: .9375rem; }

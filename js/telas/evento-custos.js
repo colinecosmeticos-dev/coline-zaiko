@@ -2,7 +2,7 @@
 // Custos do evento (Eventos → evento → Custos do evento;
 // #/eventos/<id>/custos). v0.35.0
 //   Valor do evento: R$ fixo, % das vendas ou os dois.
-//   Estrutura: quantidade, item, dimensões e valor (em branco = incluso).
+//   Estrutura: quantidade, item, dimensões e valor unitário (em branco = incluso); total da linha ao lado.
 //   Equipe: nome, diária e os dias do evento em que trabalhou (total = diária × dias).
 // Resumo ao lado, com quanto vender para cobrir os custos fixos (pela margem
 // do último evento com vendas). Pede o PIN. Grava ao tocar em Salvar.
@@ -11,7 +11,7 @@
 import { db, novoId, listarProdutosCompletos } from '../db.js';
 import { esc, dinheiro, icones, aviso, campoDinheiro, campoPercentual, lerCentavos, escreverCentavos, saida, percentual } from '../ui.js';
 import { temPin, pedirPin } from '../pin.js';
-import { diasDoEvento, custosVazios, calcularCustosEvento, vendaParaCobrir } from '../fechamento/custos-evento.js';
+import { diasDoEvento, custosVazios, calcularCustosEvento, vendaParaCobrir, totalItem } from '../fechamento/custos-evento.js';
 import { calcularPainel } from '../painel/calculo.js';
 import { custosDoCadastro, completarCustos } from '../painel/custos.js';
 
@@ -70,11 +70,11 @@ export async function render(el, { id, liberado = false }) {
         <section class="cartao">
           <h2>Estrutura</h2>
           <div class="ce-tabela ce-estrutura">
-            <span class="rot">Qtd.</span><span class="rot">Item</span><span class="rot">Dimensões</span><span class="rot dir">Valor</span><span></span>
+            <span class="rot">Qtd.</span><span class="rot">Item</span><span class="rot">Dimensões</span><span class="rot dir">Valor un.</span><span class="rot dir">Total</span><span></span>
             <div class="ce-linhas" id="estrutura"></div>
           </div>
           <button type="button" class="btn texto" id="mais-estrutura">${icones.mais} Adicionar item</button>
-          <p class="sub">Valor em branco = incluso no valor do evento.</p>
+          <p class="sub">Informe o valor de cada unidade; o total da linha é quantidade × valor. Em branco = incluso no valor do evento.</p>
         </section>
 
         <section class="cartao">
@@ -113,7 +113,8 @@ export async function render(el, { id, liberado = false }) {
         <input class="entrada num dir" data-campo="qtd" inputmode="numeric" value="${x.qtd ?? ''}" aria-label="Quantidade">
         <input class="entrada" data-campo="item" value="${esc(x.item || '')}" placeholder="Ex.: Mesa" aria-label="Item">
         <input class="entrada" data-campo="dimensoes" value="${esc(x.dimensoes || '')}" placeholder="Ex.: 1,80 × 0,90 m" aria-label="Dimensões">
-        <input class="entrada dir" data-campo="valor" aria-label="Valor">
+        <input class="entrada dir" data-campo="valor" aria-label="Valor unitário">
+        <strong class="num dir ce-total-item" data-total>${x.valor == null ? '<span class="sub">incluso</span>' : dinheiro(totalItem(x))}</strong>
         <button type="button" class="btn-icone" data-remover aria-label="Remover item">${icones.lixo}</button>
       </div>`).join('') || '<p class="sub">Nenhum item. Ex.: 2 mesas 1,80 × 0,90 m, 1 tenda 3 × 3 m.</p>';
     el.querySelectorAll('#estrutura .ce-linha').forEach((linha) => {
@@ -125,6 +126,7 @@ export async function render(el, { id, liberado = false }) {
         if (campo === 'qtd') x.qtd = parseInt(e.target.value.replace(/\D/g, ''), 10) || null;
         else if (campo === 'valor') x.valor = lerCentavos(v);
         else x[campo] = e.target.value;
+        linha.querySelector('[data-total]').innerHTML = x.valor == null ? '<span class="sub">incluso</span>' : dinheiro(totalItem(x));
         atualizar();
       });
       linha.querySelector('[data-remover]').addEventListener('click', () => { c.estrutura = c.estrutura.filter((i) => i !== x); desenharEstrutura(); atualizar(); });

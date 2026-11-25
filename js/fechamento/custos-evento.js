@@ -4,7 +4,7 @@
 //   modo        'fixo' | 'pct' | 'ambos'  — como o evento cobra
 //   valorFixo   centavos (taxa de inscrição, aluguel do espaço)
 //   comissaoPct centésimos de % (10% = 1000), sobre o faturamento
-//   estrutura   [{ id, qtd, item, dimensoes, valor }] (valor null = incluso)
+//   estrutura   [{ id, qtd, item, dimensoes, valor }] (valor = UNITÁRIO; total = valor × qtd; null = incluso)
 //   equipe      [{ id, nome, diaria, dias: ['2026-12-12', ...] }]
 // Não vai para os caixas (a base leva o evento sem os custos).
 // =========================================================
@@ -24,6 +24,9 @@ export function diasDoEvento(evento) {
   return dias;
 }
 
+// Total de um item da estrutura: valor unitário × quantidade (v0.35.1)
+export const totalItem = (x) => (x.valor || 0) * (x.qtd || 1);
+
 export const custosVazios = () => ({ modo: 'fixo', valorFixo: null, comissaoPct: null, estrutura: [], equipe: [] });
 
 // Totais dos custos; a comissão precisa do faturamento (no fechamento)
@@ -33,7 +36,7 @@ export function calcularCustosEvento(custos, faturamento = 0) {
   const valorFixo = usaFixo ? (c.valorFixo || 0) : 0;
   const comissaoPct = usaPct ? (c.comissaoPct || 0) : 0;
   const comissao = Math.round((faturamento * comissaoPct) / 10000);
-  const estrutura = (c.estrutura || []).reduce((s, x) => s + (x.valor || 0), 0);
+  const estrutura = (c.estrutura || []).reduce((s, x) => s + totalItem(x), 0);
   const pessoas = (c.equipe || []).map((p) => ({ ...p, quantidadeDias: (p.dias || []).length, total: (p.diaria || 0) * (p.dias || []).length }));
   const equipe = pessoas.reduce((s, p) => s + p.total, 0);
   const diarias = pessoas.reduce((s, p) => s + p.quantidadeDias, 0);
