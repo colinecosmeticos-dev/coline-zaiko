@@ -1387,3 +1387,30 @@ button.tile-gestao:disabled { opacity: .6; }
 .faixa-assistente { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 14px; padding: 4px 4px 4px 14px; border-radius: var(--raio-p); background: var(--marca-suave); }
 .faixa-assistente a { color: var(--marca-texto); text-decoration: none; font-size: .875rem; padding: 8px 0; }
 .faixa-assistente .btn-icone { font-size: 1.25rem; line-height: 1; }
+
+/* ---------- Guia do caixa (v0.40.0) ---------- */
+.guia-caixa { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; max-width: 1000px; }
+.gc-topo { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--marca); }
+.gc-topo .logo-app { width: 96px; height: 40px; flex: none; }
+.gc-topo h2 { margin: 0; font-size: 1.375rem; }
+.gc-topo p { margin: 2px 0 0; color: var(--texto-2); font-size: .875rem; }
+.gc-bloco h3 { margin: 0 0 10px; font-size: .8125rem; letter-spacing: .06em; text-transform: uppercase; color: var(--marca-texto); }
+.gc-passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.gc-passos li { display: flex; gap: 12px; align-items: flex-start; }
+.gc-n { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--marca-forte); color: var(--sobre-marca); font-weight: 700; font-size: .875rem; }
+.gc-passos p, .gc-dicas li, .gc-problemas dd { margin: 2px 0 0; font-size: .875rem; line-height: 1.4; color: var(--texto); }
+.gc-dicas { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+.gc-problemas { grid-column: 1 / -1; }
+.gc-vender { grid-column: 2; grid-row: 2 / span 2; }
+.gc-problemas dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 20px; }
+.gc-problemas dt { font-weight: 700; font-size: .875rem; }
+.gc-problemas dd { margin: 0; }
+@media screen and (max-width: 720px) { .guia-caixa { grid-template-columns: 1fr; padding: 16px; } .gc-vender { grid-column: auto; grid-row: auto; } }
+.guia-caixa { align-content: start; } .gc-bloco { align-self: start; }
+@media print {
+  .guia-caixa { border: 0; padding: 0; max-width: none; gap: 3mm 8mm; font-size: 10pt; color: #000; background: #fff; grid-template-columns: 1fr 1fr; }
+  .gc-passos p, .gc-dicas li, .gc-problemas dd, .gc-problemas dt { font-size: 10.5pt; color: #000; }
+  .gc-problemas dl { grid-template-columns: 1fr 1fr; }
+  .gc-n { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .faixa-assistente { display: none !important; }
+}

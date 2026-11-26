@@ -20,6 +20,7 @@ const itensGestao = [
 ];
 
 const itensCaixa = [
+  ['#/guia', 'Guia do caixa', 'A rotina do dia em uma página, para consultar ou imprimir'],
   ['#/painel', 'Painel de vendas', 'Vendas e totais deste aparelho, protegido pelo PIN'],
   ['#/backup', 'Backup', 'Cópia completa deste aparelho no Drive ou em arquivo'],
   ['#/limpar', 'Apagar dados de teste', 'Antes de usar de verdade: apaga eventos e vendas de teste']

@@ -44,6 +44,7 @@ import * as precosCustos from './telas/precos-custos.js';
 import * as eventoCustos from './telas/evento-custos.js';
 import { emBreve } from './telas/em-breve.js';
 import * as assistente from './telas/assistente.js';
+import * as guia from './telas/guia.js';
 
 
 // Cada rota aponta para uma função que desenha a tela.
@@ -84,6 +85,7 @@ const rotas = [
   ['eventos/:id/estoque', estoque.render],
   ['eventos/:id/custos', eventoCustos.render],
   ['eventos/:id/fechamento', fechamento.render],
+  ['guia', guia.render],
   ['eventos/:id/preparar', (el, p) => assistente.render(el, { ...p, tipo: 'preparar' })],
   ['eventos/:id/fechar', (el, p) => assistente.render(el, { ...p, tipo: 'fechar' })],
   ['estoque', estoque.render],

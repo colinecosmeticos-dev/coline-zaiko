@@ -12,7 +12,7 @@ import { lerConfig, gravarConfig, lerAparelho } from './db.js';
 let modo = null;   // 'gestao' | 'caixa' | null (ainda não configurado)
 
 // Telas que o modo Caixa pode abrir (o resto volta para Vender)
-const TELAS_CAIXA = new Set(['inicio', 'vender', 'vendas', 'caixa', 'mais', 'pacote', 'juntar', 'backup', 'configurar', 'sincronizar', 'painel', 'limpar']);
+const TELAS_CAIXA = new Set(['inicio', 'vender', 'vendas', 'caixa', 'mais', 'pacote', 'juntar', 'backup', 'configurar', 'sincronizar', 'painel', 'limpar', 'guia']);
 
 export async function iniciarModo() {
   modo = await lerConfig('modoAparelho', null);

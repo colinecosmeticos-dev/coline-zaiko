@@ -43,6 +43,7 @@ const IC = {
   salvar: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>',
   atualizar: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>',
   lista: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
+  livro: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h7"/>',
   lixo: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'
 };
 const icone = (n) => `<span class="tg-ic" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[n]}</svg></span>`;
@@ -149,7 +150,7 @@ export async function renderGestao(el) {
   const grupos = [
     ['Evento', [['#/eventos/novo', 'mais', 'Novo evento'], [ev('preparar'), 'lista', 'Preparar evento'], [ev('fechar'), 'bandeira', 'Fechar evento'], ['#/eventos', 'calendario', 'Eventos'], [ev('estoque'), 'caixa', 'Estoque'], [ev('precos'), 'etiqueta', 'Preços do evento'], [ev('custos'), 'custos', 'Custos do evento'], [ev('fechamento'), 'grafico', 'Fechamento']]],
     ['Catálogo', [['#/produtos', 'sacola', 'Produtos'], ['#/produtos/precos', 'moeda', 'Preços e custos'], ['#/produtos/organizar', 'ajustes', 'Organizar'], ['#/produtos/codigos', 'barras', 'Folha de códigos']]],
-    ['Caixas', [['#/sincronizar', 'enviar', 'Enviar aos caixas'], ['#/sincronizar', 'receber', 'Buscar vendas'], ['#/instalar', 'tablet', 'Instalar aparelho']]],
+    ['Caixas', [['#/sincronizar', 'enviar', 'Enviar aos caixas'], ['#/sincronizar', 'receber', 'Buscar vendas'], ['#/instalar', 'tablet', 'Instalar aparelho'], ['#/guia', 'livro', 'Guia do caixa']]],
     ['Relatórios', [['#/vendas', 'recibo', 'Histórico'], ['#/painel', 'grafico', 'Painel de vendas']]],
     ['Sistema', [['#/configuracoes/formas', 'cartao', 'Formas de pagamento'], ['#/configuracoes/retiradas', 'gaveta', 'Retiradas'], ['#/configuracoes', 'cadeado', 'Configurações'], ['acao:atualizar', 'atualizar', 'Atualizar app'], ['#/backup', 'salvar', 'Backup'], ['#/limpar', 'lixo', 'Apagar testes']]]
   ];
