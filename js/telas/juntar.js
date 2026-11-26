@@ -86,7 +86,7 @@ export async function render(el) {
     try {
       const { arquivo } = await gerarArquivoVendas(evento);
       if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
-        try { await navigator.share({ files: [arquivo], title: 'Vendas Coline Zaiko' }); } catch (e) { if (e.name !== 'AbortError') baixar(arquivo); }
+        try { await navigator.share({ files: [arquivo], title: 'Vendas Zaiko' }); } catch (e) { if (e.name !== 'AbortError') baixar(arquivo); }
       } else { baixar(arquivo); aviso('Arquivo salvo na pasta Downloads.'); }
     } catch (e) { falhou(e); }
   });

@@ -1,12 +1,12 @@
 /* =========================================================
-   Coline Zaiko — estilos do app
+   Zaiko — estilos do app
    As cores ficam todas aqui no topo (os "tokens").
    Para mudar a identidade visual, mexa só nesta parte.
    ========================================================= */
 
 :root {
-  /* Marca Coline (site oficial) */
-  --marca: #FF496F;          /* rosa Coline: destaques e indicadores */
+  /* Cor de destaque (rosa; paleta própria do Zaiko fica para depois) */
+  --marca: #FF496F;          /* rosa: destaques e indicadores */
   --marca-forte: #E0245A;    /* fundo de botões (contraste melhor com texto branco) */
   --marca-texto: #D81B50;    /* rosa usado em textos e links */
   --sobre-marca: #FFFFFF;    /* texto em cima do rosa */
@@ -121,7 +121,7 @@ img { display: block; max-width: 100%; }
     padding: 16px 8px;
   }
   .nav .marca { display: flex; justify-content: center; margin: 6px 0 18px; }
-  .nav .marca .logo-app { width: 70px; height: 32px; }
+  .nav .marca .logo-app { width: 60px; height: 85px; }
   .nav a { flex: none; min-height: 68px; border-radius: var(--raio); }
   .nav a:hover { background: var(--superficie-2); }
   .nav a[aria-current="page"] { background: var(--marca-suave); }
@@ -410,7 +410,7 @@ img { display: block; max-width: 100%; }
 /* ---------- Início ---------- */
 .saudacao { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
 .saudacao { align-items: center; }
-.saudacao .logo-saudacao { flex: none; width: 104px; height: 47px; }
+.saudacao .logo-saudacao { flex: none; width: 48px; height: 48px; background-image: url(../icons/simbolo.svg) !important; }
 .grade-inicio { display: grid; gap: 16px; }
 @media (min-width: 840px) { .grade-inicio { grid-template-columns: 1fr 1fr; } .grade-inicio .cartao + .cartao { margin-top: 0; } }
 .cartao .acoes { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1241,13 +1241,28 @@ body:not(.modo-caixa) .nav a[data-rota="caixa"] { display: none; }
 @media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .iv-levado .antes { color: #F2B630; } }
 :root[data-tema="escuro"] .iv-levado .antes { color: #F2B630; }
 
-/* ---------- Logo coline zaiko (v0.30.0): no lugar do 在庫 ---------- */
-/* "coline" em Cabin com "zaiko" embaixo, em vetor (icons/logo.svg) */
-.logo-app { display: inline-block; width: 120px; height: 54px; background: url(../icons/logo.svg) center / contain no-repeat; vertical-align: middle; }
+/* ---------- Logo do Zaiko (v0.41.0) ---------- */
+/* Símbolo (z branco no quadrado rosa) + "zaiko", fonte Outfit convertida em traços.
+   icons/logo.svg (horizontal), logo-vertical.svg (menu), logo-slogan.svg ("Vendas e estoque"),
+   simbolo.svg; as versões -escuro têm o nome claro para o tema escuro. */
+.logo-app { display: inline-block; width: 168px; height: 48px; background: url(../icons/logo.svg) left center / contain no-repeat; vertical-align: middle; }
+.nav .marca .logo-app { background-image: url(../icons/logo-vertical.svg); background-position: center; }
 .vazio .simbolo { line-height: 0; }
-.vazio .simbolo .logo-app { width: 110px; height: 50px; }
+.vazio .simbolo .logo-app { width: 64px; height: 64px; background-image: url(../icons/simbolo.svg); background-position: center; }
 .simbolo-assistente { line-height: 0; }
-.simbolo-assistente .logo-app { width: 150px; height: 68px; }
+.simbolo-assistente .logo-app { width: 240px; height: 88px; background-image: url(../icons/logo-slogan.svg); background-position: center; }
+.gc-topo .logo-app { background-image: url(../icons/logo-slogan.svg); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .logo-app { background-image: url(../icons/logo-escuro.svg); }
+  :root:not([data-tema="claro"]) .nav .marca .logo-app { background-image: url(../icons/logo-vertical-escuro.svg); }
+  :root:not([data-tema="claro"]) .simbolo-assistente .logo-app { background-image: url(../icons/logo-slogan-escuro.svg); }
+  :root:not([data-tema="claro"]) .vazio .simbolo .logo-app { background-image: url(../icons/simbolo.svg); }
+}
+:root[data-tema="escuro"] .logo-app { background-image: url(../icons/logo-escuro.svg); }
+:root[data-tema="escuro"] .nav .marca .logo-app { background-image: url(../icons/logo-vertical-escuro.svg); }
+:root[data-tema="escuro"] .simbolo-assistente .logo-app { background-image: url(../icons/logo-slogan-escuro.svg); }
+:root[data-tema="escuro"] .vazio .simbolo .logo-app { background-image: url(../icons/simbolo.svg); }
+@media print { .gc-topo .logo-app { background-image: url(../icons/logo-slogan.svg) !important; } }
 
 /* ---------- Venda de outro dia (v0.31.0) ---------- */
 .nota-retro { margin: -4px 0 12px; }
@@ -1391,7 +1406,7 @@ button.tile-gestao:disabled { opacity: .6; }
 /* ---------- Guia do caixa (v0.40.0) ---------- */
 .guia-caixa { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; max-width: 1000px; }
 .gc-topo { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--marca); }
-.gc-topo .logo-app { width: 96px; height: 40px; flex: none; }
+.gc-topo .logo-app { width: 150px; height: 55px; flex: none; }
 .gc-topo h2 { margin: 0; font-size: 1.375rem; }
 .gc-topo p { margin: 2px 0 0; color: var(--texto-2); font-size: .875rem; }
 .gc-bloco h3 { margin: 0 0 10px; font-size: .8125rem; letter-spacing: .06em; text-transform: uppercase; color: var(--marca-texto); }

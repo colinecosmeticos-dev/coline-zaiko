@@ -53,7 +53,7 @@ function somarPor(registros, classe, campo) {
   return [...mapa.values()].filter((x) => x.quantidade || x.valor).sort((a, b) => b.valor - a.valor);
 }
 
-export function planilhaFechamento(evento, f, registros, produtos = []) {
+export function planilhaFechamento(evento, f, registros, produtos = [], empresa = '') {
   const g = f.geral;
   const classe = classificador(produtos);
   const periodo = `${dataBR(evento.dataInicio)}${evento.dataFim && evento.dataFim !== evento.dataInicio ? ` a ${dataBR(evento.dataFim)}` : ''}`;
@@ -136,7 +136,7 @@ export function planilhaFechamento(evento, f, registros, produtos = []) {
   const linha = () => { const l = []; resumo.push(l); return l; };
   const num = () => resumo.length;   // número (1-based) da última linha
   // Faixa do título e subtítulo
-  linha()[0] = { v: `Fechamento · ${evento.nome}`, estilo: 'faixa' }; mesclar.push(`A${num()}:I${num()}`); alturas[num()] = 34;
+  linha()[0] = { v: `${empresa ? `${empresa} · ` : ''}Fechamento · ${evento.nome}`, estilo: 'faixa' }; mesclar.push(`A${num()}:I${num()}`); alturas[num()] = 34;
   linha()[0] = { v: `${periodo}${evento.local ? ` · ${evento.local}` : ''}${aparelhosTxt ? ` · aparelhos: ${aparelhosTxt}` : ''} · gerado em ${new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, estilo: 'subtitulo' };
   mesclar.push(`A${num()}:I${num()}`); alturas[num()] = 20;
   linha(); alturas[num()] = 8;

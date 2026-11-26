@@ -12,7 +12,7 @@
 //     na Gestão (que não vende desde a v0.28.0): Evento, Base dos caixas,
 //     Catálogo e Vendas do evento (as já buscadas dos caixas).
 // =========================================================
-import { db, lerEventoAtivo, lerAparelho, lerConfig, caixaAbertoDoEvento, caixaDoDia } from '../db.js';
+import { db, lerEventoAtivo, lerAparelho, lerConfig, caixaAbertoDoEvento, caixaDoDia , lerEmpresa } from '../db.js';
 import { ehCaixa } from '../modo.js';
 import { renderGestao } from './inicio-gestao.js';
 import { situacaoBase } from '../sincronizar.js';
@@ -92,12 +92,13 @@ export async function render(el) {
   else if (caixaHoje) cartaoCaixa = { estado: 'Fechado', detalhe: `Fechado hoje${(caixaHoje.fechamentos || []).at(-1) ? ` às ${hora(caixaHoje.fechamentos.at(-1).em)}` : ''}. Para vender de novo, reabra na Gaveta.`, botoes: '<a class="btn" href="#/caixa">Ir para a Gaveta</a>' };
   else cartaoCaixa = { estado: 'Ainda não aberto', detalhe: 'Confira os avisos e abra o caixa com o troco do dia.', botoes: `<button type="button" class="btn primario btn-grande" id="abrir-caixa" ${totalProdutos ? '' : 'disabled'}>Abrir caixa</button>` };
 
+  const empresa = await lerEmpresa();
   el.innerHTML = `
     <div class="saudacao">
       <span class="logo-app logo-saudacao" aria-hidden="true"></span>
       <div>
         <h1>${aparelho ? esc(aparelho.nome) : 'Caixa'} ${aparelho ? `<span class="etiqueta">${esc(aparelho.sigla)}</span>` : ''}</h1>
-        <p class="sub">${evento ? `<strong>${esc(evento.nome)}</strong>${diaDoEvento ? ` · ${diaDoEvento}` : ''}${foraDasDatas ? ' · <span class="texto-atencao">fora das datas</span>' : ''}` : 'Nenhum evento escolhido'}</p>
+        <p class="sub">${empresa ? `${esc(empresa)} · ` : ''}${evento ? `<strong>${esc(evento.nome)}</strong>${diaDoEvento ? ` · ${diaDoEvento}` : ''}${foraDasDatas ? ' · <span class="texto-atencao">fora das datas</span>' : ''}` : 'Nenhum evento escolhido'}</p>
       </div>
     </div>
 

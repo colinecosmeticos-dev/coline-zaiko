@@ -6,7 +6,7 @@
 // (e a versão em js/versao.js). É assim que os aparelhos percebem
 // que existe versão nova e baixam os arquivos de novo.
 // =========================================================
-const CACHE = 'zaiko-0.40.0';
+const CACHE = 'zaiko-0.41.0';
 
 // Todos os arquivos que o app precisa para funcionar offline.
 // Arquivo novo no projeto = acrescentar aqui.
@@ -95,7 +95,13 @@ const ARQUIVOS = [
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
-  './icons/logo.svg'
+  './icons/logo.svg',
+  './icons/logo-escuro.svg',
+  './icons/logo-vertical.svg',
+  './icons/logo-vertical-escuro.svg',
+  './icons/logo-slogan.svg',
+  './icons/logo-slogan-escuro.svg',
+  './icons/simbolo.svg'
 ];
 
 // Instalação: baixa e guarda todos os arquivos da versão nova (sem ativar ainda)

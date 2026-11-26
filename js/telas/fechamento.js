@@ -10,7 +10,7 @@
 // =========================================================
 import { voltarDoMenu, ehCaixa } from '../modo.js';
 import { custosDoCadastro, completarCustos, completarCustosSaidas } from '../painel/custos.js';
-import { db, lerEventoAtivo, definirEventoAtivo, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
+import { db, lerEventoAtivo, definirEventoAtivo, lerEmpresa, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
 import { esc, dinheiro, icones, aviso, confirmar, periodo , percentual } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
 import { calcularFechamento } from '../fechamento/calculo.js';
@@ -27,6 +27,7 @@ let liberadoPara = null;
 
 export async function render(el, { id = null, mostrar = false } = {}) {
   const emUso = await lerEventoAtivo();
+  const empresa = await lerEmpresa();
   const evento = id ? await db.eventos.get(id) : emUso;
   if (id && !evento) { location.replace('#/eventos'); return; }
   const doEvento = !!id;
@@ -206,7 +207,7 @@ export async function render(el, { id = null, mostrar = false } = {}) {
 
     <section class="cartao" style="margin-top:16px">
       <h2>Planilhas</h2>
-      <p class="sub">Uma planilha com as abas Resumo, Itens, Estoque e Caixas.${driveConfigurado() ? ' No Drive, ela vira um Google Planilhas na pasta "Coline Zaiko" (a nova substitui a anterior deste evento).' : ''}</p>
+      <p class="sub">Uma planilha com as abas Resumo, Itens, Estoque e Caixas.${driveConfigurado() ? ' No Drive, ela vira um Google Planilhas na pasta do Zaiko (a nova substitui a anterior deste evento).' : ''}</p>
       <div class="acoes">
         ${driveConfigurado() ? `<button type="button" class="btn primario" id="planilha-drive">${icones.compartilhar} Salvar no Drive</button>` : ''}
         <button type="button" class="btn" id="planilha-baixar">${icones.baixar} Baixar no aparelho (.xlsx)</button>
@@ -226,7 +227,7 @@ export async function render(el, { id = null, mostrar = false } = {}) {
     await db.eventos.update(evento.id, { perdas: { ...(evento.perdas || {}), [tipo]: e.target.checked } });
     render(el, de({ mostrar: true }));
   }));
-  el.querySelector('#planilha-baixar').addEventListener('click', () => baixar(planilhaFechamento(evento, f, registros, produtos)));
+  el.querySelector('#planilha-baixar').addEventListener('click', () => baixar(planilhaFechamento(evento, f, registros, produtos, empresa)));
   if (driveConfigurado()) {
     const status = el.querySelector('#planilha-status');
     prepararDrive().catch((e) => { status.hidden = false; status.textContent = e.message; });
@@ -237,7 +238,7 @@ export async function render(el, { id = null, mostrar = false } = {}) {
       try {
         await pedido;
         status.hidden = false; status.textContent = 'Enviando a planilha…';
-        const link = await enviarPlanilha(planilhaFechamento(evento, f, registros, produtos), { eventoId: evento.id, titulo: `Fechamento — ${evento.nome}` });
+        const link = await enviarPlanilha(planilhaFechamento(evento, f, registros, produtos, empresa), { eventoId: evento.id, titulo: `Fechamento — ${evento.nome}` });
         status.innerHTML = `Planilha salva no Drive. <a href="${esc(link)}" target="_blank" rel="noopener">Abrir no Google Planilhas</a>`;
         aviso('Planilha salva no Drive.');
       } catch (erro) {

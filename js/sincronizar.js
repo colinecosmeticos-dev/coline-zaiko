@@ -29,6 +29,8 @@ async function impressaoDaBase() {
       .sort((a, b) => String(a.id).localeCompare(String(b.id)));
   }
   dados.pin = await lerConfig('pinHash');
+  const empresa = await lerConfig('nomeEmpresa', '');
+  if (empresa) dados.empresa = empresa;   // só quando há (não muda a impressão de quem não usa)
   dados.evento = await lerConfig('eventoAtivoId');
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(dados)));
   return [...new Uint8Array(bytes)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');

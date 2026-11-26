@@ -34,7 +34,7 @@ export async function render(el) {
 
     <section class="cartao">
       <h2>Fazer backup</h2>
-      <p class="sub">${comDrive ? 'No Drive ficam as 3 cópias mais recentes de cada aparelho, na pasta "Coline Zaiko".' : 'O arquivo vai para a pasta Downloads. Guarde-o fora do aparelho (Drive, computador).'}</p>
+      <p class="sub">${comDrive ? 'No Drive ficam as 3 cópias mais recentes de cada aparelho, na pasta do Zaiko.' : 'O arquivo vai para a pasta Downloads. Guarde-o fora do aparelho (Drive, computador).'}</p>
       <div class="acoes">
         ${comDrive ? `<button type="button" class="btn primario" id="backup-drive">${icones.compartilhar} Fazer backup no Drive</button>` : ''}
         <button type="button" class="btn ${comDrive ? '' : 'primario'}" id="backup-baixar">${icones.baixar} Baixar arquivo de backup</button>

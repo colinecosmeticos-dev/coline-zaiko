@@ -40,21 +40,22 @@ export async function gerarPacote({ base = null } = {}) {
     formasPagamento,
     categoriasRetirada,
     pin: { hash: await lerConfig('pinHash'), sal: await lerConfig('pinSal') },
+    empresa: await lerConfig('nomeEmpresa', ''),   // v0.41.0
     // Custos do evento (valores da equipe) e escolhas do fechamento ficam só na Gestão (v0.35.0)
     eventos: eventos.map(({ custos, perdas, ...e }) => e),
     base
   };
   const texto = JSON.stringify(pacote);
   const data = pacote.geradoEm.slice(0, 10);
-  const nome = `pacote-coline-zaiko-${data}.txt`;
+  const nome = `pacote-zaiko-${data}.txt`;
   return { arquivo: new File([texto], nome, { type: 'text/plain' }), resumo: resumir(pacote) };
 }
 
 // ---------- Ler e conferir um arquivo recebido ----------
 export async function lerPacote(arquivo) {
   let pacote;
-  try { pacote = JSON.parse(await arquivo.text()); } catch (e) { throw new Error('Este arquivo não é um pacote do Coline Zaiko.'); }
-  if (!pacote || pacote.tipo !== TIPO) throw new Error('Este arquivo não é um pacote do Coline Zaiko.');
+  try { pacote = JSON.parse(await arquivo.text()); } catch (e) { throw new Error('Este arquivo não é um pacote do Zaiko.'); }
+  if (!pacote || pacote.tipo !== TIPO) throw new Error('Este arquivo não é um pacote do Zaiko.');
   if (pacote.versao > VERSAO_PACOTE) throw new Error('Pacote gerado por uma versão mais nova do app. Atualize este aparelho primeiro.');
   return { pacote, resumo: resumir(pacote) };
 }
@@ -89,6 +90,7 @@ export async function importarPacote(pacote) {
       await db.config.put({ chave: 'formasPagamentoCriadas', valor: true });
     }
     await db.config.put({ chave: 'categoriasRetiradaCriadas', valor: true });
+    if (typeof pacote.empresa === 'string') await db.config.put({ chave: 'nomeEmpresa', valor: pacote.empresa });
     if (pacote.pin && pacote.pin.hash) {
       await db.config.put({ chave: 'pinHash', valor: pacote.pin.hash });
       await db.config.put({ chave: 'pinSal', valor: pacote.pin.sal });

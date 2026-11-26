@@ -6,7 +6,7 @@
 // embalagem; dá para incluir também os códigos de fábrica.
 // Imprimir abre a janela de impressão do aparelho (impressora ou PDF).
 // =========================================================
-import { listarProdutosCompletos } from '../db.js';
+import { listarProdutosCompletos, lerEmpresa } from '../db.js';
 import { esc, dinheiro, icones } from '../ui.js';
 import { ehCodigoInterno } from '../codigos.js';
 import { svgEAN13, ehEAN13 } from '../barras.js';
@@ -16,6 +16,7 @@ const lerOpcoes = () => { try { return { todos: false, preco: true, inativos: fa
 const gravarOpcoes = (o) => { try { localStorage.setItem(CHAVE, JSON.stringify(o)); } catch (e) { /* ok */ } };
 
 export async function render(el) {
+  const empresa = await lerEmpresa();
   const produtos = await listarProdutosCompletos();
   const opcoes = lerOpcoes();
 
@@ -52,7 +53,7 @@ export async function render(el) {
         <p class="sub nota-folha">Na janela de impressão, escolha a impressora ou "Salvar como PDF". Tamanho A4, sem ajustar à página (100%), para o leitor ler bem.</p>
       </div>
       ${itens.length ? `<div class="folha-codigos">
-        <div class="folha-titulo">Coline · códigos dos produtos <span>${new Date().toLocaleDateString('pt-BR')}</span></div>
+        <div class="folha-titulo">${esc(empresa || 'Zaiko')} · códigos dos produtos <span>${new Date().toLocaleDateString('pt-BR')}</span></div>
         ${ordenados.map(([cat, lista]) => `
           <section class="folha-grupo">
             <h2>${esc(cat)}</h2>

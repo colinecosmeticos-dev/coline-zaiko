@@ -13,7 +13,7 @@
 //   - Grade de ícones: Evento, Catálogo, Caixas, Relatórios, Sistema.
 // O modo Caixa continua com o Início de sempre (telas/inicio.js).
 // =========================================================
-import { db, lerEventoAtivo, definirEventoAtivo, lerAparelho, lerConfig, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
+import { db, lerEventoAtivo, definirEventoAtivo, lerEmpresa, lerAparelho, lerConfig, listarProdutosCompletos, lerLevado, lerContado } from '../db.js';
 import { esc, hojeISO, diasEntre, periodo, aviso } from '../ui.js';
 import { situacaoBase } from '../sincronizar.js';
 import { driveConfigurado, prepararDrive } from '../drive.js';
@@ -61,6 +61,7 @@ export async function renderGestao(el) {
   const drive = driveConfigurado();
   if (drive) prepararDrive().catch(() => {});
   const hoje = hojeISO();
+  const empresa = await lerEmpresa();
   // Evento encerrado sai de "em uso" na Gestão (v0.37.0; vale também para os encerrados antes)
   const emUso = await lerEventoAtivo();
   if (emUso && emUso.status === 'encerrado') await definirEventoAtivo(null);
@@ -156,7 +157,7 @@ export async function renderGestao(el) {
   ];
 
   el.innerHTML = `
-    <header class="cab"><div><h1>Início</h1></div><span class="sub">${aparelho ? `${esc(aparelho.nome)} (${esc(aparelho.sigla)}) · ` : ''}Gestão · v${esc(VERSAO)}</span></header>
+    <header class="cab"><div><h1>Início</h1>${empresa ? `<p class="sub">${esc(empresa)}</p>` : ''}</div><span class="sub">${aparelho ? `${esc(aparelho.nome)} (${esc(aparelho.sigla)}) · ` : ''}Gestão · v${esc(VERSAO)}</span></header>
     ${avisos.length ? `<section class="cartao avisos-caixa"><ul class="lista-avisos">${avisos.map((a) => `
       <li class="${a.nivel}"><span>${a.texto}</span>${a.botao ? `<a class="btn" href="${a.botao[0]}">${a.botao[1]}</a>` : ''}</li>`).join('')}</ul></section>` : ''}
     ${cartao}

@@ -1,7 +1,7 @@
 {
-  "name": "Coline Zaiko",
+  "name": "Zaiko",
   "short_name": "Zaiko",
-  "description": "PDV de eventos Coline",
+  "description": "Vendas e estoque",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -10,8 +10,8 @@
   "theme_color": "#FFFFFF",
   "lang": "pt-BR",
   "icons": [
-    { "src": "icons/icon-192.png?v=2", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png?v=2", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/icon-maskable-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icons/icon-192.png?v=3", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png?v=3", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png?v=3", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

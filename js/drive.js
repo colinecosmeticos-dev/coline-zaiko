@@ -3,7 +3,7 @@
 //
 // Permissão usada: "drive.file" — o app só enxerga os arquivos que ELE
 // MESMO criou no Drive. Não vê, não baixa e não sincroniza mais nada
-// da conta. Os arquivos ficam numa pasta "Coline Zaiko".
+// da conta. Os arquivos ficam numa pasta "Zaiko".
 //
 // O login é feito pelo próprio Google (janela do Google). O app não
 // guarda senha nenhuma; recebe só uma autorização que vale cerca de 1 hora.
@@ -16,7 +16,9 @@ export const CLIENT_ID = '561803433802-l9v9c7atmu8rfsb9o1tol48epoms2uqp.apps.goo
 const ESCOPO = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
-const NOME_PASTA = 'Coline Zaiko';
+// A pasta é achada pela marca appProperties (não pelo nome): renomear não perde nada.
+// Até a v0.40.0 era criada como "Coline Zaiko" (pode ser renomeada no Drive).
+const NOME_PASTA = 'Zaiko';
 
 let clienteToken = null;
 let token = null;

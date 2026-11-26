@@ -131,7 +131,7 @@ export async function render(el) {
       // Abre a tela de compartilhar do Android; se não der, baixa o arquivo
       if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
         try {
-          await navigator.share({ files: [arquivo], title: 'Pacote Coline Zaiko' });
+          await navigator.share({ files: [arquivo], title: 'Pacote Zaiko' });
         } catch (erro) {
           if (erro.name !== 'AbortError') baixar(arquivo);
         }

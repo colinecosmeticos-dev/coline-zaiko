@@ -62,7 +62,7 @@ function folha(aba) {
 
 // Fontes: 0 normal, 1 negrito, 2 título 14, 3 faixa (branca 18), 4 cinza 9, 5 número grande 16,
 // 6 seção (rosa 12), 7 cabeçalho (cinza 9 negrito), 8 barra (rosa), 9 cinza 10.
-// Preenchimentos: 2 rosa Coline, 3 cinza claro (cartões), 4 rosa claro (seções).
+// Preenchimentos: 2 rosa (destaque), 3 cinza claro (cartões), 4 rosa claro (seções).
 // Formatos: 164 = R$ 1.234,56 (negativo em vermelho).
 const ESTILOS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">

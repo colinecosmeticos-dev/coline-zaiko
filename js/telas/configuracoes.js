@@ -6,7 +6,7 @@ import { sonsLigados, ligarSons } from '../sons.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';
 import { aviso, confirmar, icones } from '../ui.js';
 import { definirModo, voltarDoMenu } from '../modo.js';
-import { lerAparelho, gravarAparelho, listarFormasPagamento, listarCategoriasRetirada } from '../db.js';
+import { lerAparelho, gravarAparelho, listarFormasPagamento, listarCategoriasRetirada, lerEmpresa, gravarConfig } from '../db.js';
 
 export async function render(el) {
   const tema = temaSalvo();
@@ -21,9 +21,20 @@ export async function render(el) {
     usado = (usage / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' MB';
   }
 
+  const empresa = await lerEmpresa();
   el.innerHTML = `
     ${voltarDoMenu()}
     <header class="cab"><h1>Configurações</h1></header>
+
+    <section class="cartao" id="cartao-empresa">
+      <h2>Empresa</h2>
+      <p class="sub">O nome da empresa que usa o Zaiko. Aparece no Início, no guia do caixa, na folha de códigos e na planilha do fechamento. Vai para os caixas ao enviar a base.</p>
+      <form id="form-empresa" class="grade-campos duas" style="margin-top:16px" novalidate>
+        <div class="campo"><label for="emp-nome">Nome da empresa</label>
+          <input class="entrada" id="emp-nome" maxlength="60" autocomplete="organization" placeholder="Ex.: Loja da Ana" value="${escapar(empresa)}"></div>
+        <div style="display:flex;align-items:flex-end;justify-content:flex-end"><button type="submit" class="btn primario">Salvar empresa</button></div>
+      </form>
+    </section>
 
     <section class="cartao" id="cartao-aparelho">
       <h2>Este aparelho</h2>
@@ -132,6 +143,13 @@ export async function render(el) {
     await definirModo('caixa');
     aviso('Modo Caixa.');
     location.hash = '#/vender';
+  });
+
+  el.querySelector('#form-empresa').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await gravarConfig('nomeEmpresa', el.querySelector('#emp-nome').value.trim());
+    aviso('Empresa salva. Envie aos caixas para eles receberem o nome.');
+    render(el);
   });
 
   el.querySelector('#form-aparelho').addEventListener('submit', async (e) => {

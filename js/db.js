@@ -143,6 +143,8 @@ export function novoId() {
 }
 
 // Configurações simples do aparelho (chave → valor)
+// Nome da empresa que usa o app (v0.41.0): Configurações da Gestão; vai aos caixas na base
+export const lerEmpresa = async () => (await lerConfig('nomeEmpresa', '')) || '';
 export async function lerConfig(chave, padrao = null) {
   const r = await db.config.get(chave);
   return r ? r.valor : padrao;

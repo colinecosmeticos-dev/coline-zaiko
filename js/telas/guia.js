@@ -6,17 +6,20 @@
 // =========================================================
 import { icones } from '../ui.js';
 import { voltarDoMenu } from '../modo.js';
+import { lerEmpresa } from '../db.js';
+import { esc } from '../ui.js';
 
 const passo = (n, titulo, texto) => `<li><span class="gc-n">${n}</span><div><strong>${titulo}</strong><p>${texto}</p></div></li>`;
 
-export function render(el) {
+export async function render(el) {
+  const empresa = await lerEmpresa();
   el.innerHTML = `
     <div class="nao-imprimir">${voltarDoMenu()}</div>
     <header class="cab nao-imprimir"><div><h1>Guia do caixa</h1><p class="sub">A rotina do dia em uma página. Dá para imprimir e deixar junto do tablet.</p></div>
       <button type="button" class="btn" id="imprimir">${icones.imprimir || ''} Imprimir</button></header>
 
     <article class="guia-caixa">
-      <div class="gc-topo"><span class="logo-app" aria-hidden="true"></span><div><h2>Guia do caixa</h2><p>Menu: <b>Início</b> · <b>Vender</b> · <b>Histórico</b> · <b>Gaveta</b> · <b>Sincronizar</b> · <b>Mais</b></p></div></div>
+      <div class="gc-topo"><span class="logo-app" aria-hidden="true"></span><div><h2>Guia do caixa${empresa ? ` · ${esc(empresa)}` : ''}</h2><p>Menu: <b>Início</b> · <b>Vender</b> · <b>Histórico</b> · <b>Gaveta</b> · <b>Sincronizar</b> · <b>Mais</b></p></div></div>
 
       <section class="gc-bloco">
         <h3>Ao chegar</h3>

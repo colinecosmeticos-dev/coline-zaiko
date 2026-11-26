@@ -85,7 +85,7 @@ export async function render(el) {
     catch (e) { aviso('Não foi possível copiar. Selecione o endereço embaixo do código.', { tipo: 'erro' }); }
   });
   $('#compartilhar')?.addEventListener('click', async () => {
-    try { await navigator.share({ title: 'Coline Zaiko', text: 'Abra no tablet para instalar o Zaiko', url: enderecoApp(modo) }); }
+    try { await navigator.share({ title: 'Zaiko', text: 'Abra no tablet para instalar o Zaiko', url: enderecoApp(modo) }); }
     catch (e) { /* cancelou */ }
   });
   atualizar();

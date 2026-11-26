@@ -48,10 +48,10 @@ function resumir(d) {
 // ---------- Ler ----------
 export async function lerArquivoVendas(arquivo) {
   let dados;
-  try { dados = JSON.parse(await arquivo.text()); } catch (e) { throw new Error('Este arquivo não é um arquivo de vendas do Coline Zaiko.'); }
+  try { dados = JSON.parse(await arquivo.text()); } catch (e) { throw new Error('Este arquivo não é um arquivo de vendas do Zaiko.'); }
   if (!dados || dados.tipo !== TIPO) {
     if (dados && dados.tipo === 'coline-zaiko-pacote') throw new Error('Este arquivo é um pacote de catálogo. Use Mais → Preparar outros aparelhos.');
-    throw new Error('Este arquivo não é um arquivo de vendas do Coline Zaiko.');
+    throw new Error('Este arquivo não é um arquivo de vendas do Zaiko.');
   }
   if (dados.versao > VERSAO) throw new Error('Arquivo gerado por uma versão mais nova do app. Atualize este aparelho primeiro.');
   return { dados, resumo: resumir(dados) };
