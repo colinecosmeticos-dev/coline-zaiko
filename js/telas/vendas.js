@@ -1,10 +1,11 @@
 // =========================================================
-// Tela Vendas: vendas do evento em uso, feitas neste aparelho
+// Tela Vendas: vendas do evento (Caixa: o em uso; Gestão: escolhido no topo, v0.38.0), feitas neste aparelho
 // (e, no aparelho principal, também as importadas dos outros).
 // Separadas por dia, com busca pelo número da venda.
 // Sem totais aqui: os totais ficam no Painel de vendas, com PIN.
 // =========================================================
-import { db, lerEventoAtivo } from '../db.js';
+import { db } from '../db.js';
+import { eventoDoRelatorio, seletorEvento, ligarSeletor } from '../relatorio-evento.js';
 import { esc, dinheiro, hojeISO, icones } from '../ui.js';
 import { ehCaixa } from '../modo.js';
 
@@ -28,10 +29,11 @@ function rotuloDia(dia) {
 let diaEscolhido = null;
 
 export async function render(el) {
-  const evento = await lerEventoAtivo();
+  const rel = await eventoDoRelatorio();
+  const { evento } = rel;
   if (!evento) {
     el.innerHTML = `<header class="cab"><h1>Histórico</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2>
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>${ehCaixa() ? 'Escolha o evento' : 'Nenhum evento cadastrado'}</h2>
       <p>As vendas aparecem aqui separadas por evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
     return;
   }
@@ -46,6 +48,7 @@ export async function render(el) {
     <header class="cab">
       <div><h1>Histórico</h1><p class="sub">Vendas, trocas, devoluções e cancelamentos de ${esc(evento.nome)}. ${ehCaixa() ? 'Toque numa venda para ver, trocar, devolver ou cancelar.' : 'Toque numa venda para ver os detalhes.'}</p></div>
     </header>
+    ${seletorEvento(rel)}
     ${vendas.length ? `
       <div class="filtros">
         <label class="busca"><span class="oculto">Buscar pelo número da venda</span>${icones.busca}
@@ -57,6 +60,7 @@ export async function render(el) {
     : `<div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Nenhuma venda ainda</h2>
         ${ehCaixa() ? '<p>As vendas deste evento vão aparecer aqui, com a opção de cancelar.</p><a class="btn primario" href="#/vender">Ir para Vender</a>'
           : '<p>As vendas dos caixas aparecem aqui depois de buscá-las.</p><a class="btn primario" href="#/sincronizar">Buscar vendas dos caixas</a>'}</div>`}`;
+  ligarSeletor(el, () => { diaEscolhido = null; render(el); });
   if (!vendas.length) return;
 
   const $ = (s) => el.querySelector(s);

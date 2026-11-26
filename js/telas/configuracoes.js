@@ -1,6 +1,6 @@
 // Tela Configurações: tema, armazenamento e versão
 import { temaSalvo, escolherTema } from '../tema.js';
-import { VERSAO } from '../versao.js';
+import { VERSAO_TEXTO as VERSAO } from '../versao.js';
 import { procurar } from '../atualizacao.js';
 import { sonsLigados, ligarSons } from '../sons.js';
 import { temPin, definirPin, removerPin, conferirPin, pinValido } from '../pin.js';

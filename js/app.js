@@ -43,6 +43,7 @@ import * as limpar from './telas/limpar.js';
 import * as precosCustos from './telas/precos-custos.js';
 import * as eventoCustos from './telas/evento-custos.js';
 import { emBreve } from './telas/em-breve.js';
+import * as assistente from './telas/assistente.js';
 
 
 // Cada rota aponta para uma função que desenha a tela.
@@ -83,6 +84,8 @@ const rotas = [
   ['eventos/:id/estoque', estoque.render],
   ['eventos/:id/custos', eventoCustos.render],
   ['eventos/:id/fechamento', fechamento.render],
+  ['eventos/:id/preparar', (el, p) => assistente.render(el, { ...p, tipo: 'preparar' })],
+  ['eventos/:id/fechar', (el, p) => assistente.render(el, { ...p, tipo: 'fechar' })],
   ['estoque', estoque.render],
   ['fechamento', fechamento.render],
   ['painel', painel.render],
@@ -147,6 +150,7 @@ async function navegar() {
   try {
     const limpar = await rota.render(tela, { ...rota.params, consulta: new URLSearchParams(consulta) });
     if (typeof limpar === 'function') limparTelaAnterior = limpar;
+    faixaAssistente(caminho);
     sincronizar.atualizarIndicador();
   } catch (erro) {
     console.error(erro);
@@ -154,6 +158,21 @@ async function navegar() {
       <p class="sub">${String(erro.message || erro)}</p>
       <div class="acoes"><a class="btn" href="#/inicio">Voltar ao início</a></div></div>`;
   }
+}
+
+// Faixa "Voltar ao assistente" (v0.39.0): nas telas abertas a partir de um passo
+// do Preparar/Fechar evento. Some no próprio assistente, no Início ou no X.
+function faixaAssistente(caminho) {
+  if (/^eventos\/[^/]+\/(preparar|fechar)$/.test(caminho)) return;
+  if (caminho === 'inicio') { assistente.esquecer(); return; }
+  const a = assistente.lembrado();
+  if (!a || ehCaixa()) return;
+  const faixa = document.createElement('div');
+  faixa.className = 'faixa-assistente';
+  faixa.innerHTML = `<a href="#/eventos/${encodeURIComponent(a.id)}/${a.tipo}?passo=${a.passo}"><span aria-hidden="true">‹</span> Voltar ao assistente <strong>${assistente.TITULOS[a.tipo]}</strong> · passo ${a.passo} de ${a.total}</a>
+    <button type="button" class="btn-icone" aria-label="Fechar">×</button>`;
+  faixa.querySelector('button').addEventListener('click', () => { assistente.esquecer(); faixa.remove(); });
+  tela.prepend(faixa);
 }
 
 window.addEventListener('hashchange', navegar);

@@ -18,7 +18,7 @@ import { esc, hojeISO, diasEntre, periodo, aviso } from '../ui.js';
 import { situacaoBase } from '../sincronizar.js';
 import { driveConfigurado, prepararDrive } from '../drive.js';
 import { temVersaoNova, procurar } from '../atualizacao.js';
-import { VERSAO } from '../versao.js';
+import { VERSAO_TEXTO as VERSAO } from '../versao.js';
 
 // Ícones (traço, 24×24)
 const IC = {
@@ -42,6 +42,7 @@ const IC = {
   cadeado: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   salvar: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>',
   atualizar: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>',
+  lista: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
   lixo: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'
 };
 const icone = (n) => `<span class="tg-ic" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[n]}</svg></span>`;
@@ -103,11 +104,11 @@ export async function renderGestao(el) {
       const faltam = diasEntre(hoje, evento.dataInicio) - 1;
       detalhe = faltam === 1 ? 'começa amanhã' : `faltam ${faltam} dias`;
       passos = [
-        { nome: 'Dados', feito: true, href: `#/eventos/${id}` },
-        { nome: 'Custos do evento', feito: !!evento.custos, href: `#/eventos/${id}/custos` },
-        { nome: 'Estoque levado', feito: levado.size > 0, href: `#/eventos/${id}/estoque` },
-        { nome: semCusto ? `custo de ${semCusto} ${semCusto === 1 ? 'produto' : 'produtos'}` : 'Custo dos produtos', feito: !semCusto, href: '#/produtos/precos?semcusto=1' },
-        { nome: 'Enviar aos caixas', feito: enviado || !drive, href: '#/sincronizar' }
+        { nome: 'Dados', feito: true, href: `#/eventos/${id}/preparar?passo=1` },
+        { nome: 'Custos do evento', feito: !!evento.custos, href: `#/eventos/${id}/preparar?passo=2` },
+        { nome: 'Estoque levado', feito: levado.size > 0, href: `#/eventos/${id}/preparar?passo=4` },
+        { nome: semCusto ? `custo de ${semCusto} ${semCusto === 1 ? 'produto' : 'produtos'}` : 'Custo dos produtos', feito: !semCusto, href: `#/eventos/${id}/preparar?passo=5` },
+        { nome: 'Enviar aos caixas', feito: enviado || !drive, href: `#/eventos/${id}/preparar?passo=6` }
       ];
     } else if (fase === 'durante') {
       const total = diasEntre(evento.dataInicio, evento.dataFim || evento.dataInicio);
@@ -119,10 +120,10 @@ export async function renderGestao(el) {
       titulo = 'Depois do evento';
       detalhe = 'hora de fechar';
       passos = [
-        { nome: 'Buscar vendas dos caixas', feito: buscou, href: '#/sincronizar' },
-        { nome: 'Contagem final', feito: contado.size > 0, href: `#/eventos/${id}/estoque` },
-        { nome: semCusto ? `custo de ${semCusto} ${semCusto === 1 ? 'produto' : 'produtos'}` : 'Custo dos produtos', feito: !semCusto, href: '#/produtos/precos?semcusto=1' },
-        { nome: 'Fechar e encerrar', feito: false, href: `#/eventos/${id}/fechamento` }
+        { nome: 'Buscar vendas dos caixas', feito: buscou, href: `#/eventos/${id}/fechar?passo=1` },
+        { nome: 'Contagem final', feito: contado.size > 0, href: `#/eventos/${id}/fechar?passo=2` },
+        { nome: semCusto ? `custo de ${semCusto} ${semCusto === 1 ? 'produto' : 'produtos'}` : 'Custo dos produtos', feito: !semCusto, href: `#/eventos/${id}/fechar?passo=3` },
+        { nome: 'Fechar e encerrar', feito: false, href: `#/eventos/${id}/fechar?passo=4` }
       ];
     }
     const feitos = passos.filter((p) => p.feito).length;
@@ -146,7 +147,7 @@ export async function renderGestao(el) {
   // ---------- Grade ----------
   const ev = (rota) => (evento ? `#/eventos/${id}/${rota}` : '#/eventos');
   const grupos = [
-    ['Evento', [['#/eventos/novo', 'mais', 'Novo evento'], ['#/eventos', 'calendario', 'Eventos'], [ev('estoque'), 'caixa', 'Estoque'], [ev('precos'), 'etiqueta', 'Preços do evento'], [ev('custos'), 'custos', 'Custos do evento'], [ev('fechamento'), 'bandeira', 'Fechar evento']]],
+    ['Evento', [['#/eventos/novo', 'mais', 'Novo evento'], [ev('preparar'), 'lista', 'Preparar evento'], [ev('fechar'), 'bandeira', 'Fechar evento'], ['#/eventos', 'calendario', 'Eventos'], [ev('estoque'), 'caixa', 'Estoque'], [ev('precos'), 'etiqueta', 'Preços do evento'], [ev('custos'), 'custos', 'Custos do evento'], [ev('fechamento'), 'grafico', 'Fechamento']]],
     ['Catálogo', [['#/produtos', 'sacola', 'Produtos'], ['#/produtos/precos', 'moeda', 'Preços e custos'], ['#/produtos/organizar', 'ajustes', 'Organizar'], ['#/produtos/codigos', 'barras', 'Folha de códigos']]],
     ['Caixas', [['#/sincronizar', 'enviar', 'Enviar aos caixas'], ['#/sincronizar', 'receber', 'Buscar vendas'], ['#/instalar', 'tablet', 'Instalar aparelho']]],
     ['Relatórios', [['#/vendas', 'recibo', 'Histórico'], ['#/painel', 'grafico', 'Painel de vendas']]],

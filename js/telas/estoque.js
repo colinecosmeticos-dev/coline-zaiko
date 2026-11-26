@@ -29,6 +29,9 @@ export async function render(el, params = {}) {
     location.replace(ativo ? `#/eventos/${encodeURIComponent(ativo.id)}/estoque` : '#/eventos');
     return;
   }
+  // ?aba=levado|contagem (v0.39.0: aberto pelos assistentes)
+  const pedida = params.consulta && params.consulta.get('aba');
+  if (['levado', 'saidas', 'sobra', 'contagem'].includes(pedida)) aba = pedida;
   const evento = await db.eventos.get(params.id);
   if (!evento) {
     el.innerHTML = `<a class="voltar" href="#/eventos">${icones.voltar} Eventos</a><div class="cartao vazio"><h2>Evento não encontrado</h2><a class="btn" href="#/eventos">Voltar para Eventos</a></div>`;

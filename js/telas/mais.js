@@ -6,7 +6,7 @@ import { ehCaixa, definirModo } from '../modo.js';
 import { temPin, pedirPin } from '../pin.js';
 import { escolherEvento } from '../venda/escolher-evento.js';
 import { procurar } from '../atualizacao.js';
-import { VERSAO } from '../versao.js';
+import { VERSAO_TEXTO as VERSAO } from '../versao.js';
 
 // Sincronizar, pacote, vendas por arquivo e instalar em outro aparelho ficam
 // na tela Sincronizar (menu), desde a v0.26.0.

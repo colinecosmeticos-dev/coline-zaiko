@@ -171,7 +171,8 @@ export async function render(el, { id }) {
     } else {
       aviso(editando ? 'Evento salvo.' : 'Evento criado.');
     }
-    location.hash = editando ? '#/eventos' : `#/eventos/${encodeURIComponent(registro.id)}`;
+    // Evento novo segue no assistente Preparar evento, passo 2 (v0.39.0)
+    location.hash = editando ? '#/eventos' : `#/eventos/${encodeURIComponent(registro.id)}/preparar?passo=2`;
   });
 
   if (editando) {

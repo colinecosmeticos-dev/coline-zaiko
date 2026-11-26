@@ -1353,3 +1353,37 @@ body:not(.modo-caixa) .nav a[data-rota="mais"] { display: none; }
 .eg-nome .etiqueta { vertical-align: middle; font-size: .75rem; }
 button.tile-gestao { font: inherit; font-size: .8125rem; font-weight: 500; cursor: pointer; width: 100%; }
 button.tile-gestao:disabled { opacity: .6; }
+
+/* ---------- Seletor do evento nos relatórios (v0.38.0) ---------- */
+.seletor-evento { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; max-width: 560px; }
+.seletor-evento span { font-size: .875rem; font-weight: 600; color: var(--texto-2); }
+.seletor-evento select { flex: 1; min-width: 0; }
+
+/* ---------- Assistentes Preparar / Fechar evento (v0.39.0) ---------- */
+.as-passos { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.as-passo { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 14px 6px 6px; border: 1px solid var(--linha); border-radius: 999px; background: var(--superficie); color: var(--texto); text-decoration: none; font-size: .875rem; font-weight: 500; }
+.as-passo:hover { border-color: var(--marca); color: var(--texto); }
+.as-num { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--superficie-2); font-weight: 700; font-size: .8125rem; }
+.as-passo.feito .as-num { background: var(--ok); color: #fff; }
+.as-passo.falta .as-num { background: var(--marca-suave); color: var(--marca-texto); }
+.as-passo[aria-current="step"] { border-color: var(--marca-forte); box-shadow: 0 0 0 2px var(--marca-forte) inset; }
+.as-painel h2 { margin: 4px 0 8px; font-size: 1.375rem; }
+.as-painel > .sub { max-width: 70ch; }
+.as-resumo { display: flex; gap: 8px; align-items: baseline; margin: 0 0 8px; font-weight: 600; }
+.as-resumo.feito span { color: var(--ok); }
+.as-resumo.falta span { color: var(--marca-texto); }
+.as-resumo.opcional span { color: var(--texto-2); }
+.as-painel #as-conteudo:not(:empty) { margin-top: 14px; }
+.as-revisao { margin-bottom: 12px; }
+.lista-avisos li.ok { border-left-color: var(--ok); }
+.as-navegar { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.quadro-caixas { border-collapse: collapse; width: 100%; font-size: .875rem; margin-bottom: 8px; }
+.quadro-caixas th, .quadro-caixas td { padding: 10px 12px; border-bottom: 1px solid var(--linha); text-align: center; white-space: nowrap; }
+.quadro-caixas thead th { font-size: .75rem; color: var(--texto-2); font-weight: 600; text-transform: capitalize; }
+.quadro-caixas tbody th { text-align: left; font-weight: 600; }
+.quadro-caixas .q-ok { color: var(--ok); font-weight: 600; }
+.quadro-caixas .q-aberto { color: var(--marca-texto); font-weight: 600; background: var(--marca-suave); }
+.quadro-caixas .q-nao { color: var(--texto-2); }
+.faixa-assistente { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 14px; padding: 4px 4px 4px 14px; border-radius: var(--raio-p); background: var(--marca-suave); }
+.faixa-assistente a { color: var(--marca-texto); text-decoration: none; font-size: .875rem; padding: 8px 0; }
+.faixa-assistente .btn-icone { font-size: 1.25rem; line-height: 1; }

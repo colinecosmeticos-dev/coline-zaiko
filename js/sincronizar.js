@@ -53,8 +53,9 @@ export async function publicarBase() {
 }
 
 // Gestão: busca no Drive as vendas que os caixas enviaram para o evento em uso
-export async function buscarVendasDosCaixas() {
-  const evento = await lerEventoAtivo();
+export async function buscarVendasDosCaixas(eventoEscolhido = null) {
+  // v0.39.0: o assistente Fechar evento pode buscar de um evento que não está em uso
+  const evento = eventoEscolhido || await lerEventoAtivo();
   if (!evento) throw new Error('Escolha o evento em uso antes de buscar as vendas.');
   const aqui = await lerAparelho();
   const arquivos = (await listarVendasNoDrive(evento.id)).filter((a) => !aqui || a.sigla !== aqui.sigla);

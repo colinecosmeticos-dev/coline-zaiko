@@ -5,7 +5,9 @@
 // aberta; ao sair (ou em "Ocultar"), volta a ficar trancado.
 // =========================================================
 import { voltarDoMenu } from '../modo.js';
-import { db, lerAparelho, lerEventoAtivo, listarProdutosCompletos } from '../db.js';
+import { db, lerAparelho, listarProdutosCompletos } from '../db.js';
+import { eventoDoRelatorio, seletorEvento, ligarSeletor } from '../relatorio-evento.js';
+import { ehCaixa } from '../modo.js';
 import { custosDoCadastro, completarCustos } from '../painel/custos.js';
 import { esc, dinheiro, icones, hojeISO } from '../ui.js';
 import { pedirPin, temPin } from '../pin.js';
@@ -17,11 +19,12 @@ const qtd = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1 ? um : va
 
 export async function render(el, { mostrar = false, periodo = null } = {}) {
   const aparelho = await lerAparelho();
-  const evento = await lerEventoAtivo();
+  const rel = await eventoDoRelatorio();
+  const { evento } = rel;
   const cabecalho = `${voltarDoMenu()}`;
   if (!evento) {
     el.innerHTML = `${cabecalho}<header class="cab"><h1>Painel de vendas</h1></header>
-      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>Escolha o evento</h2><p>O painel mostra as vendas do evento em uso.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
+      <div class="cartao vazio"><div class="simbolo" aria-hidden="true"><span class="logo-app"></span></div><h2>${ehCaixa() ? 'Escolha o evento' : 'Nenhum evento cadastrado'}</h2><p>O painel mostra as vendas de um evento.</p><a class="btn primario" href="#/eventos">Ir para Eventos</a></div>`;
     return;
   }
 
@@ -29,7 +32,7 @@ export async function render(el, { mostrar = false, periodo = null } = {}) {
   if (comPin && !mostrar) {
     el.innerHTML = `${cabecalho}<header class="cab"><div><h1>Painel de vendas</h1><p class="sub">${esc(evento.nome)}</p></div></header>
       <div class="cartao vazio"><div class="simbolo" aria-hidden="true">${icones.cadeado}</div><h2>Protegido pelo PIN</h2>
-      <p>Vendas e totais deste aparelho. Ao sair da tela, o painel volta a ficar trancado.</p>
+      <p>${ehCaixa() ? 'Vendas e totais deste aparelho.' : 'Vendas e totais de todos os caixas.'} Ao sair da tela, o painel volta a ficar trancado.</p>
       <button type="button" class="btn primario" id="abrir">Ver painel</button></div>`;
     el.querySelector('#abrir').addEventListener('click', async () => {
       if (await pedirPin({ titulo: 'Painel de vendas', texto: 'Digite o PIN.' })) render(el, { mostrar: true });
@@ -37,17 +40,19 @@ export async function render(el, { mostrar = false, periodo = null } = {}) {
     return;
   }
 
-  // Só as vendas deste aparelho
+  // Caixa: só as vendas deste aparelho. Gestão (não vende desde a v0.28.0): as de todos os caixas (v0.38.0)
+  const gestao = !ehCaixa();
   const gravados = (await db.vendas.where('eventoId').equals(evento.id).toArray())
-    .filter((v) => !aparelho || !v.aparelho || v.aparelho.id === aparelho.id);
+    .filter((v) => gestao || !aparelho || !v.aparelho || v.aparelho.id === aparelho.id);
   // Itens vendidos sem custo usam o custo atual do cadastro (v0.32.0)
   const { registros: todos } = completarCustos(gravados, custosDoCadastro(await listarProdutosCompletos()));
   const dias = [...new Set(todos.map((v) => diaLocal(v.criadoEm)))].sort().reverse();
   const hoje = hojeISO();
-  if (!periodo) periodo = dias.includes(hoje) || !dias.length ? hoje : dias[0];
+  // Gestão: abre no evento inteiro (é para conferir o evento); Caixa: hoje
+  if (!periodo) periodo = gestao && dias.length > 1 ? 'evento' : dias.includes(hoje) || !dias.length ? hoje : dias[0];
   const registros = periodo === 'evento' ? todos : todos.filter((v) => diaLocal(v.criadoEm) === periodo);
   const p = calcularPainel(registros);
-  const opcoes = [...new Set([hoje, ...dias])];
+  const opcoes = gestao ? [...dias].reverse() : [...new Set([hoje, ...dias])];
 
   const barraForma = (f) => {
     const max = Math.max(...p.porForma.map((x) => x.valor), 1);
@@ -62,9 +67,10 @@ export async function render(el, { mostrar = false, periodo = null } = {}) {
   el.innerHTML = `
     ${cabecalho}
     <header class="cab">
-      <div><h1>Painel de vendas</h1><p class="sub">${esc(evento.nome)}${aparelho ? ` · só deste aparelho (${esc(aparelho.nome)})` : ''}</p></div>
+      <div><h1>Painel de vendas</h1><p class="sub">${esc(evento.nome)}${gestao ? ' · todos os caixas' : aparelho ? ` · só deste aparelho (${esc(aparelho.nome)})` : ''}</p></div>
       ${comPin ? `<button type="button" class="btn" id="ocultar">${icones.cadeado} Ocultar</button>` : ''}
     </header>
+    ${seletorEvento(rel)}
     <div class="chips painel-periodo" role="group" aria-label="Período">
       ${opcoes.map((d) => `<button type="button" class="chip" data-periodo="${d}" aria-pressed="${periodo === d}">${esc(rotuloDia(d))}</button>`).join('')}
       ${dias.length > 1 ? `<button type="button" class="chip" data-periodo="evento" aria-pressed="${periodo === 'evento'}">Evento inteiro</button>` : ''}
@@ -125,5 +131,6 @@ export async function render(el, { mostrar = false, periodo = null } = {}) {
     </div>` : '<div class="cartao vazio"><p>Nenhuma venda neste período.</p></div>'}`;
 
   el.querySelector('#ocultar')?.addEventListener('click', () => render(el));
+  ligarSeletor(el, () => render(el, { mostrar: true }));
   el.querySelectorAll('[data-periodo]').forEach((b) => b.addEventListener('click', () => render(el, { mostrar: true, periodo: b.dataset.periodo })));
 }
