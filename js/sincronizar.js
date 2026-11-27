@@ -43,13 +43,56 @@ export async function situacaoBase() {
   return { publicada, alterada };
 }
 
-export async function publicarBase() {
+// ---------- Mais de uma Gestão (v0.42.0) ----------
+// A base no Drive foi publicada por OUTRO aparelho (ex.: o tablet entrou na Gestão e
+// publicou)? Então ela pode ter alterações que este aparelho não tem.
+async function baseDeOutro(info) {
+  if (!info) return null;
+  const minha = await lerConfig('basePublicada', null);
+  if (minha && minha.arquivoId) return info.id === minha.arquivoId ? null : info;
+  // Registro antigo (sem o id do arquivo): outro aparelho = outra sigla
+  const aqui = await lerAparelho();
+  return info.sigla && aqui && info.sigla !== aqui.sigla ? info : null;
+}
+
+// Traz para a Gestão a base mais recente do Drive (publicada por outro aparelho).
+// Catálogo, preços, formas de pagamento, PIN, empresa e eventos passam a ser os da base;
+// custos dos eventos, estoque, vendas e caixas deste aparelho ficam.
+export async function receberBaseDoDrive(info = null) {
+  info = info || await ultimoPacote();
+  if (!info) throw new Error('Ainda não há base no Drive.');
+  const { pacote } = await lerPacote(await baixarArquivo(info));
+  await importarPacote(pacote);
+  const base = pacote.base || {};
+  const evento = base.eventoId ? await db.eventos.get(base.eventoId) : null;
+  if (evento && evento.status !== 'encerrado') await definirEventoAtivo(evento.id);
   const anterior = await lerConfig('basePublicada', null);
+  const versaoDrive = base.versao || info.base || 0;
+  const registro = {
+    versao: versaoDrive, maior: Math.max(versaoDrive, anterior ? (anterior.maior || anterior.versao || 0) : 0), em: base.publicadoEm || pacote.geradoEm, eventoId: base.eventoId || null,
+    eventoNome: evento ? evento.nome : '', impressao: await impressaoDaBase(), arquivoId: info.id, recebidaDe: info.aparelho || ''
+  };
+  await gravarConfig('basePublicada', registro);
+  return registro;
+}
+
+// forcar: publicar mesmo com a base do Drive vinda de outro aparelho (substitui as alterações dele)
+export async function publicarBase({ forcar = false } = {}) {
+  const anterior = await lerConfig('basePublicada', null);
+  const noDrive = await ultimoPacote();
+  const outro = await baseDeOutro(noDrive);
+  if (outro && !forcar) {
+    const erro = new Error('A base do Drive foi publicada por outro aparelho.');
+    erro.codigo = 'BASE_DE_OUTRO'; erro.info = outro;
+    throw erro;
+  }
   const evento = await lerEventoAtivo();
-  const base = { versao: (anterior ? anterior.versao : 0) + 1, publicadoEm: new Date().toISOString(), eventoId: evento ? evento.id : null };
+  // Numeração única: segue a maior entre a deste aparelho e a do Drive (antes cada aparelho contava a sua)
+  const versao = Math.max(anterior ? (anterior.maior || anterior.versao || 0) : 0, (noDrive && noDrive.base) || 0) + 1;
+  const base = { versao, publicadoEm: new Date().toISOString(), eventoId: evento ? evento.id : null };
   const { arquivo, resumo } = await gerarPacote({ base });
-  await enviarPacote(arquivo, await lerAparelho(), { base: base.versao });
-  const registro = { versao: base.versao, em: base.publicadoEm, eventoId: base.eventoId, eventoNome: evento ? evento.nome : '', impressao: await impressaoDaBase() };
+  const { id } = await enviarPacote(arquivo, await lerAparelho(), { base: base.versao });
+  const registro = { versao: base.versao, em: base.publicadoEm, eventoId: base.eventoId, eventoNome: evento ? evento.nome : '', impressao: await impressaoDaBase(), arquivoId: id };
   await gravarConfig('basePublicada', registro);
   return { ...registro, resumo };
 }

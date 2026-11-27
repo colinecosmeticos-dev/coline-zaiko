@@ -11,10 +11,11 @@
 //   Gestão: alterações na base ainda não publicadas (evento novo, preços...).
 // =========================================================
 import { lerConfig, lerEventoAtivo } from '../db.js';
-import { esc, aviso, abrirJanela, icones } from '../ui.js';
+import { esc, aviso, abrirJanela, icones, confirmar } from '../ui.js';
 import { driveConfigurado, prepararDrive, autorizar } from '../drive.js';
 import { ehCaixa } from '../modo.js';
-import { pendencias, sincronizarCaixa, situacaoBase, publicarBase, buscarVendasDosCaixas, precisaSincronizar } from '../sincronizar.js';
+import { pendencias, sincronizarCaixa, situacaoBase, publicarBase, buscarVendasDosCaixas, precisaSincronizar, receberBaseDoDrive } from '../sincronizar.js';
+import { ultimoPacote } from '../drive.js';
 
 const quando = (iso) => {
   if (!iso) return '';
@@ -190,6 +191,11 @@ async function telaGestao(el) {
       </ul>
       <button type="button" class="btn ${alterada ? 'primario' : ''} btn-sinc" id="publicar">${icones.compartilhar} Publicar base</button>
       <p class="sub" id="status-base" hidden></p>
+      ${publicada && publicada.recebidaDe ? `<p class="sub">Esta base veio de ${esc(publicada.recebidaDe)} (recebida do Drive).</p>` : ''}
+      <div class="sinc-receber">
+        <p class="sub"><strong>Editou a base em outro aparelho?</strong> (ex.: o tablet entrou na Gestão e publicou) Traga para cá antes de mexer de novo: catálogo, preços, formas de pagamento e eventos passam a ser os do Drive. Custos dos eventos, estoque e vendas deste aparelho ficam.</p>
+        <button type="button" class="btn" id="receber-base">${icones.baixar} Receber a base do Drive</button>
+      </div>
     </section>
 
     <section class="cartao" style="margin-top:16px">
@@ -211,8 +217,39 @@ async function telaGestao(el) {
     const status = $('#status-base'); status.hidden = false; status.textContent = 'Publicando…';
     try {
       await pedido;
-      const r = await publicarBase();
+      let r;
+      try { r = await publicarBase(); } catch (erro) {
+        if (erro.codigo !== 'BASE_DE_OUTRO') throw erro;
+        if (!(await confirmarBaseDeOutro(erro.info))) { status.hidden = true; botao.disabled = false; return; }
+        r = await publicarBase({ forcar: true });
+      }
       aviso(`Base nº ${r.versao} publicada.`);
+      telaGestao(el);
+      atualizarIndicador();
+    } catch (erro) {
+      console.error(erro);
+      status.textContent = mensagemErro(erro, false);
+      botao.disabled = false;
+    }
+  });
+  $('#receber-base').addEventListener('click', async (e) => {
+    const botao = e.currentTarget;
+    const pedido = autorizar();
+    botao.disabled = true;
+    const status = $('#status-base'); status.hidden = false; status.textContent = 'Procurando a base no Drive…';
+    try {
+      await pedido;
+      const info = await ultimoPacote();
+      if (!info) { status.textContent = 'Ainda não há base no Drive.'; botao.disabled = false; return; }
+      const ok = await confirmar({
+        titulo: 'Receber a base do Drive?',
+        texto: `Base nº ${info.base || '—'}, publicada${info.aparelho ? ` por ${info.aparelho}` : ''} em ${quando(info.criadoEm)}. Catálogo, preços, formas de pagamento, PIN e eventos deste aparelho passam a ser os dela.${alterada ? ' Atenção: as alterações deste aparelho que não foram publicadas serão perdidas.' : ''} Custos dos eventos, estoque e vendas daqui ficam.`,
+        botao: 'Receber a base'
+      });
+      if (!ok) { status.hidden = true; botao.disabled = false; return; }
+      status.textContent = 'Recebendo…';
+      const r = await receberBaseDoDrive(info);
+      aviso(`Base nº ${r.versao} recebida${r.recebidaDe ? ` de ${r.recebidaDe}` : ''}.`);
       telaGestao(el);
       atualizarIndicador();
     } catch (erro) {
@@ -237,5 +274,14 @@ async function telaGestao(el) {
       console.error(erro);
       status.textContent = mensagemErro(erro, false);
     } finally { botao.disabled = false; }
+  });
+}
+
+// Publicar por cima de uma base que outro aparelho publicou (v0.42.0): pergunta antes
+export async function confirmarBaseDeOutro(info) {
+  return confirmar({
+    titulo: 'A base do Drive veio de outro aparelho',
+    texto: `A base nº ${info.base || '—'} foi publicada${info.aparelho ? ` por ${info.aparelho}` : ''} em ${new Date(info.criadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} e pode ter alterações que este aparelho não tem. Publicar daqui substitui essas alterações. O recomendado é cancelar e tocar em "Receber a base do Drive" (tela Sincronizar) antes.`,
+    botao: 'Publicar mesmo assim', perigo: true
   });
 }

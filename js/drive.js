@@ -104,7 +104,7 @@ export async function enviarPacote(arquivo, aparelho, { base = null } = {}) {
 
   const antigos = (await pacotesNoDrive()).filter((f) => f.id !== novo.id);
   await Promise.all(antigos.map((f) => chamar(`${API}/files/${f.id}`, { method: 'DELETE' }).catch(() => null)));
-  return antigos.length;
+  return { apagados: antigos.length, id: novo.id };   // v0.42.0: devolve também o id do arquivo novo
 }
 
 // ---------- Receber ----------
@@ -113,7 +113,7 @@ export async function ultimoPacote() {
   await autorizar();
   const [f] = await pacotesNoDrive();
   if (!f) return null;
-  return { id: f.id, nome: f.name, criadoEm: f.createdTime, aparelho: f.appProperties?.nomeAparelho || f.appProperties?.aparelho || '', base: Number(f.appProperties?.base) || null };
+  return { id: f.id, nome: f.name, criadoEm: f.createdTime, aparelho: f.appProperties?.nomeAparelho || f.appProperties?.aparelho || '', sigla: f.appProperties?.aparelho || '', base: Number(f.appProperties?.base) || null };
 }
 // ---------- Vendas de cada aparelho ----------
 // Um arquivo por aparelho e por evento: cada envio substitui o anterior daquele aparelho.

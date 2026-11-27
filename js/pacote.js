@@ -82,7 +82,12 @@ export async function importarPacote(pacote) {
     // (antes eram somadas, e cada aparelho tinha criado as suas: ficavam repetidas)
     await db.categoriasRetirada.clear();
     await db.categoriasRetirada.bulkPut(pacote.categoriasRetirada);
-    await db.eventos.bulkPut(pacote.eventos);
+    // Custos e escolhas do fechamento não vêm na base: os deste aparelho ficam (v0.42.0)
+    const locais = new Map((await db.eventos.toArray()).map((e) => [e.id, e]));
+    await db.eventos.bulkPut(pacote.eventos.map((e) => {
+      const l = locais.get(e.id);
+      return l ? { ...e, ...(l.custos ? { custos: l.custos } : {}), ...(l.perdas ? { perdas: l.perdas } : {}) } : e;
+    }));
     // Formas de pagamento: as do pacote substituem as deste aparelho
     if (pacote.formasPagamento) {
       await db.formasPagamento.clear();

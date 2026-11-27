@@ -14,6 +14,7 @@ import { db, lerEventoAtivo, definirEventoAtivo, listarProdutosCompletos, lerLev
 import { esc, aviso, confirmar, icones, periodo, hojeISO } from '../ui.js';
 import { custosVazios, diasDoEvento, calcularCustosEvento } from '../fechamento/custos-evento.js';
 import { situacaoBase, publicarBase, buscarVendasDosCaixas } from '../sincronizar.js';
+import { confirmarBaseDeOutro } from './sincronizar.js';
 import { driveConfigurado, prepararDrive, autorizar } from '../drive.js';
 import { aparelhosDoEvento } from '../vendas-arquivo.js';
 
@@ -165,7 +166,12 @@ function revisao(el, evento, s, passos, base) {
     botao.disabled = true; status.hidden = false; status.textContent = 'Enviando…';
     try {
       await pedido;
-      const r = await publicarBase();
+      let r;
+      try { r = await publicarBase(); } catch (erro) {
+        if (erro.codigo !== 'BASE_DE_OUTRO') throw erro;
+        if (!(await confirmarBaseDeOutro(erro.info))) { status.hidden = true; botao.disabled = false; return; }
+        r = await publicarBase({ forcar: true });
+      }
       aviso(`Enviado aos caixas (base nº ${r.versao}).`);
       location.hash = `${base}?passo=${passos.length}&t=${Date.now()}`;
     } catch (erro) {

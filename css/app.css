@@ -1429,3 +1429,6 @@ button.tile-gestao:disabled { opacity: .6; }
   .gc-n { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .faixa-assistente { display: none !important; }
 }
+
+/* ---------- Receber a base do Drive (v0.42.0) ---------- */
+.sinc-receber { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linha); display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
